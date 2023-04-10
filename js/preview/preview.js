@@ -340,7 +340,7 @@ export class Preview {
 
 		this.raycaster = new THREE.Raycaster();
 		this.mouse = new THREE.Vector2();
-		addEventListeners(this.canvas, 'mousedown touchstart', 	event => { this.click(event)}, { passive: false })
+		addEventListeners(this.canvas, 'pointerdown',			event => { this.click(event)}, { passive: false })
 		addEventListeners(this.canvas, 'mousemove touchmove', 	event => {
 			if (!this.static_rclick) return;
 			convertTouchEvent(event);
@@ -830,7 +830,7 @@ export class Preview {
 	}
 	//Controls
 	click(event) {
-		event.preventDefault();
+		//event.preventDefault();
 		$(':focus').blur();
 		if (open_menu) open_menu.hide();
 		unselectInterface(event);

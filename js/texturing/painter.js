@@ -119,8 +119,8 @@ export const Painter = {
 		Painter.startPaintTool(texture, x, y, data.element.faces[data.face].uv, e, data)
 
 		if (Toolbox.selected.id !== 'color_picker') {
-			addEventListeners(document, 'mousemove touchmove', Painter.movePaintToolCanvas, false );
-			addEventListeners(document, 'mouseup touchend', Painter.stopPaintToolCanvas, false );
+			addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+			addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 		}
 	},
 	movePaintToolCanvas(event, data) {
@@ -168,8 +168,8 @@ export const Painter = {
 		}
 	},
 	stopPaintToolCanvas() {
-		removeEventListeners(document, 'mousemove touchmove', Painter.movePaintToolCanvas, false );
-		removeEventListeners(document, 'mouseup touchend', Painter.stopPaintToolCanvas, false );
+		removeEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+		removeEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 		Painter.stopPaintTool();
 	},
 	getMeshUVIsland(fkey, face) {
@@ -454,22 +454,32 @@ export const Painter = {
 				}
 			}
 		}
+		let pressure;
+		let angle;
 		if (event.touches && event.touches[0] && event.touches[0].touchType == 'stylus' && event.touches[0].force !== undefined) {
 			// Stylus
 			var touch = event.touches[0];
+			pressure = touch.force;
+			angle = touch.altitudeAngle;
 
-			if (settings.brush_opacity_modifier.value == 'pressure' && touch.force !== undefined) {
-				b_opacity = Math.clamp(b_opacity * Math.clamp(touch.force*1.25, 0, 1), 0, 100);
+		} else if (event.pressure >= 0 && event.pressure <= 1 && event.pressure !== 0.5) {
+			pressure = event.pressure;
+			angle = event.altitudeAngle;
+		}
 
-			} else if (settings.brush_opacity_modifier.value == 'tilt' && touch.altitudeAngle !== undefined) {
-				var modifier = Math.clamp(0.5 / (touch.altitudeAngle + 0.3), 0, 1);
+		if (pressure !== undefined) {
+			if (settings.brush_opacity_modifier.value == 'pressure' && pressure !== undefined) {
+				b_opacity = Math.clamp(b_opacity * Math.clamp(pressure*1.25, 0, 1), 0, 100);
+
+			} else if (settings.brush_opacity_modifier.value == 'tilt' && angle !== undefined) {
+				var modifier = Math.clamp(0.5 / (angle + 0.3), 0, 1);
 				b_opacity = Math.clamp(b_opacity * modifier, 0, 100);
 			}
-			if (settings.brush_size_modifier.value == 'pressure' && touch.force !== undefined) {
-				size = Math.clamp(touch.force * size * 2, 1, 20);
+			if (settings.brush_size_modifier.value == 'pressure' && pressure !== undefined) {
+				size = Math.clamp(pressure * size * 2, 1, 20);
 
-			} else if (settings.brush_size_modifier.value == 'tilt' && touch.altitudeAngle !== undefined) {
-				size *= Math.clamp(1.5 / (touch.altitudeAngle + 0.3), 1, 4);
+			} else if (settings.brush_size_modifier.value == 'tilt' && angle !== undefined) {
+				size *= Math.clamp(1.5 / (angle + 0.3), 1, 4);
 			}
 		}
 

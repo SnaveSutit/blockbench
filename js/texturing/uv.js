@@ -132,15 +132,19 @@ export const UVEditor = {
 				if (event.offsetY >= event.target.clientHeight) return;
 			}
 			Painter.startPaintTool(texture, coords.x, coords.y, undefined, event);
-			addEventListeners(UVEditor.vue.$refs.viewport, 'mousemove touchmove', UVEditor.movePaintTool, false );
-			addEventListeners(document, 'mouseup touchend', UVEditor.stopBrush, false );
+			addEventListeners(UVEditor.vue.$refs.viewport, 'pointermove', UVEditor.movePaintTool, false );
+			addEventListeners(document, 'pointerup', UVEditor.stopBrush, false );
 		}
 	},
 	movePaintTool(event) {
+		if (event.pointerType === 'pen' && event.pressure === 0) {
+			UVEditor.stopBrush(event);
+			return;
+		}
 		var texture = UVEditor.getTexture()
 		if (!texture) {
 			Blockbench.showQuickMessage('message.untextured')
-		} else if (event.which === 1 || Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) || (event.touches && event.touches.length == 1)) {
+		} else if (event.which <= 1 || event.pointerType === 'pen' || Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) || (event.touches && event.touches.length == 1)) {
 			var new_face;
 			var {x, y} = UVEditor.getBrushCoordinates(event, texture);
 			if (texture.img.naturalWidth + texture.img.naturalHeight == 0) return;
@@ -155,6 +159,8 @@ export const UVEditor = {
 				x = Painter.current.x + (delta[0] / distance) * rounded_distance;
 				y = Painter.current.y + (delta[1] / distance) * rounded_distance;
 			}
+			UVEditor.vue.mouse_coords.x = x;
+			UVEditor.vue.mouse_coords.y = y;
 			if (Painter.current.face !== UVEditor.getSelectedFaces(null)[0]) {
 				Painter.current.x = x
 				Painter.current.y = y
@@ -170,8 +176,8 @@ export const UVEditor = {
 		}
 	},
 	stopBrush(event) {
-		removeEventListeners( UVEditor.vue.$refs.viewport, 'mousemove touchmove', UVEditor.movePaintTool, false );
-		removeEventListeners( document, 'mouseup touchend', UVEditor.stopBrush, false );
+		removeEventListeners( UVEditor.vue.$refs.viewport, 'pointermove', UVEditor.movePaintTool, false );
+		removeEventListeners( document, 'pointerup', UVEditor.stopBrush, false );
 		if (Toolbox.selected.id !== 'selection_tool') {
 			Painter.stopPaintTool()
 		} else {
@@ -2377,6 +2383,7 @@ Interface.definePanels(function() {
 				texture: 0,
 				layer: null,
 				mouse_coords: {x: -1, y: -1, active: false, line_preview: false},
+				is_touch: Blockbench.isTouch,
 				last_brush_position: [0, 0],
 				copy_brush_source: null,
 				helper_lines: {x: -1, y: -1},
@@ -2746,19 +2753,28 @@ Interface.definePanels(function() {
 							UVEditor.updateUVNavigator();
 						}
 						function dragMouseWheelStop(e) {
-							removeEventListeners(document, 'mousemove touchmove', dragMouseWheel);
-							removeEventListeners(document, 'mouseup touchend', dragMouseWheelStop);
+							removeEventListeners(document, 'pointermove', dragMouseWheel);
+							removeEventListeners(document, 'pointerup', dragMouseWheelStop);
 							if (e.which == 3 && Math.pow(viewport.scrollLeft - original[0], 2) + Math.pow(viewport.scrollTop - original[1], 2) > 50) {
 								preventContextMenu();
 							}
 						}
-						addEventListeners(document, 'mousemove touchmove', dragMouseWheel);
-						addEventListeners(document, 'mouseup touchend', dragMouseWheelStop);
+						addEventListeners(document, 'pointermove', dragMouseWheel);
+						addEventListeners(document, 'pointerup', dragMouseWheelStop);
 						event.preventDefault();
 						$(getFocusedTextInput()).trigger('blur');
 						return false;
 
-					} else if (this.mode == 'paint' && Toolbox.selected.paintTool && (event.which === 1 || Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) || (event.touches && event.touches.length == 1))) {
+					} else if (
+						this.mode == 'paint' &&
+						Toolbox.selected.paintTool &&
+						(
+							event.which === 1 ||
+							event.pointerType === 'pen' ||
+							Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) ||
+							(event.touches && event.touches.length == 1)
+						)
+					) {
 						let is_scrollbar_click = event.target.id == 'uv_viewport' && (event.offsetX > event.target.clientWidth || event.offsetY > event.target.heightWidth);
 						if (!is_scrollbar_click) {
 							// Paint
@@ -2767,7 +2783,7 @@ Interface.definePanels(function() {
 						event.preventDefault();
 						return false;
 
-					} else if (this.mode == 'uv' && event.target.id == 'uv_frame' && (event.which === 1 || (event.touches && event.touches.length == 1))) {
+					} else if (this.mode == 'uv' && event.target.id == 'uv_frame' && (event.which === 1 || event.pointerType === 'pen' || (event.touches && event.touches.length == 1))) {
 
 						if (event.altKey || Pressing.overrides.alt) {
 							return this.dragFace(null, null, event);
@@ -2874,8 +2890,8 @@ Interface.definePanels(function() {
 							updateSelection();
 						}
 						function stop(e2) {
-							removeEventListeners(document, 'mousemove touchmove', drag);
-							removeEventListeners(document, 'mouseup touchend', stop);
+							removeEventListeners(document, 'pointermove', drag);
+							removeEventListeners(document, 'pointerup', stop);
 
 							if (Math.pow(event.clientX - e2.clientX, 2) + Math.pow(event.clientY - e2.clientY, 2) < 10) {
 								for (let element of UVEditor.getMappableElements()) {
@@ -2887,8 +2903,8 @@ Interface.definePanels(function() {
 								selection_rect.active = false;
 							}, 1)
 						}
-						addEventListeners(document, 'mousemove touchmove', drag, false);
-						addEventListeners(document, 'mouseup touchend', stop, false);
+						addEventListeners(document, 'pointermove', drag, false);
+						addEventListeners(document, 'pointerup', stop, false);
 					}
 				},
 				onMouseEnter(event) {
@@ -4366,8 +4382,7 @@ Interface.definePanels(function() {
 
 					<div id="uv_viewport"
 						@contextmenu="contextMenu($event)"
-						@mousedown="onMouseDown($event)"
-						@touchstart="onMouseDown($event)"
+						@pointerdown="onMouseDown($event)"
 						@wheel="onMouseWheel($event)"
 						@scroll="onScroll($event)"
 						@mousemove="updateMouseCoords($event)"
