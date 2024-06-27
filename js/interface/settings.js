@@ -465,10 +465,6 @@ const Settings = {
 		}});
 		new Setting('stretch_linked',		{category: 'edit', value: true});
 		new Setting('auto_keyframe',		{category: 'edit', value: true});
-		new Setting('bedrock_uv_rotations',	{category: 'edit', value: false, name: 'Bedrock UV Rotations (Experimental)', description: 'Enable the experimental bedrock UV rotations feature.', onChange(value) {
-			Formats.bedrock.uv_rotation = value;
-			Formats.bedrock_block.uv_rotation = value;
-		}});
 		
 		//Grid
 		new Setting('grids',				{category: 'grid', value: true, onChange() {Canvas.buildGrid()}});
@@ -733,7 +729,7 @@ function updateStreamerModeNotification() {
 			color: 'var(--color-stream)',
 			text_color: 'var(--color-light)',
 			text: [
-				{type: 'h1', text: tl('interface.streamer_mode_on'), click() {
+				{type: 'h2', text: tl('interface.streamer_mode_on'), click() {
 					Settings.openDialog({search_term: tl('settings.streamer_mode')})
 				}}
 			]
