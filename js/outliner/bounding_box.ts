@@ -1,5 +1,60 @@
+import { settings, Settings } from "../interface/settings";
+import { flipNameOnAxis } from "../modeling/transform";
+import { fastWorldPosition } from "../util/three_custom";
+import { Vue } from './../../lib/libs';
+
+type AxisNumber = 0|1|2;
+interface BoundingBoxOptions {
+	name?: string
+	from?: ArrayVector3
+	to?: ArrayVector3
+	size?: ArrayVector3
+	visibility?: boolean
+	color?: number
+}
+
 export class BoundingBox extends OutlinerElement {
-	constructor(data, uuid) {
+	declare mesh: THREE.LineSegments
+	declare preview_controller: NodePreviewController
+	old_size?: ArrayVector3
+	oldCenter?: ArrayVector3
+
+	public title = tl('data.bounding_box');
+	public type = 'bounding_box';
+	public icon = 'activity_zone';
+	public menu = new Menu([
+		...Outliner.control_menu_group,
+		new MenuSeparator('settings'),
+		{name: 'menu.cube.color', icon: 'color_lens', children() {
+			return markerColors.map((color, i) => {return {
+				icon: 'bubble_chart',
+				color: color.standard,
+				name: color.name || 'cube.color.'+color.id,
+				click(element) {
+					element.forSelected(function(obj){
+						obj.setColor(i)
+					}, 'change color')
+				}
+			}});
+		}},
+		"randomize_marker_colors",
+		new MenuSeparator('manage'),
+		'rename',
+		'toggle_visibility',
+		'delete'
+	]);
+	public buttons = [
+		Outliner.buttons.export,
+		Outliner.buttons.locked,
+		Outliner.buttons.visibility,
+	];
+
+	visibility: boolean
+	color: number
+	private _static: {properties: any}
+
+
+	constructor(data?: BoundingBoxOptions, uuid?: string) {
 		super(data, uuid)
 		let size = Settings.get('default_cube_size');
 		this.color = Math.floor(Math.random()*markerColors.length)
@@ -15,7 +70,7 @@ export class BoundingBox extends OutlinerElement {
 			}
 		})
 
-		if (data && typeof data === 'object') {
+		if (data) {
 			this.extend(data)
 		}
 	}
@@ -29,7 +84,7 @@ export class BoundingBox extends OutlinerElement {
 	get origin() {
 		return [0, 0, 0];
 	}
-	extend(object) {
+	extend(object: BoundingBoxOptions) {
 		for (let key in BoundingBox.properties) {
 			BoundingBox.properties[key].merge(this, object)
 		}
@@ -55,10 +110,12 @@ export class BoundingBox extends OutlinerElement {
 		}
 		return this;
 	}
-	size(axis, floored) {
+	size(): ArrayVector3
+	size(axis: AxisNumber, floored?: boolean): number
+	size(axis?: AxisNumber, floored: boolean = false) {
 		let scope = this;
 		let epsilon = 0.0000001;
-		function getA(axis) {
+		function getA(axis: AxisNumber) {
 			if (floored == true) {
 				return Math.floor(scope.to[axis] - scope.from[axis] + epsilon);
 
@@ -82,11 +139,8 @@ export class BoundingBox extends OutlinerElement {
 	getMesh() {
 		return this.mesh;
 	}
-	get mesh() {
-		return Project.nodes_3d[this.uuid];
-	}
 	getUndoCopy(aspects = 0) {
-		let copy = {};
+		let copy: any = {};
 
 		for (let key in BoundingBox.properties) {
 			BoundingBox.properties[key].copy(this, copy);
@@ -102,8 +156,8 @@ export class BoundingBox extends OutlinerElement {
 		copy.type = this.type;
 		return copy;
 	}
-	getSaveCopy(project) {
-		let el = {}
+	getSaveCopy() {
+		let el: any = {};
 		
 		for (let key in BoundingBox.properties) {
 			BoundingBox.properties[key].copy(this, el)
@@ -119,12 +173,8 @@ export class BoundingBox extends OutlinerElement {
 		el.uuid = this.uuid;
 		return el;
 	}
-	roll(axis, steps, origin) {
-		if (!origin) {origin = this.origin}
-		function rotateCoord(array) {
-			if (origin === undefined) {
-				origin = [8, 8, 8]
-			}
+	roll(axis: AxisNumber, steps: number, origin: ArrayVector3 = [8, 8, 8]) {
+		function rotateCoord(array: ArrayVector3) {
 			let a, b;
 			array.forEach(function(s, i) {
 				if (i == axis) {
@@ -153,19 +203,13 @@ export class BoundingBox extends OutlinerElement {
 			}
 			this.from.V3_set(rotateCoord(this.from))
 			this.to.V3_set(rotateCoord(this.to))
-			if (origin != this.origin) {
-				this.origin.V3_set(rotateCoord(this.origin))
-			}
 		}
 		this.preview_controller.updateTransform(this);
 		this.preview_controller.updateGeometry(this);
 		return this;
 	}
-	flip(axis, center) {
+	flip(axis: AxisNumber, center: number) {
 		let scope = this;
-
-		this.rotation[(axis+1)%3] *= -1
-		this.rotation[(axis+2)%3] *= -1
 
 		let from = this.from[axis]
 		this.from[axis] = center - (this.to[axis] - center)
@@ -191,7 +235,7 @@ export class BoundingBox extends OutlinerElement {
 		if (m) {
 			let r = m.getWorldQuaternion(Reusable.quat1)
 			pos.applyQuaternion(r)
-			pos.add(THREE.fastWorldPosition(m, Reusable.vec2))
+			pos.add(fastWorldPosition(m, Reusable.vec2))
 		}
 		return pos;
 	}
@@ -208,10 +252,10 @@ export class BoundingBox extends OutlinerElement {
 		];
 		return vertices;
 	}
-	setColor(index) {
+	setColor(index: number) {
 		this.color = index;
 		if (this.visibility) {
-			this.preview_controller.updateGeometry();
+			this.preview_controller.updateGeometry(this);
 		}
 		return this;
 	}
@@ -244,7 +288,7 @@ export class BoundingBox extends OutlinerElement {
 		TickUpdates.selection = true;
 		return in_box;
 	}
-	resize(val, axis, negative, allow_negative, bidirectional) {
+	resize(val: number | ((offset: number) => number), axis: AxisNumber, negative?: boolean, allow_negative?: boolean, bidirectional?: boolean) {
 		let before = this.old_size != undefined ? this.old_size : this.size(axis);
 		if (before instanceof Array) before = before[axis];
 		let is_inverted = before < 0;
@@ -302,35 +346,6 @@ export class BoundingBox extends OutlinerElement {
 		unique_name: false
 	}
 }
-	BoundingBox.prototype.title = tl('data.bounding_box');
-	BoundingBox.prototype.type = 'bounding_box';
-	BoundingBox.prototype.icon = 'activity_zone';
-	BoundingBox.prototype.menu = new Menu([
-		...Outliner.control_menu_group,
-		new MenuSeparator('settings'),
-		{name: 'menu.cube.color', icon: 'color_lens', children() {
-			return markerColors.map((color, i) => {return {
-				icon: 'bubble_chart',
-				color: color.standard,
-				name: color.name || 'cube.color.'+color.id,
-				click(cube) {
-					cube.forSelected(function(obj){
-						obj.setColor(i)
-					}, 'change color')
-				}
-			}});
-		}},
-		"randomize_marker_colors",
-		new MenuSeparator('manage'),
-		'rename',
-		'toggle_visibility',
-		'delete'
-	]);
-	BoundingBox.prototype.buttons = [
-		Outliner.buttons.export,
-		Outliner.buttons.locked,
-		Outliner.buttons.visibility,
-	];
 
 new Property(BoundingBox, 'string', 'name', {default: 'bounding_box'});
 new Property(BoundingBox, 'boolean', 'locked');
@@ -340,17 +355,21 @@ OutlinerElement.registerType(BoundingBox, 'bounding_box');
 const line_material = new THREE.LineBasicMaterial({color: 0xffbd2e});
 
 new NodePreviewController(BoundingBox, {
-	setup(element) {
+	setup(element: BoundingBox) {
 		let mesh = new THREE.LineSegments(
 			new THREE.BufferGeometry(),
 			new THREE.LineBasicMaterial({color: 0xffbd2e})
 		)
 		Project.nodes_3d[element.uuid] = mesh;
 		mesh.name = element.uuid;
+		// @ts-ignore
 		mesh.type = 'bounding_box';
+		// @ts-ignore
 		mesh.isElement = true;
+		// @ts-ignore
 		mesh.no_export = true;
 		mesh.visible = element.visibility;
+		mesh.renderOrder = 100;
 
 		// Update
 		this.updateTransform(element);
@@ -358,7 +377,7 @@ new NodePreviewController(BoundingBox, {
 
 		this.dispatchEvent('setup', {element});
 	},
-	updateTransform(element) {
+	updateTransform(element: BoundingBox) {
 		let mesh = element.mesh;
 		NodePreviewController.prototype.updateTransform.call(this, element);
 		if (mesh.parent !== Project.model_3d) {
@@ -367,8 +386,8 @@ new NodePreviewController(BoundingBox, {
 
 		this.dispatchEvent('update_transform', {element});
 	},
-	updateGeometry(element) {
-		let mesh = element.mesh;
+	updateGeometry(element: BoundingBox) {
+		let mesh = element.mesh as THREE.LineSegments;
 		let from = element.from.slice()
 		let to = element.to.slice()
 
@@ -408,8 +427,7 @@ new NodePreviewController(BoundingBox, {
 })
 
 BARS.defineActions(function() {
-	new Action({
-		id: 'add_bounding_box',
+	new Action('add_bounding_box', {
 		icon: 'activity_zone',
 		category: 'edit',
 		keybind: new Keybind({key: 'n', ctrl: true}),
@@ -426,7 +444,7 @@ BARS.defineActions(function() {
 
 			if (Format.bone_rig) {
 				let pos1 = group ? group.origin.slice() : [0, 0, 0];
-				let size = Settings.get('default_cube_size');
+				let size = Settings.get('default_cube_size') as number;
 				if (size % 2 == 0) {
 					base_bounding_box.extend({
 						from:[ pos1[0] - size/2, pos1[1] - 0,    pos1[2] - size/2 ],
