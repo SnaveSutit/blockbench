@@ -3,7 +3,7 @@
  * modified for Blockbench by jannisx11
  */
 
-import { getPivotObjects, getRotationObjects } from "./transform";
+import { getPivotObjects, getRotationObjects } from "../transform";
 
  ( function () {
 
