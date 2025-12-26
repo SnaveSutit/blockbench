@@ -2809,7 +2809,7 @@ Interface.definePanels(function() {
 							event.which === 1 ||
 							event.pointerType === 'pen' ||
 							event.pointerType === 'touch' ||
-							Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) ||
+							Keybinds.extra.paint_secondary_color.keybind.isTriggered(event)
 						)
 					) {
 						let is_scrollbar_click = event.target.id == 'uv_viewport' && (event.offsetX > event.target.clientWidth || event.offsetY > event.target.heightWidth);

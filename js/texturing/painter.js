@@ -320,6 +320,7 @@ export const Painter = {
 		delete Painter.current.textures;
 		delete Painter.current.uv_rects;
 		delete Painter.current.uv_islands;
+		delete Painter.current.dynamic_brush_size;
 		Painter.painting = false;
 		Painter.currentPixel = [-1, -1];
 	},
@@ -482,6 +483,7 @@ export const Painter = {
 			} else if (settings.brush_size_modifier.value == 'tilt' && angle !== undefined) {
 				size *= Math.clamp(1.5 / (angle + 0.3), 1, 4);
 			}
+			Painter.current.dynamic_brush_size = size;
 		}
 
 		if (tool.brush.draw) {
@@ -2370,7 +2372,7 @@ BARS.defineActions(function() {
 			pixel_perfect: true,
 			floor_coordinates: () => BarItems.slider_brush_softness.get() == 0,
 			get interval() {
-				let size = BarItems.slider_brush_size.get();
+				let size = Painter.current.dynamic_brush_size ?? BarItems.slider_brush_size.get();
 				if (size > 40) {
 					return size / 12;
 				} else {
@@ -2637,7 +2639,8 @@ BARS.defineActions(function() {
 			offset_even_radius: true,
 			floor_coordinates: () => BarItems.slider_brush_softness.get() == 0,
 			get interval() {
-				return 1 + BarItems.slider_brush_size.get() * BarItems.slider_brush_softness.get() / 1500;
+				let size = Painter.current.dynamic_brush_size ?? BarItems.slider_brush_size.get();
+				return 1 + size * BarItems.slider_brush_softness.get() / 1500;
 			},
 			changePixel(px, py, pxcolor, local_opacity, {opacity, ctx, x, y, size, softness, texture, event}) {
 				if (Painter.lock_alpha) return pxcolor;
