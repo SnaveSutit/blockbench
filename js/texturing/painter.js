@@ -432,7 +432,8 @@ export const Painter = {
 		var color = tinycolor(ColorPanel.get(Keybinds.extra.paint_secondary_color.keybind.isTriggered(event))).toRgb();
 		var size = BarItems.slider_brush_size.get();
 		let softness = BarItems.slider_brush_softness.get()/100;
-		let b_opacity = BarItems.slider_brush_opacity.get()/255;
+		let max_opacity = BarItems.slider_brush_opacity.get()/255;
+		let b_opacity = max_opacity;
 		let tool = Toolbox.selected;
 		let matrix_id = Painter.current.element
 					  ? (Painter.current.element.uuid + Painter.current.face)
@@ -495,7 +496,7 @@ export const Painter = {
 						return pxcolor;
 					}
 				}
-				return tool.brush.changePixel(px, py, pxcolor, local_opacity, {color, opacity: b_opacity, ctx, x, y, size, softness, texture, event});
+				return tool.brush.changePixel(px, py, pxcolor, local_opacity, {color, opacity: b_opacity, max_opacity, ctx, x, y, size, softness, texture, event});
 			}
 			let shape = BarItems.brush_shape.value;
 			if (shape == 'square') {
@@ -2411,7 +2412,7 @@ BARS.defineActions(function() {
 
 							let target = Math.lerp(before, opacity??1, local_opacity);
 							if (target > before) Painter.setAlphaMatrix(texture, px, py, target);
-							a = target;
+							a = Math.max(target, before);
 						}
 					}
 					let result_color;
