@@ -463,7 +463,7 @@ export const Painter = {
 			pressure = touch.force;
 			angle = touch.altitudeAngle;
 
-		} else if (event.pressure >= 0 && event.pressure <= 1 && event.pressure !== 0.5) {
+		} else if (event.pressure >= 0 && event.pressure <= 1 && (event.pressure < 1 || event.pointerType != 'touch') && event.pressure !== 0.5) {
 			pressure = event.pressure;
 			angle = event.altitudeAngle;
 		}

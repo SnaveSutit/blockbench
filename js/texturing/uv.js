@@ -2382,7 +2382,7 @@ Interface.definePanels(function() {
 				texture: 0,
 				layer: null,
 				mouse_coords: {x: -1, y: -1, active: false, line_preview: false},
-				is_touch: Blockbench.isTouch,
+				touches_count: 0,
 				last_brush_position: [0, 0],
 				copy_brush_source: null,
 				helper_lines: {x: -1, y: -1},
@@ -2694,19 +2694,17 @@ Interface.definePanels(function() {
 						return false;
 					}
 				},
-				onMouseDown(event) {
+				onTouchStart(event) {
 					setActivePanel('uv');
+					this.touches_count = event.touches?.length;
 					let scope = this;
 					let second_touch;
 					let original_zoom = this.zoom;
-					let original_margin = scope.getFrameMargin();
-					let offset = $(scope.$refs.viewport).offset();
+					let original_margin = this.getFrameMargin();
+					let offset = $(this.$refs.viewport).offset();
 					UVEditor.total_zoom_offset = [6, 6];
-					if (event.which === 2 ||
-						(Keybinds.extra.preview_drag.keybind.isTriggered(event) && !event.which == 1) ||
-						(event.touches && !Toolbox.selected.paintTool && event.target.id == 'uv_frame')
-					) {
-						// Drag
+					if (event.touches && !Toolbox.selected.paintTool && event.target.id == 'uv_frame') {
+						// Drag (touch only)
 						if (event.touches) {
 							event.clientX = event.touches[0].clientX;
 							event.clientY = event.touches[0].clientY;
@@ -2718,7 +2716,7 @@ Interface.definePanels(function() {
 							viewport.scrollLeft - 5,
 							viewport.scrollTop - 5
 						];
-						function dragMouseWheel(e2) {
+						function touchPan(e2) {
 							if (e2.touches) {
 								e2.clientX = e2.touches[0].clientX;
 								e2.clientY = e2.touches[0].clientY;
@@ -2751,6 +2749,46 @@ Interface.definePanels(function() {
 														&& (viewport.scrollTop == margin[1] || viewport.scrollTop == margin_center[1]);
 							UVEditor.updateUVNavigator();
 						}
+						function touchPanStop(e) {
+							document.removeEventListener('touchmove', touchPan);
+							document.removeEventListener('touchend', touchPanStop);
+							if (e.which == 3 && Math.pow(viewport.scrollLeft - original[0], 2) + Math.pow(viewport.scrollTop - original[1], 2) > 50) {
+								preventContextMenu();
+							}
+						}
+						document.addEventListener('touchmove', touchPan);
+						document.addEventListener('touchend', touchPanStop);
+						event.preventDefault();
+						$(getFocusedTextInput()).trigger('blur');
+						return false;
+					}
+				},
+				onTouchEnd(event) {
+					this.touches_count = event.touches.length;
+				},
+				onPointerDown(event) {
+					if (this.touches_count) return;
+					setActivePanel('uv');
+					UVEditor.total_zoom_offset = [6, 6];
+					if (event.which === 2 ||
+						(Keybinds.extra.preview_drag.keybind.isTriggered(event) && !event.which == 1)
+					) {
+						// Drag (Mouse and pen only)
+						let {viewport} = this.$refs;
+						let margin = this.getFrameMargin();
+						let margin_center = [this.width/2, this.height/2];
+						let original = [
+							viewport.scrollLeft - 5,
+							viewport.scrollTop - 5
+						];
+						function dragMouseWheel(e2) {
+							viewport.scrollLeft = Math.snapToValues(original[0] + event.clientX - e2.clientX + UVEditor.total_zoom_offset[0], [margin[0], margin_center[0]], 10);
+							viewport.scrollTop = Math.snapToValues(original[1] + event.clientY - e2.clientY + UVEditor.total_zoom_offset[1], [margin[1], margin_center[1]], 10);
+
+							UVEditor.vue.centered_view = (viewport.scrollLeft == margin[0] || viewport.scrollLeft == margin_center[0])
+														&& (viewport.scrollTop == margin[1] || viewport.scrollTop == margin_center[1]);
+							UVEditor.updateUVNavigator();
+						}
 						function dragMouseWheelStop(e) {
 							removeEventListeners(document, 'pointermove', dragMouseWheel);
 							removeEventListeners(document, 'pointerup', dragMouseWheelStop);
@@ -2770,8 +2808,8 @@ Interface.definePanels(function() {
 						(
 							event.which === 1 ||
 							event.pointerType === 'pen' ||
+							event.pointerType === 'touch' ||
 							Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) ||
-							(event.touches && event.touches.length == 1)
 						)
 					) {
 						let is_scrollbar_click = event.target.id == 'uv_viewport' && (event.offsetX > event.target.clientWidth || event.offsetY > event.target.heightWidth);
@@ -2782,7 +2820,14 @@ Interface.definePanels(function() {
 						event.preventDefault();
 						return false;
 
-					} else if (this.mode == 'uv' && event.target.id == 'uv_frame' && (event.which === 1 || event.pointerType === 'pen' || (event.touches && event.touches.length == 1))) {
+					} else if (
+						this.mode == 'uv' &&
+						event.target.id == 'uv_frame' &&
+						(
+							(event.which === 1 && event.pointerType !== 'touch') ||
+							event.pointerType === 'pen'
+						)
+					) {
 
 						if (event.altKey || Pressing.overrides.alt) {
 							return this.dragFace(null, null, event);
@@ -2807,6 +2852,10 @@ Interface.definePanels(function() {
 						}
 
 						function drag(e1) {
+							if (scope.touches_count == 2) {
+								stop(e1);
+								return;
+							}
 							selection_rect.active = true;
 							let rect = getRectangle(
 								event.offsetX / scope.inner_width * scope.uv_resolution[0],
@@ -4381,7 +4430,9 @@ Interface.definePanels(function() {
 
 					<div id="uv_viewport"
 						@contextmenu="contextMenu($event)"
-						@pointerdown="onMouseDown($event)"
+						@pointerdown="onPointerDown($event)"
+						@touchstart="onTouchStart($event)"
+						@touchend="onTouchEnd($event)"
 						@wheel="onMouseWheel($event)"
 						@scroll="onScroll($event)"
 						@mousemove="updateMouseCoords($event)"
