@@ -138,7 +138,6 @@ export const UVEditor = {
 	},
 	movePaintTool(event) {
 		if (event.pointerType === 'pen' && event.pressure === 0) {
-			UVEditor.stopBrush(event);
 			return;
 		}
 		var texture = UVEditor.getTexture()
