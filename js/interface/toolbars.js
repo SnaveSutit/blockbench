@@ -786,6 +786,7 @@ export const BARS = {
 				'invert_face',
 				'_',
 				'mirror_modeling',
+				'mirror_animating',
 			]
 		})
 
