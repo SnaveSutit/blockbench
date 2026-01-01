@@ -523,7 +523,7 @@ declare global {
 		get(): number
 	}
 	interface BarSelectOptions<T> extends WidgetOptions {
-		value?: T
+		value?: string
 		options: Record<string, T>
 	}
 	class BarSelect<T> extends Widget {
@@ -534,7 +534,7 @@ declare global {
 		getNameFor(key: string): string
 		set(key: string): this
 		get(): string
-		value: T
+		value: string
 	}
 	class BarText extends Widget {
 		constructor(
