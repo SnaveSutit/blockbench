@@ -317,7 +317,7 @@ export class PreviewModel {
 		return this;
 	}
 	delete() {
-		delete PreviewModel.models[id];
+		delete PreviewModel.models[this.id];
 	}
 
 	static buildModel() {
