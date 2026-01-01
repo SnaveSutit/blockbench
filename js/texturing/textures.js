@@ -3078,7 +3078,7 @@ Interface.definePanels(function() {
 						<div class="tool_wrapper"></div>
 						<div id="texture_animation_timeline" ref="timeline" @mousedown="slideTimelinePointer" @wheel="scrollTimeline($event)">
 							<div class="texture_animation_frame" v-for="i in maxFrameCount()"></div>
-							<div id="animated_texture_playhead" :style="{left: getPlayheadPos() + 'px'}"></div>
+							<div id="animated_texture_playhead" v-if="maxFrameCount()" :style="{left: getPlayheadPos() + 'px'}"></div>
 						</div>
 						<div class="tool_wrapper_2"></div>
 					</div>

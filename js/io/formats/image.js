@@ -237,7 +237,7 @@ let codec = new Codec('image', {
 codec.parse = null;
 
 Codecs.project.on('parsed', () => {
-	if (Texture.all[0] && !Texture.selected) {
+	if (Format.id == 'image' && Texture.all[0] && !Texture.selected) {
 		Texture.all[0].select();
 		UVEditor.vue.centerView();
 	}

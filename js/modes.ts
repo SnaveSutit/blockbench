@@ -137,7 +137,6 @@ export class Mode extends KeybindItem {
 		updateInterface();
 		updateSelection();
 		Blockbench.dispatchEvent('select_mode', {mode: this})
-		setTimeout(updateInterfacePanels, 1);
 	}
 	/**Unselects the mode */
 	unselect() {
