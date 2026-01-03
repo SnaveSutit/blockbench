@@ -2014,6 +2014,8 @@
 		opacity: 0.32;
 		top: 4px;
 		left: 49px;
+		padding-left: 8px;
+		padding-top: 6px;
 	}
 
 /* Quit */
@@ -2339,6 +2341,11 @@
 	}
 	dialog .slider_input_combo {
 		clear: both;
+	}
+	.form_label_compact {
+		display: block;
+		margin-bottom: -3px;
+		font-size: 0.94em;
 	}
 	.bar.button_bar_checkbox {
 		position: absolute;
