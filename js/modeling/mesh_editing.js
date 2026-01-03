@@ -3,6 +3,7 @@ import { ProportionalEdit } from './mesh/proportional_edit';
 import './mesh/set_vertex_weights'
 import './mesh/loop_cut'
 import { sameMeshEdge } from './mesh/util';
+import { PointerTarget } from '../interface/pointer_target';
 
 export class KnifeToolContext {
 	/**
@@ -1791,9 +1792,9 @@ BARS.defineActions(function() {
 			if (!data || !data.type) return;
 			if (data.event instanceof TouchEvent) {
 				// Stop controls on mobile
-				Transformer.dragging = true;
+				PointerTarget.requestTarget(PointerTarget.types.gizmo_transform);
 				function onTouchEnd() {
-					Transformer.dragging = false;
+					PointerTarget.endTarget();
 					document.removeEventListener('touchend', onTouchEnd);
 				}
 				document.addEventListener('touchend', onTouchEnd);

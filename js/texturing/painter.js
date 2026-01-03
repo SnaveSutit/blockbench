@@ -1,3 +1,4 @@
+import { PointerTarget } from "../interface/pointer_target";
 import { clipboard, nativeImage } from "../native_apis";
 import { Dynamic2DMap } from "../util/dynamic_2d_map";
 
@@ -188,6 +189,10 @@ export const Painter = {
 			Painter.paint_stroke_canceled = true;
 			return;
 		}
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) {
+			Painter.paint_stroke_canceled = true;
+			return;
+		}
 		if (Toolbox.selected.brush && Toolbox.selected.brush.onStrokeStart) {
 			let result = Toolbox.selected.brush.onStrokeStart({texture, x, y, uv: uvTag, event, raycast_data: data});
 			if (result == false) {
@@ -209,7 +214,6 @@ export const Painter = {
 		}
 		Undo.initEdit(undo_aspects);
 		Painter.brushChanges = false;
-		Painter.painting = true;
 		
 		if (Toolbox.selected.id === 'draw_shape_tool' || Toolbox.selected.id === 'gradient_tool') {
 			Painter.current = {
@@ -258,6 +262,7 @@ export const Painter = {
 	movePaintTool(texture, x, y, event, new_face, uv) {
 		// Called directly from movePaintToolCanvas and moveBrushUV
 		if (Painter.paint_stroke_canceled) return;
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) return;
 		
 		if (Toolbox.selected.brush && Toolbox.selected.brush.onStrokeMove) {
 			let result = Toolbox.selected.brush.onStrokeMove({texture, x, y, uv, event, raycast_data: data});
@@ -321,7 +326,7 @@ export const Painter = {
 		delete Painter.current.uv_rects;
 		delete Painter.current.uv_islands;
 		delete Painter.current.dynamic_brush_size;
-		Painter.painting = false;
+		PointerTarget.endTarget();
 		Painter.currentPixel = [-1, -1];
 	},
 	// Tools

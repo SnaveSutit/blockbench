@@ -651,7 +651,7 @@ export class NumSlider extends Widget {
 			this.interval = data.getInterval;
 		}
 		if (this.keybind) {
-			this.keybind.shift = null;
+			//this.keybind.shift = null;
 			this.keybind.label = this.keybind.getText();
 		}
 		this.addSubKeybind('increase',

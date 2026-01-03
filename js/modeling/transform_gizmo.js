@@ -3,6 +3,7 @@
  * modified for Blockbench by jannisx11
  */
 
+import { PointerTarget } from "../interface/pointer_target";
 import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveElementsInSpace } from "./transform";
 
  ( function () {
@@ -283,6 +284,9 @@ import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveEle
 				} );
 
 			};
+		}
+		get dragging() {
+			return PointerTarget.active == PointerTarget.types.gizmo_transform;
 		}
 	};
 
@@ -1544,7 +1548,7 @@ import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveEle
 						scope.was_clicked = true;
 						if ( scope.axis == "C1" || scope.axis == "C2" || scope.axis == "J" ) {
 							// Spline Gizmos cannot and should not trigger draggin states.
-							scope.dragging = false;
+							PointerTarget.endTarget();
 							
 							SplineGizmos.selectSplinePoints(scope);
 							SplineGizmos.hideOtherGizmos(_gizmo, _mode);
@@ -1559,7 +1563,7 @@ import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveEle
 							_dragging = false;
 							return;
 						}
-						scope.dragging = true
+						PointerTarget.requestTarget(PointerTarget.types.gizmo_transform);
 						document.addEventListener( "touchend", onPointerUp, {passive: true} );
 						document.addEventListener( "touchcancel", onPointerUp, {passive: true} );
 						document.addEventListener( "touchleave", onPointerUp, {passive: true} );
@@ -2130,7 +2134,7 @@ import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveEle
 			function onPointerUp( event, keep_changes = true ) {
 				//event.preventDefault(); // Prevent MouseEvent on mobile
 				document.removeEventListener( "mouseup", onPointerUp );
-				scope.dragging = false
+				PointerTarget.endTarget();
 				scope.was_clicked = false;
 
 				document.removeEventListener( "mousemove", onPointerMove );
