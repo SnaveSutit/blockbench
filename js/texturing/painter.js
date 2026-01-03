@@ -208,6 +208,7 @@ export const Painter = {
 			undo_aspects.textures = [texture];
 		}
 		Undo.initEdit(undo_aspects);
+		Painter.current.start_event = event;
 		Painter.brushChanges = false;
 		Painter.painting = true;
 		
@@ -430,7 +431,8 @@ export const Painter = {
 	},
 	useBrush(texture, ctx, x, y, event) {
 
-		var color = tinycolor(ColorPanel.get(Keybinds.extra.paint_secondary_color.keybind.isTriggered(event))).toRgb();
+		let use_2nd_color = Keybinds.extra.paint_secondary_color.keybind.isTriggered(Painter.current.start_event ?? event);
+		var color = tinycolor(ColorPanel.get(use_2nd_color)).toRgb();
 		var size = BarItems.slider_brush_size.get();
 		let softness = BarItems.slider_brush_softness.get()/100;
 		let max_opacity = BarItems.slider_brush_opacity.get()/255;
