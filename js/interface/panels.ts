@@ -988,7 +988,7 @@ export class Panel extends EventSystem {
 					this.container.style.height = this.height + 'px';
 					this.container.classList.add('fixed_height');
 				} else {
-					this.container.style.height = this.growable ? '0' : null;
+					this.container.style.height = null;
 				}
 			}
 			if (!this.fixed_height) this.container.classList.remove('fixed_height');
