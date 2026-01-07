@@ -11,7 +11,7 @@ declare namespace Validator {
 	 * Run the validator
 	 * @param trigger ID of the Blockbench event that triggered the call
 	 */
-	function validate(trigger?: EventName): void
+	function validate<T extends string = EventName>(trigger?: T): void
 	/**
 	 * Opens the Validator dialog
 	 */
@@ -20,7 +20,7 @@ declare namespace Validator {
 	/**
 	 * Cached trigger IDs
 	 */
-	const triggers: EventName[]
+	const triggers: (EventName | string)[]
 	/**
 	 * Update the cached triggers list
 	 */
@@ -35,7 +35,7 @@ interface ValidatorCheckOptions {
 	/**
 	 * Names of events that automatically trigger this check
 	 */
-	update_triggers?: EventName[]
+	update_triggers?: (EventName | string)[]
 	condition?: ConditionResolvable
 }
 interface WarningOrError {
