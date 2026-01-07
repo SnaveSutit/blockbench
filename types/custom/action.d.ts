@@ -228,7 +228,7 @@ declare global {
 		toElement(destination: HTMLElement): this
 		pushToolbar(bar: any): void
 
-		dispatchEvent<T = EventName>(event: T, ...args: any[]): void
+		dispatchEvent<T = BlockbenchEventName>(event: T, ...args: any[]): void
 
 		static constructing?: BarItem
 	}
