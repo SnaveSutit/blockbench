@@ -332,7 +332,7 @@ export const Blockbench = {
 		return this.flags[flag];
 	},
 	//Events
-	dispatchEvent<T extends string = EventName>(event_name: T, data: any): any[] {
+	dispatchEvent<T extends string = EventName, D extends EventData<T> = EventData<T>>(event_name: T, data: D): any[] {
 		let list = this.events[event_name];
 		let results: any[];
 		if (list) {
@@ -349,16 +349,16 @@ export const Blockbench = {
 		}
 		return results;
 	},
-	on<T extends string = EventName>(event_name: T, cb: (data: any) => any): void {
+	on<T extends string = EventName, D extends EventData<T> = EventData<T>>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.on.call(this, event_name, cb);
 	},
-	once<T extends string = EventName>(event_name: T, cb: (data: any) => any): void {
+	once<T extends string = EventName, D extends EventData<T> = EventData<T>>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.once.call(this, event_name, cb);
 	},
-	addListener<T extends string = EventName>(event_name: T, cb: (data: any) => any): void {
+	addListener<T extends string = EventName, D extends EventData<T> = EventData<T>>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.addListener.call(this, event_name, cb);
 	},
-	removeListener<T extends string = EventName>(event_name: T, cb: (data: any) => any): void {
+	removeListener<T extends string = EventName, D extends EventData<T> = EventData<T>>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.removeListener.call(this, event_name, cb);
 	},
 	// Update
