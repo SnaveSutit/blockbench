@@ -9,7 +9,6 @@ declare class Deletable {
 }
 type UUID = string
 
-
 declare global {
 	const settings: typeof settings
 }
@@ -21,7 +20,7 @@ declare const isApp: boolean
 
 declare const VuePrismEditor: Vue.Component
 
-interface EventMap {
+interface BlockbenchEventMap {
 	remove_animation: any
 	display_animation_frame: any
 	display_default_pose: any
@@ -130,12 +129,11 @@ interface EventMap {
 	edit_collection_properties: any
 }
 
-type EventName = keyof EventMap
-type EventData<T extends string = EventName> = T extends keyof EventMap ? EventMap[T] : any
+type BlockbenchEventName = keyof BlockbenchEventMap
 
 type IconString = string
 
-declare const osfs: '\\' | '/';
+declare const osfs: '\\' | '/'
 
 declare function updateSelection(): void
 
