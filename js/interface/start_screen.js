@@ -531,6 +531,10 @@ onVueSetup(async function() {
 
 
 export class ModelLoader {
+	/**
+	 * @param {string} id
+	 * @param {ModelLoaderOptions} options
+	 */
 	constructor(id, options) {
 		this.id = id;
 		this.name = tl(options.name);
