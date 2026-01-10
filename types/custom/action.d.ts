@@ -530,7 +530,7 @@ declare global {
 		constructor(id: string, options: BarSelectOptions<T>)
 		open(event: Event): void
 		trigger(event: Event): boolean | undefined
-		change(value: T, event: Event): this
+		change(value: string, event: Event): this
 		getNameFor(key: string): string
 		set(key: string): this
 		get(): string
