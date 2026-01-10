@@ -1,10 +1,12 @@
+import { encodeTga } from "@lunapaint/tga-codec";
+
 let codec = new Codec('image', {
 	name: tl('format.image'),
 	extension: 'png',
 	remember: true,
 	load_filter: {
 		type: 'image',
-		extensions: ['png']
+		extensions: Texture.getAllExtensions
 	},
 	load(files, path, resolution) {
 		if (files instanceof Array == false) files = [files];
@@ -92,6 +94,7 @@ let codec = new Codec('image', {
 			png: 'PNG',
 			jpeg: 'JPEG',
 			webp: 'WebP',
+			tga: 'TGA',
 			gif: 'GIF',
 		}},
 		alpha_channel: {type: 'checkbox', label: 'codec.image.alpha_channel', condition: (result) => result?.format == 'gif', value: true},
@@ -211,6 +214,15 @@ let codec = new Codec('image', {
 				reader.readAsDataURL(blob);
 			})
 
+		} else if (options.format == 'tga') {
+			let image_data = texture.ctx.getImageData(0, 0, texture.canvas.width, texture.canvas.height);
+			let result = await encodeTga({
+				data: image_data.data,
+				width: texture.canvas.width,
+				height: texture.canvas.height
+			});
+			return result.data;
+
 		} else {
 			let encoding = 'image/'+(options.format??'png');
 			let data_url = texture.canvas.toDataURL(encoding, options.quality);
@@ -226,7 +238,7 @@ let codec = new Codec('image', {
 			type: 'Image',
 			extensions: [this.getExportOptions().format],
 			name: this.fileName(),
-			savetype: 'image',
+			savetype: typeof content == 'string' ? 'image' : 'binary',
 			content,
 		}, path => this.afterDownload(path));
 	},
