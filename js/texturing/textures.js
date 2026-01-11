@@ -431,12 +431,19 @@ export class Texture {
 	fromFile(file, externalDataLoader) {
 		if (!file) return this;
 		if (file.name) this.name = file.name
-		if (typeof file.content === 'string' && file.content.substr(0, 4) === 'data') {
-			this.fromDataURL(file.content)
+		if ((typeof file.content === 'string' && file.content.substr(0, 4) === 'data') || !isApp) {
 
 			if (file.path) {
 				this.path = file.path;
 				this.file_format = pathToExtension(this.path);
+			}
+			let file_format_data = Texture.file_formats[this.file_format];
+
+			if (file.content === 'string') {
+				this.fromDataURL(file.content);
+
+			} else if (file.content && file_format_data.decode) {
+				file_format_data.decode(file.content, this);
 			}
 
 		} else if (isApp) {
@@ -446,36 +453,6 @@ export class Texture {
 		return this;
 	}
 	fromPath(path, externalDataLoader) {
-		var scope = this;
-		/*if (path && pathToExtension(path) === 'tga') {
-			let load_path = path
-			const targa_loader = new Targa()
-			if (externalDataLoader) {
-				const external = externalDataLoader(path.replaceAll("\\", "/"))
-				if (external) {
-					if (typeof external === "string") {
-						load_path = external
-					} else if (external instanceof Uint8Array) {
-						const u8 = new Uint8Array(external)
-						let base64
-						if (typeof Buffer !== "undefined" && external instanceof Buffer) {
-							base64 = external.toString("base64")
-						} else {
-							base64 = btoa(String.fromCharCode(...u8))
-						}
-						load_path = `data:image/x-tga;base64,${base64}`
-					}
-				}
-			}
-			targa_loader.open(load_path, function() {
-				scope.fromFile({
-					name: pathToName(path, true),
-					path: path,
-					content: targa_loader.getDataURL()
-				})
-			})
-			return this;
-		}*/
 		this.path = path
 		this.name = pathToName(path, true)
 		this.mode = 'link'
@@ -629,7 +606,7 @@ export class Texture {
 		if (Project.EditSession) {
 			this.load(() => {
 				var before = {textures: {}}
-				before.textures[scope.uuid] = true;
+				before.textures[this.uuid] = true;
 				this.edit()
 				var post = new Undo.save({textures: [this]})
 				Project.EditSession.sendEdit({
@@ -707,17 +684,13 @@ export class Texture {
 		if (!file_format_data.decode) {
 			this.source = this.path.replace(/#/g, '%23') + '?' + tex_version;
 
-		} else if (isApp && this.path && this.file_format == 'tga') {
+		} else if (isApp && this.path) {
 			let data = fs.readFileSync(this.path);
-			decodeTga(data).then((result) => {
-				this.canvas.width = result.image.width;
-				this.canvas.height = result.image.height;
-				let imagedata = new ImageData(result.image.width, result.image.height);
-				imagedata.data.set(result.image.data);
-				this.ctx.putImageData(imagedata, 0, 0);
-				this.source = this.canvas.toDataURL('image/png', 1);
-				this.load();
-			});
+			
+			let file_format_data = Texture.file_formats[this.file_format];
+			if (file_format_data.decode) {
+				file_format_data.decode(data, this);
+			}
 
 		}
 	}
@@ -1850,6 +1823,10 @@ export class Texture {
 			name: 'JPEG',
 			extensions: ['jpeg', 'jpg']
 		},
+		webp: {
+			name: 'WebP',
+			extensions: ['webp']
+		},
 		tga: {
 			name: 'TGA',
 			extensions: ['tga'],
@@ -1862,7 +1839,17 @@ export class Texture {
 				});
 				return result.data;
 			},
-			decode() {}
+			async decode(data, texture) {
+				if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+				let result = await decodeTga(data);
+				texture.canvas.width = result.image.width;
+				texture.canvas.height = result.image.height;
+				let imagedata = new ImageData(result.image.width, result.image.height);
+				imagedata.data.set(result.image.data);
+				texture.ctx.putImageData(imagedata, 0, 0);
+				texture.source = texture.canvas.toDataURL('image/png', 1);
+				texture.load();
+			}
 		}
 	}
 	static getAllExtensions() {
