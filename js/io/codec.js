@@ -226,10 +226,10 @@ Codec.getAllExtensions = function() {
 	for (let id in Codecs) {
 		let codec = Codecs[id];
 		if (codec.load_filter && codec.load_filter.extensions) {
-			let extensions = typeof codec.load_filter.extensions == 'function'
+			let list = typeof codec.load_filter.extensions == 'function'
 				? codec.load_filter.extensions()
 				: codec.load_filter.extensions ?? [];
-			extensions.safePush(...extensions);
+			extensions.safePush(...list);
 		}
 	}
 	return extensions;

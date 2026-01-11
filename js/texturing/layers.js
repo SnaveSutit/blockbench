@@ -468,11 +468,16 @@ BARS.defineActions(() => {
 				arr.push('textures')
 				start_path = arr.join(osfs)
 			}
+			let extensions = [];
+			for (let key in Texture.file_formats) {
+				if (Texture.file_formats[key].decode) continue; // Custom decode function means they are not supported by HTML images
+				extensions.safePush(...Texture.file_formats[key].extensions);
+			}
 			Blockbench.import({
 				resource_id: 'texture',
 				readtype: 'image',
-				type: 'PNG Texture',
-				extensions: ['png'],
+				type: 'Image File',
+				extensions,
 				multiple: true,
 				startpath: start_path
 			}, async (files) => {

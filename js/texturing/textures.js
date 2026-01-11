@@ -757,7 +757,7 @@ export class Texture {
 			Blockbench.import({
 				resource_id: 'texture',
 				extensions: Texture.getAllExtensions(),
-				type: 'PNG Texture',
+				type: 'Texture',
 				readtype: 'image',
 				startpath: scope.path
 			}, function(files) {
@@ -1160,8 +1160,8 @@ export class Texture {
 			variable: 	{label: 'dialog.texture.variable', value: this.id, condition: {features: ['texture_folder']}},
 			folder: 	{label: 'dialog.texture.folder', value: this.folder, condition: () => Format.texture_folder},
 			namespace: 	{label: 'dialog.texture.namespace', value: this.namespace, condition: {features: ['texture_folder']}},
-			'render_options': '_',
 			file_format: {label: 'menu.texture.file_format', type: 'select', value: this.file_format, options: {}},
+			'render_options': '_',
 			render_mode: {label: 'menu.texture.render_mode', type: 'select', value: this.render_mode, options: {
 				default: 'menu.texture.render_mode.default',
 				emissive: 'menu.texture.render_mode.emissive',
@@ -1536,7 +1536,7 @@ export class Texture {
 	}
 	//Export
 	javaTextureLink() {
-		var link = this.name.replace(/\.png$/, '')
+		var link = this.name.replace(/\.\w{2,8}$/, '')
 		if (this.folder) {
 			link = this.folder + '/' + link
 		}
@@ -1595,16 +1595,10 @@ export class Texture {
 			return this;
 		}
 
+		let file_format_options = Texture.file_formats[this.file_format] ?? Texture.file_formats.png;
 		let export_data;
-		if (this.file_format == 'tga') {
-			let image_data = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-			let result = await encodeTga({
-				data: image_data.data,
-				width: this.canvas.width,
-				height: this.canvas.height
-			});
-			export_data = result.data;
-
+		if (file_format_options.encode) {
+			export_data = await file_format_options.encode(this);
 		} else {
 			let encoding = 'image/'+(this.file_format??'png');
 			export_data = this.canvas.toDataURL(encoding);
@@ -1650,8 +1644,8 @@ export class Texture {
 				}
 				Blockbench.export({
 					resource_id: 'texture',
-					type: 'PNG Texture',
-					extensions: [this.file_format],
+					type: file_format_options.name + ' Texture',
+					extensions: file_format_options.extensions,
 					name: this.name,
 					content: export_data,
 					startpath: find_path,
@@ -1664,8 +1658,8 @@ export class Texture {
 		} else {
 			//Download
 			Blockbench.export({
-				type: 'PNG Texture',
-				extensions: ['png'],
+				type: file_format_options.name + ' Texture',
+				extensions: file_format_options.extensions,
 				name: this.name,
 				content: export_data,
 				savetype: 'image'
@@ -1859,7 +1853,15 @@ export class Texture {
 		tga: {
 			name: 'TGA',
 			extensions: ['tga'],
-			encode() {},
+			async encode(texture) {
+				let image_data = texture.ctx.getImageData(0, 0, texture.canvas.width, texture.canvas.height);
+				let result = await encodeTga({
+					data: image_data.data,
+					width: texture.canvas.width,
+					height: texture.canvas.height
+				});
+				return result.data;
+			},
 			decode() {}
 		}
 	}
@@ -2392,7 +2394,7 @@ BARS.defineActions(function() {
 			Blockbench.import({
 				resource_id: 'texture',
 				readtype: 'image',
-				type: 'PNG Texture',
+				type: 'Texture',
 				extensions,
 				multiple: true,
 				startpath: start_path
