@@ -1,10 +1,11 @@
-import { MessageBox } from "./interface/dialog";
 import { FormElementOptions } from "./interface/form";
 import { ModelFormat } from "./io/format";
 import { Prop } from "./misc";
 import { EventSystem } from "./util/event_system";
-import { compareVersions } from "./util/util";
+import VersionUtil from './util/version_util';
 import { Filesystem } from "./file_system";
+import { MessageBoxOptions } from "./interface/dialog";
+import { currentwindow, electron, shell, SystemInfo } from "./native_apis";
 
 declare const appVersion: string;
 declare let Format: ModelFormat
@@ -18,7 +19,7 @@ interface ToastNotificationOptions {
 	/**
 	 * Blockbench icon string
 	 */
-	icon?: string
+	icon?: IconString
 	/**
 	 * Expire time in miliseconds
 	 */
@@ -52,6 +53,7 @@ export const Blockbench = {
 	events: {},
 	openTime: new Date(),
 	setup_successful: null as null | true,
+	argv: isApp ? electron.process?.argv?.slice() : null,
 	/**
 	 * @deprecated Use Undo.initEdit and Undo.finishEdit instead
 	 */
@@ -71,10 +73,10 @@ export const Blockbench = {
 		}
 	},
 	isNewerThan(version: string): boolean {
-		return compareVersions(Blockbench.version, version);
+		return VersionUtil.compare(Blockbench.version, '>', version);
 	},
 	isOlderThan(version: string): boolean {
-		return compareVersions(version, Blockbench.version);
+		return VersionUtil.compare(Blockbench.version, '<', version);
 	},
 	registerEdit() {
 		console.warn('Blockbench.registerEdit is outdated. Please use Undo.initEdit and Undo.finishEdit')
@@ -117,7 +119,7 @@ export const Blockbench = {
 			//Icomoon
 			node = document.createElement('i');
 			node.classList.add(icon, 'icon');
-		} else if (icon.substr(0, 14) === 'data:image/png') {
+		} else if (icon.startsWith('data:image/')) {
 			//Data URL
 			node = document.createElement('img');
 			node.classList.add('icon');
@@ -227,7 +229,7 @@ export const Blockbench = {
 			Blockbench.showQuickMessage(message)
 		}
 	},
-	showMessageBox(options: MessageBoxOptions, cb?: (button: number, result?: string, event?: Event) => void) {
+	showMessageBox(options: MessageBoxOptions, cb?: (button: number | string, result?: Record<string, boolean>, event?: Event) => void) {
 		return new MessageBox(options, cb).show();
 	},
 	/**
@@ -303,9 +305,10 @@ export const Blockbench = {
 		})
 	},
 	//CSS
-	addCSS(css: string): Deletable {
+	addCSS(css: string, layer: string = 'plugin'): Deletable {
 		let style_node = document.createElement('style');
-		style_node.type ='text/css';
+		style_node.setAttribute('type', 'text/css');
+		if (layer != '') css = `@layer ${layer} {${css}}`;
 		style_node.appendChild(document.createTextNode(css));
 		document.getElementsByTagName('head')[0].appendChild(style_node);
 		function deletableStyle(node) {
@@ -357,7 +360,7 @@ export const Blockbench = {
 	},
 	// Update
 	onUpdateTo(version, callback) {
-		if (LastVersion && compareVersions(version, LastVersion) && !Blockbench.isOlderThan(version)) {
+		if (LastVersion && VersionUtil.compare(version, '>', LastVersion) && !Blockbench.isOlderThan(version)) {
 			callback(LastVersion);
 		}
 	},
@@ -395,7 +398,7 @@ export const Blockbench = {
 })();
 
 if (isApp) {
-	Blockbench.platform = process.platform;
+	Blockbench.platform = SystemInfo.platform;
 	switch (Blockbench.platform) {
 		case 'win32': 	Blockbench.operating_system = 'Windows'; break;
 		case 'darwin': 	Blockbench.operating_system = 'macOS'; break;

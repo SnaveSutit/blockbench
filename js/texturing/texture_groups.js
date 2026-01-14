@@ -1,3 +1,5 @@
+import { Filesystem } from "../file_system";
+import { fs } from "../native_apis";
 
 export class TextureGroup {
 	constructor(data, uuid) {
@@ -122,6 +124,7 @@ export class TextureGroup {
 			material.color.set({r: c[0] / 255, g: c[1] / 255, b: c[2] / 255});
 			material.opacity = c[4] / 255;
 		}
+		material.side = Canvas.getRenderSide(color_tex);
 
 		// Height
 		if (normal_tex) {
@@ -155,21 +158,21 @@ export class TextureGroup {
 			const extractEmissiveChannel = () => {
 				// The green channel is the emissive level.
 				// Use it as an mask on the color texture to create the emissive map.
-				const color_data = color_tex.canvas.getContext('2d').getImageData(0, 0, color_tex.width, color_tex.height);
+				const color_data = color_tex.canvas.getContext('2d').getImageData(0, 0, mer_tex.width, mer_tex.height);
 				let emissive_data = new Uint8ClampedArray(color_data.data.length);
 				for (let i = 0; i < image_data.data.length; i += 4) {
+					let green_value = image_data.data[i + 1];
 					if (image_data.data[i + 1] > 0) {
-						emissive_data[i] = color_data.data[i];
-						emissive_data[i + 1] = color_data.data[i + 1];
-						emissive_data[i + 2] = color_data.data[i + 2];
+						emissive_data[i] = Math.round(color_data.data[i] * (green_value/255));
+						emissive_data[i + 1] = Math.round(color_data.data[i + 1] * (green_value/255));
+						emissive_data[i + 2] = Math.round(color_data.data[i + 2] * (green_value/255));
 						emissive_data[i + 3] = 255;
-						continue;
+					} else {
+						emissive_data[i] = 0;
+						emissive_data[i + 1] = 0;
+						emissive_data[i + 2] = 0;
+						emissive_data[i + 3] = 255;
 					}
-
-					emissive_data[i] = 0;
-					emissive_data[i + 1] = 0;
-					emissive_data[i + 2] = 0;
-					emissive_data[i + 3] = 255;
 				}
 
 				return new ImageData(emissive_data, mer_tex.width, mer_tex.height);
@@ -541,7 +544,7 @@ TextureGroupMaterialConfig.prototype.menu = new Menu('texture_group_material_con
 				Blockbench.showQuickMessage('texture.error.file')
 				return;
 			}
-			showItemInFolder(path);
+			Filesystem.showFileInFolder(path);
 		}
 	},
 	{
@@ -576,7 +579,7 @@ export function importTextureSet(file) {
 		texture_group.name = file.name.replace('.texture_set.json', '.png material');
 
 		let content = fs.readFileSync(file.path, {encoding: 'utf-8'});
-		let content_json = autoParseJSON(content);
+		let content_json = autoParseJSON(content, {file_path: file.path});
 
 		if (content_json && content_json['minecraft:texture_set']) {
 			let channels = {
@@ -589,16 +592,23 @@ export function importTextureSet(file) {
 			for (let key in channels) {
 				let source = content_json['minecraft:texture_set'][key];
 				if (typeof source == 'string' && !source.startsWith('#')) {
-					let path = PathModule.resolve(file.path, '../' + source + '.png');
-					Blockbench.read([path], {
+					let paths = [
+						PathModule.resolve(file.path, '../' + source + '.png'),
+						PathModule.resolve(file.path, '../' + source + '.tga'),
+					]
+					Blockbench.read(paths, {
 						readtype: 'image',
-					}, ([file2]) => {
-						let t = new Texture({
-							name: file2.name,
-							pbr_channel: channels[key]
-						}).fromFile(file2).add(false, true).fillParticle();
-						new_textures.push(t);
-						t.group = texture_group.uuid;
+					}, files => {
+						for (let file2 of files) {
+							if (!fs.existsSync(file2.path)) continue;
+							let t = new Texture({
+								name: file2.name,
+								pbr_channel: channels[key]
+							}).fromFile(file2).add(false, true).fillParticle();
+							new_textures.push(t);
+							t.group = texture_group.uuid;
+							break;
+						}
 					})
 					if (key == 'metalness_emissive_roughness_subsurface') {
 						texture_group.material_config.subsurface_value = 1;
@@ -717,6 +727,8 @@ BARS.defineActions(function() {
 
 			function getPixelInput(result, r, g, b, a) {
 				switch (result.method) {
+					case 'empty':
+						return 0;
 					case 'value': {
 						return ((r + g + b) / 3) * (a/255);
 					}
@@ -763,19 +775,27 @@ BARS.defineActions(function() {
 			}
 
 			function updateCanvas(result) {
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				for (let i = 0; i < original_data.data.length; i+=4) {
-					let source = [
+				function getPixel(x, y) {
+					let i = (y * original_data.width + x) * 4;
+					return [
 						original_data.data[i+0],
 						original_data.data[i+1],
 						original_data.data[i+2],
 						original_data.data[i+3],
 					];
+				}
+				function getPixelOutput(x, y) {
+					let source = getPixel(x, y);
 					let input = getPixelInput(result, ...source);
 					let input_1 = Math.getLerp(result.in_range[0], result.in_range[1], input);
 					if (result.invert) input_1 = 1-input_1;
-					
-					let output = Math.clamp(Math.lerp(result.out_range[0], result.out_range[1], input_1), 0, 255);
+					return Math.clamp(Math.lerp(result.out_range[0], result.out_range[1], input_1), 0, 255);
+				}
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				for (let i = 0; i < original_data.data.length; i+=4) {
+					let x = (i/4) % original_data.width;
+					let y = Math.floor((i/4) / original_data.width);					
+					let output = getPixelOutput(x, y);
 
 					new_data.data[i+0] = 0;
 					new_data.data[i+1] = 0;
@@ -787,6 +807,16 @@ BARS.defineActions(function() {
 							new_data.data[i+0] = output;
 							new_data.data[i+1] = output;
 							new_data.data[i+2] = output;
+							break;
+						}
+						case 'normal': {
+							let top = y > 0 ? getPixelOutput(x, y-1) : output;
+							let bottom = y < original_data.height-1 ? getPixelOutput(x, y+1) : output;
+							let left = x > 0 ? getPixelOutput(x-1, y) : output;
+							let right = x < original_data.width-1 ? getPixelOutput(x+1, y) : output;
+							new_data.data[i+0] = Math.clamp(127 - (right-left), 0, 255);
+							new_data.data[i+1] = Math.clamp(127 - (top-bottom), 0, 255);
+							new_data.data[i+2] = 255;
 							break;
 						}
 						case 'metalness': {
@@ -816,8 +846,8 @@ BARS.defineActions(function() {
 						type: 'select',
 						label: 'PBR Channel',
 						options: {
-							//normal: 'menu.texture.pbr_channel.normal',
 							height: 'menu.texture.pbr_channel.height',
+							normal: 'menu.texture.pbr_channel.normal',
 							metalness: 'Metalness',
 							emissive: 'Emissive',
 							roughness: 'Roughness',
@@ -834,6 +864,7 @@ BARS.defineActions(function() {
 							red: 'Red',
 							green: 'Green',
 							blue: 'Blue',
+							empty: 'Empty',
 						}
 					},
 					in_range: {
@@ -858,7 +889,7 @@ BARS.defineActions(function() {
 					let textures = [];
 					let pbr_channel;
 					switch (result.channel) {
-						case 'height': pbr_channel = result.channel; break;
+						case 'height': case 'normal': pbr_channel = result.channel; break;
 						default: pbr_channel = 'mer'; break;
 					}
 

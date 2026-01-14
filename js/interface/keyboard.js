@@ -158,12 +158,9 @@ export class Keybind {
 		if (this.meta === null) 	modifiers.push(`[${tl('keys.meta')}]`)
 
 		var char = this.getCode()
-		var char_tl = tl('keys.'+char)
-		if (char_tl === ('keys.'+char)) {
-			modifiers.push(capitalizeFirstLetter(char))
-		} else {
-			modifiers.push(char_tl)
-		}
+		var char_tl = tl('keys.'+char, [], capitalizeFirstLetter(char));
+		modifiers.push(char_tl);
+
 		if (colorized) {
 			modifiers.forEach((text, i) => {
 				let type = i !== modifiers.length-1
@@ -411,6 +408,7 @@ Keybinds.loadKeymap = function(id, from_start_screen = false) {
 Keybinds.no_overlap = function(k1, k2) {
 	return Condition.mutuallyExclusive(k1.condition, k2.condition);
 }
+const overlap_exempt = [1,2,3];
 export function updateKeybindConflicts() {
 	for (var key in Keybinds.structure) {
 		Keybinds.structure[key].conflict = false;
@@ -430,6 +428,7 @@ export function updateKeybindConflicts() {
 				 && keybind.shift === keybind2.shift
 				 && keybind.alt   === keybind2.alt
 				 && keybind.meta  === keybind2.meta
+				 && overlap_exempt.includes(keybind.key) == false // avoid conflict between click to select, click to drag camera etc.
 				 && !Keybinds.no_overlap(action, Keybinds.actions[i])
 				) {
 					keybind.setConflict();
@@ -507,7 +506,7 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 	Pressing.alt = e.altKey;
 	Pressing.ctrl = e.ctrlKey;
 	if (modifiers_changed) {
-		Blockbench.dispatchEvent('update_pressed_modifier_keys', {before, now: Pressing, event});
+		Blockbench.dispatchEvent('update_pressed_modifier_keys', {before, now: Pressing, event: e});
 	}
 
 	if (e.which === 16) {
@@ -763,7 +762,7 @@ $(document).keyup(function(e) {
 	Pressing.alt = e.altKey;
 	Pressing.ctrl = e.ctrlKey;
 	if (changed) {
-		Blockbench.dispatchEvent('update_pressed_modifier_keys', {before, now: Pressing, event});
+		Blockbench.dispatchEvent('update_pressed_modifier_keys', {before, now: Pressing, event: e});
 	}
 })
 

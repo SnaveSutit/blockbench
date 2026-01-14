@@ -1,25 +1,34 @@
 import { Vue } from "../lib/libs";
 import { Blockbench } from "../api";
 import { Dialog } from "./dialog";
+import { FormInputType } from "./form";
+import { ipcRenderer } from "../native_apis";
 
 export const settings: Record<string, Setting> = {};
 export type settings_type = typeof settings;
 
 type SettingsValue = string | number | boolean;
+enum SettingsType {
+	Toggle = 'toggle',
+	Number = 'number',
+	Text = 'text',
+	Password = 'password',
+	Select = 'select',
+	Click = 'click',
+}
 interface SettingOptions {
 	name?: string
-	type?: 'number' | 'text' | 'toggle' | 'password' | 'select' | 'click'
+	type?: SettingsType | `${SettingsType}`
 	value?: boolean | number | string
 	condition?: ConditionResolvable
 	category?: string
 	description?: string
 	requires_restart?: boolean
 	launch_setting?: boolean
-	//launch_setting?: boolean
 	min?: number
 	max?: number
 	step?: number
-	icon?: string
+	icon?: IconString
 	plugin?: string
 	click?(): void
 	options?: {
@@ -33,7 +42,7 @@ interface SettingOptions {
  */
 export class Setting {
 	id: string
-	type: string
+	type: SettingsType
 	default_value: SettingsValue
 	/**
 	 * The master value, not affected by profiles
@@ -49,7 +58,7 @@ export class Setting {
 	min?: number
 	max?: number
 	step?: number
-	icon: string
+	icon: IconString
 	click: (event: MouseEvent | KeyboardEvent) => void
 	options: Record<string, string>
 	hidden: boolean
@@ -59,8 +68,8 @@ export class Setting {
 	constructor(id: string, data: SettingOptions) {
 		this.id = id;
 		settings[id] = this;
-		this.type = 'toggle';
-		if (data.type) this.type = data.type;
+		this.type = SettingsType.Toggle;
+		if (data.type) this.type = data.type as SettingsType;
 		if (data.value != undefined) {
 			this.default_value = data.value;
 		} else {
@@ -239,6 +248,14 @@ export class Setting {
 			new Menu(list).open(e.target as HTMLElement);
 
 		} else {
+			let input_types: Record<SettingsType, string> = {
+				click: 'checkbox',
+				number: 'number',
+				password: 'password',
+				select: 'select',
+				text: 'text',
+				toggle: 'checkbox'
+			}
 			let dialog = new Dialog({
 				id: 'setting_' + this.id,
 				title: tl('data.setting'),
@@ -247,7 +264,7 @@ export class Setting {
 						value: this.value,
 						label: this.name,
 						description: this.description,
-						type: this.type
+						type: input_types[this.type] as FormInputType
 					},
 					description: this.description ? {
 						type: 'info',

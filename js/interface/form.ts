@@ -1,8 +1,9 @@
 import { Blockbench } from "../api"
 import { Clipbench } from "../copy_paste"
 import { Filesystem } from "../file_system"
+import { tl } from "../languages"
 import { EventSystem } from "../util/event_system"
-import { getStringWidth } from "../util/util"
+import { getStringWidth, pureMarked } from "../util/util"
 import { Interface } from "./interface"
 
 type ReadType = 'buffer' | 'binary' | 'text' | 'image'
@@ -12,6 +13,26 @@ interface FileResult {
 	content: string | ArrayBuffer
 	no_file?: boolean
 }
+export enum FormInputType {
+	Text = 'text',
+	Password = 'password',
+	Number = 'number',
+	Range = 'range',
+	Checkbox = 'checkbox',
+	Select = 'select',
+	Radio = 'radio',
+	Textarea = 'textarea',
+	Vector = 'vector',
+	Color = 'color',
+	File = 'file',
+	Folder = 'folder',
+	Save = 'save',
+	InlineSelect = 'inline_select',
+	InlineMultiSelect = 'inline_multi_select',
+	Info = 'info',
+	NumSlider = 'num_slider',
+	Buttons = 'buttons',
+}
 
 export interface FormElementOptions {
 	label?: string
@@ -19,25 +40,14 @@ export interface FormElementOptions {
 	 * Detailed description of the field, available behind the questionmark icon or on mouse hover
 	 */
 	description?: string
-	type:
-		| 'text'
-		| 'password'
-		| 'number'
-		| 'range'
-		| 'checkbox'
-		| 'select'
-		| 'radio'
-		| 'textarea'
-		| 'vector'
-		| 'color'
-		| 'file'
-		| 'folder'
-		| 'save'
-		| 'inline_select'
-		| 'inline_multi_select'
-		| 'info'
-		| 'num_slider'
-		| 'buttons'
+	/**
+	 * Type of the input. If unspecified, defaults to text
+	 */
+	type?: FormInputType | `${FormInputType}`
+	/**
+	 * Visual style of the input. Checkbox inputs support 'checkbox' or 'toggle_switch'
+	 */
+	style?: 'checkbox' | 'toggle_switch'
 	/**
 	 * Stretch the input field across the whole width of the form
 	 */
@@ -97,7 +107,7 @@ export interface FormElementOptions {
 	/**
 	 * Available options on select or inline_select inputs
 	 */
-	options?: { [key: string]: string | { name: string } }
+	options?: Record<string, string | { name: string }> | (() => Record<string, string | { name: string }>)
 	/**
 	 * List of buttons for the button type
 	 */
@@ -140,7 +150,7 @@ export interface FormElementOptions {
 	filetype?: string
 }
 
-type FormResultValue = string | number | boolean | any[] | {}
+export type FormResultValue = string | number | boolean | any[] | {}
 
 export type InputFormConfig = {
 	[formElement: string]: '_' | FormElementOptions
@@ -197,7 +207,9 @@ export class InputForm extends EventSystem {
 			if (!form_element || (ignore_hidden && !Condition(form_element.condition))) continue;
 
 			if (form_element.uses_wide_inputs) this.uses_wide_inputs = true;
-			this.max_label_width = Math.max(form_element.label_width, this.max_label_width);
+			if (form_element.label_width) {
+				this.max_label_width = Math.max(form_element.label_width, this.max_label_width);
+			}
 		}
 		this.node.style.setProperty('--max_label_width', this.max_label_width+'px');
 	}
@@ -406,6 +418,7 @@ FormElement.types.range = class FormElementRange extends FormElement {
 	}
 	setValue(value: number): void {
 		this.input.value = value.toString();
+		if (this.numeric_input) this.numeric_input.value = value;
 	}
 	getDefault(): number {
 		return Math.clamp(0, this.options.min, this.options.max);
@@ -467,17 +480,18 @@ FormElement.types.text = class FormElementText extends FormElement {
 		}
 		if (this.options.type == 'password') {
 
-			bar.append(`<div class="password_toggle form_input_tool tool">
-					<i class="fas fa-eye-slash"></i>
-				</div>`)
+			let password_toggle = Interface.createElement(
+				'div',
+				{class: 'password_toggle form_input_tool tool'},
+				Blockbench.getIconNode('fas.fa-eye-slash')
+			) as HTMLDivElement;
+			bar.append(password_toggle);
 			input_element.type = 'password';
 			let hidden = true;
-			let this_bar = $(bar);
-			let this_input_element = input_element;
-			this_bar.find('.password_toggle').on('click', e => {
+			password_toggle.addEventListener('click', e => {
 				hidden = !hidden;
-				this_input_element.setAttribute('type', hidden ? 'password' : 'text');
-				this_bar.find('.password_toggle i')[0].className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+				input_element.setAttribute('type', hidden ? 'password' : 'text');
+				password_toggle.firstElementChild.className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
 			})
 		}
 		if (this.options.share_text && this.options.value) {
@@ -897,7 +911,7 @@ FormElement.types.checkbox = class FormElementCheckbox extends FormElement {
 		super.build(bar);
 		this.input = Interface.createElement('input', {
 			type: 'checkbox',
-			class: 'focusable_input',
+			class: 'focusable_input' + (this.options.style == 'toggle_switch' ? ' toggle_switch' : ''),
 			id: this.id,
 		})
 		this.input.checked = this.options.value;
@@ -952,7 +966,7 @@ class FormElementFile extends FormElement {
 		})
 
 		input_wrapper.on('click', e => {
-			function fileCB(files) {
+			const fileCB = (files) => {
 				this.value = files[0].path;
 				this.content = files[0].content;
 				this.file = files[0];

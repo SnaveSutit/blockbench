@@ -24,11 +24,10 @@ interface GroupOptions {
 declare class Group extends OutlinerNode {
 	constructor(options: Partial<GroupOptions> | string)
 	/**
-	 * Returns the first selected group.
-	 * In the future this will return an array of selected groups instead.
-	 * @deprecated Use {@link Group.multi_selected} instead!
+	 * Returns the selected groups
+	 * @Note This only includes directly selected groups, not groups that are selected because the parent is selected
 	 */
-	static selected: Group | undefined
+	static selected: Group[]
 	/**
 	 * The first group in {@link Group.multi_selected}
 	 */
@@ -65,8 +64,9 @@ declare class Group extends OutlinerNode {
 	bedrock_binding?: string
 	cem_animations?: any[]
 	cem_attach?: boolean
+	cem_model?: string
 	cem_scale?: number
-	mesh: THREE.Mesh
+	mesh: THREE.Object3D
 
 	[key: string]: any
 
@@ -74,7 +74,10 @@ declare class Group extends OutlinerNode {
 
 	extend(options: Partial<GroupOptions>): this
 	selectChildren(event: Event): this
-	selectLow(highlight: boolean): this
+	/**
+	 * Mark the group as selected
+	 */
+	markAsSelected(descendants?: boolean): void
 	select(event?: any, isOutlinerClick?: boolean): this
 	unselect(): this
 	matchesSelection(): boolean

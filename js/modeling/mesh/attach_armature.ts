@@ -1,5 +1,5 @@
-import { Armature } from "../../outliner/armature";
-import { ArmatureBone } from "../../outliner/armature_bone";
+import { Armature } from "../../outliner/types/armature";
+import { ArmatureBone } from "../../outliner/types/armature_bone";
 import { sameMeshEdge } from "./util";
 import { THREE } from "../../lib/libs";
 import { pointInPolygon } from "../../util/util";
@@ -8,6 +8,7 @@ import { Blockbench } from "../../api";
 
 interface BoneInfo {
 	bone: ArmatureBone,
+	name: string,
 	tail_offset: THREE.Vector3,
 	start: THREE.Vector3,
 	end: THREE.Vector3,
@@ -16,6 +17,7 @@ interface BoneInfo {
 	_distance_on_line?: number
 	_amount?: number
 	_is_inside?: boolean
+	_weight?: number
 }
 interface EdgeLoop {
 	loop: MeshEdge[]
@@ -25,13 +27,12 @@ interface EdgeLoop {
 	vkeys: string[]
 }
 
-function setArmature(mesh: Mesh, armature?: Armature) {
-	let armature_bones = armature?.getAllBones() ?? [];
-	Undo.initEdit({elements: [mesh, ...armature_bones]});
-	mesh.armature = armature ? armature.uuid : '';
+function calculateWeights(mesh: Mesh, armature: Armature) {
+	let armature_bones = armature.getAllBones();
 	mesh.preview_controller.updateTransform(mesh);
 
 	if (armature) {
+		mesh.sortAllFaceVertices();
 		let bone_infos: BoneInfo[] = armature_bones.map(bone => {
 			let tail_offset = new THREE.Vector3();
 			let tail_bone = bone.children[0];
@@ -45,6 +46,7 @@ function setArmature(mesh: Mesh, armature?: Armature) {
 			let end = bone.mesh.localToWorld(tail_offset);
 			let data: BoneInfo = {
 				bone,
+				name: bone.name,
 				tail_offset,
 				start,
 				end,
@@ -55,30 +57,39 @@ function setArmature(mesh: Mesh, armature?: Armature) {
 
 		// Analyze geometry
 		const vertex_edge_loops: Record<string, EdgeLoop[]> = {};
+		const global_vertices: Record<string, THREE.Vector3> = {};
+		
+		for (let vkey in mesh.vertices) {
+			let global_pos = new THREE.Vector3().fromArray(mesh.vertices[vkey]);
+			mesh.scene_object.localToWorld(global_pos);
+			global_vertices[vkey] = global_pos;
+		}
 
 		for (let vkey in mesh.vertices) {
 
 			if (!vertex_edge_loops[vkey]) vertex_edge_loops[vkey] = [];
-			if (vertex_edge_loops[vkey].length >= 2) continue;
+			if (vertex_edge_loops[vkey].length >= 4) continue;
 
 			getEdgeLoops(mesh, vkey).forEach(loop => {
+				if (loop.length > 15) return;
 				let coplanar_vertices = [
 					loop[0][0],
 					loop[Math.floor(loop.length * 0.33)][0],
 					loop[Math.floor(loop.length * 0.66)][0],
 				];
-				let coplanar_points = coplanar_vertices.map(vkey => new THREE.Vector3().fromArray(mesh.vertices[vkey]));
+				let coplanar_points = coplanar_vertices.map(vkey => global_vertices[vkey]);
 				let plane = new THREE.Plane().setFromCoplanarPoints(coplanar_points[0], coplanar_points[1], coplanar_points[2]);
 				let plane_quaternion = new THREE.Quaternion().setFromUnitVectors(plane.normal, new THREE.Vector3(0, 1, 0));
 
 				let polygon: ArrayVector2[] = [];
 				let vkeys: string[] = [];
+				let flat_point = new THREE.Vector3();
 				loop.forEach((edge: MeshEdge) => {
 					let vkey2 = edge[0];
-					let point = new THREE.Vector3().fromArray(mesh.vertices[vkey2]);
-					plane.projectPoint(point, point);
-					point.applyQuaternion(plane_quaternion);
-					polygon.push([point.x, point.z]);
+					let point = global_vertices[vkey2].clone();
+					plane.projectPoint(point, flat_point);
+					flat_point.applyQuaternion(plane_quaternion);
+					polygon.push([flat_point.x, flat_point.z]);
 					vkeys.push(vkey2);
 				});
 
@@ -99,12 +110,15 @@ function setArmature(mesh: Mesh, armature?: Armature) {
 
 
 		// Calculate base vertex weights
+		const vertex_main_bone: Record<string, BoneInfo> = {};
 		for (let vkey in mesh.vertices) {
-			let global_pos = new THREE.Vector3().fromArray(mesh.vertices[vkey]);
+			let global_pos = global_vertices[vkey];
 			let edge_loops = vertex_edge_loops[vkey];
 
+			let shortest_edge_loop = edge_loops.findHighest((loop) => -loop.vkeys.length);
+
 			for (let bone_info of bone_infos) {
-				bone_info._is_inside = isBoneInsideLoops(edge_loops, bone_info) != false;
+				bone_info._is_inside = shortest_edge_loop && isBoneInsideLoops(edge_loops, bone_info) != false;
 
 				let closest_point = bone_info.line.closestPointToPoint(global_pos, true, new THREE.Vector3);
 				bone_info._distance = closest_point.distanceTo(global_pos);
@@ -120,27 +134,67 @@ function setArmature(mesh: Mesh, armature?: Armature) {
 			}
 			let full_match_bones = bone_matches.filter(bone_info => bone_info._distance < bone_info._distance_on_line * 2);
 			if (full_match_bones.length) {
-				for (let match of full_match_bones) {
-					match.bone.vertex_weights[vkey] = 1/full_match_bones.length;
-				}
+				let closest_bone = full_match_bones.findHighest(bone => -bone._distance);
+				vertex_main_bone[vkey] = closest_bone;
+				
+				closest_bone.bone.setVertexWeight(mesh, vkey, 1);
 			} else {
 				bone_matches.sort((a, b) => a._distance - b._distance);
 				bone_matches = bone_matches.slice(0, 3);
+				vertex_main_bone[vkey] = bone_matches[0];
 				let amount_sum = 0;
 				for (let match of bone_matches) {
 					match._amount = Math.min(Math.max(match._distance_on_line, 0.04) / match._distance, 1);
 					amount_sum += match._amount;
 				}
 				for (let match of bone_matches) {
-					match.bone.vertex_weights[vkey] = match._amount / amount_sum;
+					match.bone.setVertexWeight(mesh, vkey, match._amount / amount_sum);
 				}
 			}
 		}
 		// Add smoothing
+		for (let vkey in mesh.vertices) {
+			let closest_vertices = [];
+			for (let loop of vertex_edge_loops[vkey]) {
+				let index = loop.vkeys.indexOf(vkey);
+				closest_vertices.safePush(loop.vkeys.atWrapped(index+1));
+				closest_vertices.safePush(loop.vkeys.atWrapped(index-1));
+			}
+			if (!vertex_main_bone[vkey]) {
+				let bones = [];
+				for (let vkey2 of closest_vertices) {
+					let bone = vertex_main_bone[vkey2];
+					if (bone) {
+						bones.safePush(bone);
+						bone._weight = 0;
+					}
+				}
+				if (bones.length == 1) {
+					bones[0].bone.setVertexWeight(mesh, vkey, 1);
+					vertex_main_bone[vkey] = bones[0];
+					continue;
+				}
+
+				// Share between bones
+				let vertex_position = global_vertices[vkey];
+				let weight_sum = 0;
+				let weighted_vertices = closest_vertices.map(vkey2 => {
+					let distance = global_vertices[vkey2].distanceTo(vertex_position)
+					weight_sum += 1 / distance;
+					return { distance, bone: vertex_main_bone[vkey2], vkey: vkey2, weight: 1 / distance };
+				})
+				for (let weighted of weighted_vertices) {
+					if (!weighted.bone) continue;
+					weighted.bone._weight += weighted.weight;
+				}
+				for (let bone of bones) {
+					bone.bone.setVertexWeight(mesh, vkey, 1);
+				}
+			}
+		}
 	}
 
-	Undo.finishEdit('Attach armature to mesh');
-	Canvas.updateView({elements: Mesh.selected, element_aspects: {geometry: true}});
+	Canvas.updateView({elements: [mesh], element_aspects: {geometry: true}});
 }
 function isBoneInsideLoops(edge_loops: EdgeLoop[], bone_info: BoneInfo): THREE.Vector3 | false {
 	for (let loop of edge_loops) {
@@ -163,7 +217,7 @@ function getEdgeLoops(mesh: Mesh, start_vkey: string) {
 
 	function checkFace(face: MeshFace, side_vertices: MeshEdge) {
 		processed_faces.push(face);
-		let sorted_vertices = face.getSortedVertices();
+		let sorted_vertices = face.vertices.slice();
 
 		let side_index_diff = sorted_vertices.indexOf(side_vertices[0]) - sorted_vertices.indexOf(side_vertices[1]);
 		if (side_index_diff == -1 || side_index_diff > 2) side_vertices.reverse();
@@ -181,7 +235,7 @@ function getEdgeLoops(mesh: Mesh, start_vkey: string) {
 				let ref_face = mesh.faces[fkey];
 				if (ref_face.vertices.length < 3 || processed_faces.includes(ref_face)) continue;
 
-				let sorted_vertices = ref_face.getSortedVertices();
+				let sorted_vertices = ref_face.vertices.slice();
 				let vertices = ref_face.vertices.filter(vkey => vkey == side_vertices[index] || vkey == opposite_vertices[index]);
 
 				if (vertices.length >= 2) {
@@ -209,7 +263,7 @@ function getEdgeLoops(mesh: Mesh, start_vkey: string) {
 		}
 	}
 
-	let loops = [];
+	let loops: MeshEdge[][] = [];
 	start_edges.forEach(({edge, face}) => {
 		edges = [];
 		checkFace(face, edge);
@@ -220,50 +274,23 @@ function getEdgeLoops(mesh: Mesh, start_vkey: string) {
 
 BARS.defineActions(() => {
 	
-	new Action('attach_armature', {
-		name: 'menu.mesh.attach_armature',
+	new Action('calculate_vertex_weights', {
 		icon: 'accessibility',
-		condition: () => Armature.all.length && Mesh.selected.length,
-		children() {
-			let options = [
-				{
-					name: 'generic.none',
-					icon: 'remove',
-					click() {
-						setArmature(Mesh.selected[0]);
-					}
-				}
-			];
-			for (let armature of Armature.all) {
-				options.push({
-					name: armature.name,
-					icon: 'accessibility',
-					click: async () => {
-						if (Mesh.selected[0]?.armature == armature.uuid) {
-							let result = await new Promise((resolve) => {
-								// TODO: localize
-								Blockbench.showMessageBox({
-									title: 'menu.mesh.attach_armature',
-									message: 'The armature is already attached. Do you want to recalculate vertex weights?',
-									buttons: ['dialog.cancel'],
-									commands: {
-										reattach: 'Re-calculate weights'
-									}
-								}, (button) => {
-									resolve(button);
-								})
-							})
-							if (!result) return;
-						}
-						setArmature(Mesh.selected[0], armature as Armature);
-						Blockbench.showQuickMessage('Armature attached')
-					}
-				})
-			}
-			return options;
-		},
+		condition: () => Mesh.selected[0]?.getArmature(),
 		click(e) {
-			new Menu(this.children()).open(e.target as HTMLElement);
+			let armature_bones: ArmatureBone[] = [];
+			let meshes: Mesh[] = [];
+			for (let mesh of Mesh.selected) {
+				let armature = mesh.getArmature();
+				if (!armature) continue;
+				armature_bones.safePush(...armature.getAllBones());
+				meshes.push(mesh);
+			}
+			Undo.initEdit({elements: [...meshes, ...armature_bones]});
+			for (let mesh of meshes) {
+				calculateWeights(mesh, mesh.getArmature());
+			}
+			Undo.finishEdit('Calculate vertex weights');
 		}
 	});
 })

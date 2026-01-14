@@ -1,9 +1,8 @@
-/// <reference path="./blockbench.d.ts"/>
-type ConditionResolvable =
+/// <reference types="./blockbench"/>
+type ConditionResolvable<Context extends any = any> =
 	| undefined
 	| boolean
-	| any
-	| ((context: any) => any)
+	| ((context: Context) => boolean)
 	| Partial<{
 			modes: string[]
 			formats: string[]
@@ -23,24 +22,22 @@ type ConditionResolvable =
 				null_any?: boolean
 				texture_mesh?: boolean
 				outliner?: boolean
+				spline?: boolean
 			}
 			project: boolean
-			method(context: any): boolean
+			method(context: Context): boolean
 	  }>
 
 /**
- * Tests if a condition is truthy of falsy. Returns true if the condition is unspecified
+ * Tests if a condition is truthy or falsy. Returns true if the condition is unspecified
  * @param condition Boolean, function, any or anything else
  */
-declare function Condition(condition: ConditionResolvable): boolean
+declare function Condition<Context extends any = any>(condition: ConditionResolvable<Context>, context?: Context): boolean
 
 /**
  * Wrapper for anys that tells the custom JSON exporter to write in one line
  */
-declare class oneLiner {
-	constructor(data?: any)
-	[key: string]: any
-}
+const oneLiner: new <T>(data?: T) => T
 
 /**
  * If the input event is a touch event, convert touch event to a compatible mouse event
@@ -67,12 +64,15 @@ declare function removeEventListeners(
 	option?: any
 ): void
 
-declare function compareVersions(string1: any, string2: any): boolean
-declare function convertTouchEvent(event: any): any
+/**
+ * @deprecated Use {@link VersionUtil.compare} instead.
+ */
+declare function compareVersions(versionA: any, versionB: any): boolean
+declare function convertTouchEvent(event: TouchEvent | MouseEvent): MouseEvent
 declare function guid(): string
 declare function isUUID(s: any): any
 declare function bbuid(l: any): string
-declare function trimFloatNumber(value: number): string
+declare function trimFloatNumber(value: number, decimal_places: number = 4): string
 declare function getAxisLetter(axisNumber: number): string
 declare function getAxisNumber(axisLetter: string): number
 declare function limitNumber(number: any, min: any, max: any): any

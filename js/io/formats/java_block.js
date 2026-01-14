@@ -50,12 +50,20 @@ var codec = new Codec('java_block', {
 				element.light_emission = s.light_emission;
 			}
 			if (!s.rotation.allEqual(0) || (!s.origin.allEqual(0) && settings.java_export_pivots.value)) {
-				var axis = s.rotationAxis()||'y';
-				element.rotation = new oneLiner({
-					angle: s.rotation[getAxisNumber(axis)],
-					axis,
-					origin: s.origin
-				})
+				element.rotation = new oneLiner({});
+				if (!Format.rotation_limit && (s.rotation.positiveItems() > 1 || s.rotation.some(v => Math.abs(v) > 45))) {
+					// New format
+					element.rotation.x = s.rotation[0];
+					element.rotation.y = s.rotation[1];
+					element.rotation.z = s.rotation[2];
+				} else {
+					// Restricted
+					let axis = s.rotationAxis()||'y';
+					let angle = s.rotation[getAxisNumber(axis)];
+					element.rotation.angle = Format.rotation_snap ? Math.round(angle / 22.5) * 22.5 : angle;
+					element.rotation.axis = axis;
+				}
+				element.rotation.origin = s.origin.slice();
 			}
 			if (s.rescale) {
 				if (element.rotation) {
@@ -70,7 +78,7 @@ var codec = new Codec('java_block', {
 				}
 
 			}
-			if (s.rotation.positiveItems() >= 2) {
+			if (Format.rotation_limit && s.rotation.positiveItems() >= 2) {
 				element.rotated = s.rotation
 			}
 			var element_has_texture
@@ -183,16 +191,18 @@ var codec = new Codec('java_block', {
 				}
 			})
 		}
-		if (options.prevent_dialog !== true && clear_elements.length && item_parents.includes(Project.parent)) {
+		/*if (options.prevent_dialog !== true && clear_elements.length && item_parents.includes(Project.parent)) {
 			Blockbench.showMessageBox({
 				translateKey: 'invalid_builtin_parent',
 				icon: 'info',
 				message: tl('message.invalid_builtin_parent.message', [Project.parent])
 			})
 			Project.parent = '';
-		}
+		}*/
 
-		var blockmodel = {}
+		var blockmodel = {
+			format_version: Project.java_block_version
+		};
 		if (checkExport('comment', Project.credit || settings.credit.value)) {
 			blockmodel.credit = Project.credit || settings.credit.value
 		}
@@ -279,7 +289,7 @@ var codec = new Codec('java_block', {
 			return autoStringify(blockmodel)
 		}
 	},
-	parse(model, path, add) {
+	parse(model, path, args = {}) {
 		if (!model.elements && !model.parent && !model.display && !model.textures) {
 			Blockbench.showMessageBox({
 				translateKey: 'invalid_model',
@@ -290,18 +300,29 @@ var codec = new Codec('java_block', {
 
 		this.dispatchEvent('parse', {model});
 
-		var previous_texture_length = add ? Texture.all.length : 0
+		// Backwards compatibility with the old "add" third argument
+		const import_to_current_project = typeof args === "boolean" ? args : args.import_to_current_project
+
+		let uses_new_rotations = false;
+
+		var previous_texture_length = import_to_current_project ? Texture.all.length : 0
 		var new_cubes = [];
 		var new_textures = [];
-		if (add) {
-			Undo.initEdit({elements: new_cubes, outliner: true, textures: new_textures})
+		if (import_to_current_project) {
+			let groups = [];
+			Undo.initEdit({elements: new_cubes, outliner: true, textures: new_textures, groups})
 			Project.added_models++;
 			var import_group = new Group(pathToName(path, false)).init()
+			groups.push(import_group);
+		}
+
+		if (!import_to_current_project && typeof model.format_version == 'string') {
+			Project.java_block_version = model.format_version;
 		}
 
 		//Load
 		if (typeof (model.credit || model.__comment) == 'string') Project.credit = (model.credit || model.__comment);
-		if (model.texture_size instanceof Array && !add) {
+		if (model.texture_size instanceof Array && !import_to_current_project) {
 			Project.texture_width  = Math.clamp(parseInt(model.texture_size[0]), 1, Infinity)
 			Project.texture_height = Math.clamp(parseInt(model.texture_size[1]), 1, Infinity)
 		}
@@ -330,7 +351,7 @@ var codec = new Codec('java_block', {
 					if (link.startsWith('#') && texture_arr[link.substring(1)]) {
 						link = texture_arr[link.substring(1)];
 					}
-					let texture = new Texture({id: key}).fromJavaLink(link, path_arr.slice()).add();
+					let texture = new Texture({id: key}).fromJavaLink(link, path_arr.slice(), args.externalDataLoader).add();
 					texture_paths[texture_arr[key].replace(/^minecraft:/, '')] = texture_ids[key] = texture;
 					new_textures.push(texture);
 				}
@@ -343,7 +364,7 @@ var codec = new Codec('java_block', {
 				if (texture_paths[link.replace(/^minecraft:/, '')]) {
 					texture_paths[link.replace(/^minecraft:/, '')].enableParticle()
 				} else {
-					let texture = new Texture({id: 'particle'}).fromJavaLink(link, path_arr.slice()).enableParticle().add();
+					let texture = new Texture({id: 'particle'}).fromJavaLink(link, path_arr.slice(), args.externalDataLoader).enableParticle().add();
 					texture_paths[link.replace(/^minecraft:/, '')] = texture_ids.particle = texture;
 					new_textures.push(texture);
 				}
@@ -367,6 +388,39 @@ var codec = new Codec('java_block', {
 			model.elements.forEach(function(obj) {
 				let base_cube = new Cube(obj);
 				if (obj.__comment) base_cube.name = obj.__comment
+				if (typeof obj.rotation == 'object') {
+					if (obj.rotation.origin) {
+						base_cube.extend({origin: obj.rotation.origin});
+					}
+					Merge.boolean(base_cube, obj.rotation, 'rescale');
+					if (obj.rotation.axis) {
+						if (obj.rotation.angle && obj.rotation.axis) {
+							let axis = getAxisNumber(obj.rotation.axis)
+							if (axis >= 0) {
+								base_cube.rotation.V3_set(0)
+								base_cube.rotation[axis] = obj.rotation.angle
+							}
+						}
+						if (obj.rotation.origin) {
+							Merge.number(base_cube.origin, obj.rotation.origin, 0)
+							Merge.number(base_cube.origin, obj.rotation.origin, 1)
+							Merge.number(base_cube.origin, obj.rotation.origin, 2)
+						}
+						if (typeof obj.rotation.axis === 'string') {
+							base_cube.rotation_axis = obj.rotation.axis
+						}
+
+					} else if (obj.rotation.x || obj.rotation.y || obj.rotation.z) {
+						base_cube.extend({
+							rotation: [
+								obj.rotation.x || 0,
+								obj.rotation.y || 0,
+								obj.rotation.z || 0
+							]
+						});
+						uses_new_rotations = true;
+					}
+				}
 				//Faces
 				var faces_without_uv = false;
 				for (var key in base_cube.faces) {
@@ -422,7 +476,7 @@ var codec = new Codec('java_block', {
 					}
 				}
 
-				if (!add) {
+				if (!import_to_current_project) {
 					Outliner.root.push(base_cube)
 					base_cube.parent = 'root'
 				} else if (import_group) {
@@ -487,7 +541,7 @@ var codec = new Codec('java_block', {
 				}
 			}
 
-			if (!add) {
+			if (!import_to_current_project) {
 				parseGroupsForJava(model.groups)
 			} else if (import_group) {
 				parseGroupsForJava(model.groups, import_group, oid)
@@ -523,7 +577,7 @@ var codec = new Codec('java_block', {
 					open: 'message.child_model_only.open',
 					open_with_textures: {text: 'message.child_model_only.open_with_textures', condition: Texture.all.length > 0}
 				}
-			}, (result) => {
+			}, async result => {
 				if (typeof result == 'string') {
 					let parent = model.parent.replace(/\w+:/, '');
 					let path_arr = path.split(osfs);
@@ -532,26 +586,51 @@ var codec = new Codec('java_block', {
 					path_arr.push('models', ...parent.split('/'));
 					let parent_path = path_arr.join(osfs) + '.json';
 
-					Blockbench.read([parent_path], {}, (files) => {
-						loadModelFile(files[0]);
+					function loadParentModel(file) {
+						loadModelFile(file, args);
 
 						if (result == 'open_with_textures') {
 							Texture.all.forEachReverse(tex => {
 								if (tex.error == 3 && tex.name.startsWith('#')) {
 									let loaded_tex = texture_ids[tex.name.replace(/#/, '')];
 									if (loaded_tex) {
-										tex.fromPath(loaded_tex.path);
+										tex.fromPath(loaded_tex.path, args.externalDataLoader);
 										tex.namespace = loaded_tex.namespace;
 									}
 								}
 							})
 						}
-					})
+					}
+
+					let loaded;
+					if (args.externalDataLoader) {
+						let external = args.externalDataLoader(parent_path.replaceAll("\\", "/"));
+						if (external) {
+							if (external instanceof Uint8Array) {
+								external = new TextDecoder().decode(external);
+							}
+							try {
+								loadParentModel({
+									name: PathModule.basename(parent_path),
+									path: parent_path,
+									content: external
+								});
+								loaded = true;
+							} catch {}
+						}
+					}
+
+					if (!loaded) {
+						Blockbench.read([parent_path], {}, files => loadParentModel(files[0]));
+					}
 				}
 			})
 		}
 		updateSelection()
 
+		if (uses_new_rotations && VersionUtil.compare(Project.java_block_version, '<', '1.21.11')) {
+			Project.java_block_version = '1.21.11';
+		}
 		//Set Parent
 		if (model.parent !== undefined) {
 			Project.parent = model.parent;
@@ -571,7 +650,7 @@ var codec = new Codec('java_block', {
 		}
 
 		this.dispatchEvent('parsed', {model});
-		if (add) {
+		if (import_to_current_project) {
 			Undo.finishEdit('Add block model')
 		}
 		Validator.validate()
@@ -587,8 +666,7 @@ var format = new ModelFormat({
 	format_page: {
 		content: [
 			{type: 'h3', text: tl('mode.start.format.informations')},
-			{text: `* ${tl('format.java_block.info.rotation')}
-					* ${tl('format.java_block.info.size')}
+			{text: `* ${tl('format.java_block.info.size')}
 					* ${tl('format.java_block.info.animation')}`.replace(/\t+/g, '')
 			}
 		]
@@ -598,8 +676,8 @@ var format = new ModelFormat({
 	parent_model_id: true,
 	vertex_color_ambient_occlusion: true,
 	rotate_cubes: true,
-	rotation_limit: true,
-	rotation_snap: true,
+	rotation_limit: false,
+	rotation_snap: false,
 	optional_box_uv: true,
 	uv_rotation: true,
 	java_cube_shading_properties: true,
@@ -610,6 +688,7 @@ var format = new ModelFormat({
 	texture_mcmeta: true,
 	display_mode: true,
 	texture_folder: true,
+	pbr: true,
 	cube_size_limiter: {
 		coordinate_limits: [-16, 32],
 		test(cube, values = 0) {
@@ -668,6 +747,21 @@ var format = new ModelFormat({
 	codec
 })
 codec.format = format;
+Object.defineProperty(format, 'rotation_snap', {
+	get() {
+		return Project.java_block_version == '1.9.0'
+	}
+})
+Object.defineProperty(format, 'rotation_limit', {
+	get() {
+		try {
+			return !VersionUtil.compare(Project.java_block_version, '>=', '1.21.11');
+		} catch (err) {
+			return true;
+		}
+	}
+})
+
 
 BARS.defineActions(function() {
 	codec.export_action = new Action({
@@ -691,8 +785,10 @@ BARS.defineActions(function() {
 				multiple: true,
 			}, function(files) {
 				files.forEach(file => {
-					var model = autoParseJSON(file.content)
-					codec.parse(model, file.path, true)
+					var model = autoParseJSON(file.content, {file_path: file.path})
+					codec.parse(model, file.path, {
+						import_to_current_project: true
+					})
 				})
 			})
 		}

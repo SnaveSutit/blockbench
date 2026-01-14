@@ -296,7 +296,8 @@ export const Timeline = {
 		return 1/Math.clamp(Animation.selected ? Animation.selected.snapping : settings.animation_snap.value, 1, 120);
 	},
 	setup() {
-		document.getElementById('timeline_body').addEventListener('mousedown', e => {
+		let timeline_body = Panels.timeline.node.querySelector('#timeline_body');
+		timeline_body.addEventListener('mousedown', e => {
 			if (e.which === 2 || (Keybinds.extra.preview_drag.keybind.isTriggered(e) && e.which !== 1)) {
 				let pos = [e.clientX, e.clientY];
 				let timeline = e.currentTarget;
@@ -322,7 +323,8 @@ export const Timeline = {
 			}
 		})
 
-		$('#timeline_time').on('mousedown touchstart', e => {
+		let timeline_time = Panels.timeline.node.querySelector('#timeline_time');
+		addEventListeners(timeline_time, 'mousedown touchstart', e => {
 			if (e.which !== 1 && !event.changedTouches) return;
 			if (e.target.classList.contains('timeline_marker')) return;
 
@@ -377,7 +379,7 @@ export const Timeline = {
 				}
 			}
 		})
-		$(document).on('mousemove touchmove', e => {
+		addEventListeners(document, 'mousemove touchmove', e => {
 			if (Timeline.dragging_playhead) {
 
 				convertTouchEvent(e);
@@ -419,8 +421,8 @@ export const Timeline = {
 					Blockbench.setCursorTooltip(Math.roundTo(time, 2));
 				}
 			}
-		})
-		.on('mouseup touchend', e => {
+		});
+		addEventListeners(document, 'mouseup touchend', e => {
 			if (Timeline.dragging_playhead) {
 				delete Timeline.dragging_playhead;
 				Interface.removeSuggestedModifierKey('ctrl', 'modifier_actions.drag_without_snapping');
@@ -434,10 +436,11 @@ export const Timeline = {
 				delete Timeline.dragging_onion_skin_point
 			}
 			Blockbench.setCursorTooltip();
-		})
+		});
 		
 		//Enter Time
-		$('#timeline_timestamp').click(e => {
+		let timestamp = Panels.timeline.node.querySelector('#timeline_timestamp');
+		addEventListeners(timestamp, 'click', e => {
 			if ($('#timeline_timestamp').attr('contenteditable') == 'true') return;
 
 			$('#timeline_timestamp').attr('contenteditable', true).focus().select()
@@ -464,13 +467,13 @@ export const Timeline = {
 			selection.removeAllRanges();
 			selection.addRange(range);
 		})
-		.on('focusout keydown', e => {
+		addEventListeners(timestamp, 'focusout keydown', e => {
 			if (e.type === 'focusout' || Keybinds.extra.confirm.keybind.isTriggered(e) || Keybinds.extra.cancel.keybind.isTriggered(e)) {
 				$('#timeline_timestamp').attr('contenteditable', false)
 				Timeline.setTimecode(Timeline.time)
 			}
 		})
-		.on('keyup', e => {
+		addEventListeners(timestamp, 'keyup', e => {
 			var times = $('#timeline_timestamp').text().split(':')
 			times.forEach((t, i) => {
 				times[i] = parseInt(t)
@@ -492,18 +495,19 @@ export const Timeline = {
 			}
 		})
 		//Enter Frame
-		$('#timeline_framenumber').click(e => {
+		let framenumber = Panels.timeline.node.querySelector('#timeline_framenumber');
+		framenumber.addEventListener('click', e => {
 			if ($('#timeline_framenumber').attr('contenteditable') == 'true') return;
 
 			$('#timeline_framenumber').attr('contenteditable', true).trigger('focus');
 			document.execCommand('selectAll');
 		})
-		.on('focusout keydown', e => {
+		addEventListeners(framenumber, 'focusout keydown', e => {
 			if (e.type === 'focusout' || Keybinds.extra.confirm.keybind.isTriggered(e) || Keybinds.extra.cancel.keybind.isTriggered(e)) {
 				$('#timeline_framenumber').attr('contenteditable', false)
 			}
 		})
-		.on('keyup', e => {
+		addEventListeners(framenumber, 'keyup', e => {
 			let frame = parseInt($('#timeline_framenumber').text())
 			let seconds = frame * Timeline.getStep();
 			if (Math.abs(seconds-Timeline.time) > 1e-3 ) {
@@ -512,9 +516,9 @@ export const Timeline = {
 			}
 		})
 
-		$('#timeline_vue').on('mousewheel scroll', function(e) {
-			e.preventDefault()
-			let event = e.originalEvent;
+		let timeline_vue = Panels.timeline.node.querySelector('#timeline_vue');
+		addEventListeners(timeline_vue, 'mousewheel scroll', function(event) {
+			event.preventDefault()
 			let body = document.getElementById('timeline_body');
 
 			body.scrollLeft += event.deltaX/2;
@@ -1338,7 +1342,7 @@ Interface.definePanels(() => {
 							Blockbench.setStatusBarText(text);
 						}
 						BarItems.slider_keyframe_time.update()
-						Animator.showMotionTrail()
+						Animator.showMotionTrail(null, true)
 						Animator.preview()
 
 					}
@@ -1476,7 +1480,7 @@ Interface.definePanels(() => {
 
 						Timeline.vue.show_zero_line = !Timeline.vue.show_zero_line;
 						Timeline.vue.show_zero_line = !Timeline.vue.show_zero_line;
-						Animator.showMotionTrail()
+						Animator.showMotionTrail(null, true)
 						Animator.preview()
 					}
 					function off() {
@@ -1550,7 +1554,7 @@ Interface.definePanels(() => {
 						}
 						let text = Math.round(value * 100) + '%';
 						Blockbench.setStatusBarText(text);
-						Animator.showMotionTrail()
+						Animator.showMotionTrail(null, true)
 						Animator.preview()
 
 					}
@@ -1627,7 +1631,14 @@ Interface.definePanels(() => {
 					if (range[0] == range[1]) return null;
 					return range;
 				},
+				getNodeColor(node) {
+					if (node.color >= 0) {
+						return markerColors[node.color % markerColors.length].pastel;
+					}
+					return '';
+				},
 				clamp: Math.clamp,
+				Condition,
 				trimFloatNumber,
 				getAxisLetter
 			},
@@ -1641,7 +1652,7 @@ Interface.definePanels(() => {
 					<div id="timeline_header">
 						<div id="timeline_corner" v-bind:style="{width: head_width+'px'}">
 							<div id="timeline_timestamp">{{ timestamp }}</div>
-							<span id="">/</span>
+							<span>/</span>
 							<div id="timeline_framenumber">{{ framenumber }}</div>
 							<div class="channel_axis_selector" v-if="graph_editor_open">
 								<div @click="graph_editor_axis = 'x';" :class="{selected: graph_editor_axis == 'x'}" style="color: var(--color-axis-x);">X</div>
@@ -1673,7 +1684,7 @@ Interface.definePanels(() => {
 								<div
 									v-for="marker in markers"
 									class="timeline_marker"
-									v-bind:style="{left: (marker.time * size) + 'px', '--color': markerColors[marker.color % markerColors.length].standard}"
+									v-bind:style="{left: (marker.time * size) + 'px', '--color': getColor(marker.color)}"
 									@contextmenu.prevent="marker.showContextMenu($event)"
 									v-on:click="marker.callPlayhead()"
 								>
@@ -1692,13 +1703,18 @@ Interface.definePanels(() => {
 					</div>
 					<div id="timeline_body" ref="timeline_body" @scroll="updateScroll($event)">
 						<div id="timeline_body_inner" v-bind:style="{width: (size*length + head_width)+'px'}" @contextmenu.stop="openContextMenu($event)">
-							<li v-for="animator in animators" class="animator" :class="{selected: animator.selected, boneless: animator.constructor.name == 'BoneAnimator' && !animator.group}" :uuid="animator.uuid" v-on:click="animator.clickSelect();">
+							<li v-for="animator in animators" class="animator" :class="{selected: animator.selected, boneless: animator.displayPosition && !animator.node}" :uuid="animator.uuid" v-on:click="animator.clickSelect();">
 								<div class="animator_head_bar">
 									<div class="channel_head" v-bind:style="{left: '0px', width: head_width+'px'}" v-on:dblclick.stop="toggleAnimator(animator)" @contextmenu.stop="animator.showContextMenu($event)">
 										<div class="text_button" v-on:click.stop="toggleAnimator(animator)">
 											<i class="icon-open-state fa" v-bind:class="{'fa-angle-right': !animator.expanded, 'fa-angle-down': animator.expanded}"></i>
 										</div>
-										<span v-on:click.stop="animator.clickSelect();" @mousedown="dragAnimator(animator, $event)" @touchstart="dragAnimator(animator, $event)">{{animator.name}}</span>
+										<dynamic-icon v-if="animator.node" :icon="animator.node.icon.replace('fa ', '').replace(/ /g, '.')" :color="getNodeColor(animator.node)" />
+										<dynamic-icon v-else-if="animator.particle" :icon="'wand_shine'" />
+										<dynamic-icon v-else :icon="'help'" style="color: var(--color-error)" />
+										<span class="timeline_animator_name" v-on:click.stop="animator.clickSelect();" @mousedown="dragAnimator(animator, $event)" @touchstart="dragAnimator(animator, $event)">
+											{{animator.name}}
+										</span>
 										<div class="text_button" v-on:click.stop="removeAnimator(animator)">
 											<i class="material-icons">remove</i>
 										</div>
@@ -1719,7 +1735,7 @@ Interface.definePanels(() => {
 								<div class="animator_channel_bar"
 									v-bind:style="{width: (size*length + head_width)+'px'}"
 									v-for="(channel_options, channel) in animator.channels"
-									v-if="animator.expanded && channels[channel] != false && (!channels.hide_empty || animator[channel].length)"
+									v-if="animator.expanded && channels[channel] != false && Condition(channel_options.condition) && (!channels.hide_empty || animator[channel].length)"
 								>
 									<div class="channel_head"
 										:class="{selected: graph_editor_open && animator.selected && graph_editor_channel == channel}"
@@ -1728,14 +1744,9 @@ Interface.definePanels(() => {
 										@contextmenu.stop="animator.showContextMenu($event)"
 									>
 										<div class="text_button" v-if="channel_options.mutable" v-on:click.stop="animator.toggleMuted(channel)">
-											<template v-if="channel === 'sound'">
-												<i class="channel_mute fas fa-volume-mute" v-if="animator.muted[channel]"></i>
-												<i class="channel_mute fas fa-volume-up" v-else></i>
-											</template>
-											<template v-else>
-												<i class="channel_mute fas fa-eye-slash" v-if="animator.muted[channel]"></i>
-												<i class="channel_mute fas fa-eye" v-else></i>
-											</template>
+											<i class="icon material-icons channel_mute" :class="{disabled: animator.muted[channel]}">
+												{{ channel === 'sound' ? (animator.muted[channel] ? 'volume_off' : 'volume_up') : (animator.muted[channel] ? 'visibility_off' : 'visibility') }}
+											</i>
 										</div>
 										<div class="text_button" v-else></div>
 										<span>{{ channel_options.name }}</span>
@@ -1760,13 +1771,13 @@ Interface.definePanels(() => {
 											v-bind:id="keyframe.uuid"
 											v-on:click.stop="keyframe.clickSelect($event)"
 											v-on:dblclick="keyframe.callPlayhead()"
-											:title="tl('timeline.'+keyframe.channel)"
+											:title="animator.channels[channel].name"
 											@mousedown="dragKeyframes(keyframe, $event)" @touchstart="dragKeyframes(keyframe, $event)"
 											@contextmenu.prevent.stop="keyframe.showContextMenu($event)"
 										>
-											<i class="material-icons keyframe_icon_smaller" v-if="keyframe.interpolation == 'catmullrom'">lens</i>
-											<i class="material-icons keyframe_icon_step" v-else-if="keyframe.interpolation == 'step'">eject</i>
-											<i class="icon-keyframe_bezier" v-else-if="keyframe.interpolation == 'bezier'"></i>
+											<i class="icon-keyframe_smooth" v-if="keyframe.interpolation == 'catmullrom'"></i>
+											<i class="icon-keyframe_step" v-else-if="keyframe.interpolation == 'step'"></i>
+											<i :class="keyframe.data_points.length == 1 ? 'icon-keyframe_bezier' : 'icon-keyframe_discontinuous_bezier'" v-else-if="keyframe.interpolation == 'bezier'"></i>
 											<i :class="keyframe.data_points.length == 1 ? 'icon-keyframe' : 'icon-keyframe_discontinuous'" v-else></i>
 											<svg class="keyframe_waveform" v-if="keyframe.channel == 'sound' && keyframe.data_points[0].file && waveforms[keyframe.data_points[0].file]" :style="{width: waveforms[keyframe.data_points[0].file].duration * size}">
 												<polygon :points="getWaveformPoints(waveforms[keyframe.data_points[0].file].samples, size)"></polygon>
@@ -1791,7 +1802,7 @@ Interface.definePanels(() => {
 										:d="loop_graph"
 										class="loop_graph"
 										:class="{selected: loop_graphs.length == 0 || i == graph_editor_axis_number}"
-										style="stroke: var(--color-grid);"
+										style="stroke: var(--color-loop_graph);"
 									></path>
 									<path v-if="graphs.length == 3"
 										:d="graphs[(graph_editor_axis_number+1) % 3]"
@@ -1822,8 +1833,9 @@ Interface.definePanels(() => {
 										@mousedown="dragKeyframes(keyframe, $event)" @touchstart="dragKeyframes(keyframe, $event)"
 										@contextmenu.prevent.stop="keyframe.showContextMenu($event)"
 									>
-										<i class="material-icons keyframe_icon_smaller" v-if="keyframe.interpolation == 'catmullrom'">lens</i>
-										<i class="material-icons keyframe_icon_step" v-else-if="keyframe.interpolation == 'step'">eject</i>
+										<i class="icon-keyframe_smooth" v-if="keyframe.interpolation == 'catmullrom'"></i>
+										<i class="icon-keyframe_step" v-else-if="keyframe.interpolation == 'step'"></i>
+										<!--i :class="keyframe.data_points.length == 1 ? 'icon-keyframe_bezier' : 'icon-keyframe_discontinuous_bezier'" v-else-if="keyframe.interpolation == 'bezier'"></i (looks better without hourglass in graph editor) -->
 										<i :class="keyframe.data_points.length == 1 ? 'icon-keyframe' : 'icon-keyframe_discontinuous'" v-else></i>
 
 										<template v-if="keyframe.interpolation == 'bezier' && (show_all_handles || keyframe.selected)">
@@ -2080,7 +2092,18 @@ BARS.defineActions(function() {
 					ba.addToTimeline();
 				}
 			}
-
+		}
+	})
+	new Action('add_all_to_timeline', {
+		icon: 'docs_add_on',
+		category: 'animation',
+		condition: {modes: ['animate'], selected: {animation_controller: false, animation: true}},
+		click() {
+			Group.all.concat(Outliner.elements).forEach(node => {
+				if (!node.selected) return;
+				let ba = Animation.selected.getBoneAnimator(node);
+				if (ba) ba.addToTimeline();
+			})
 		}
 	})
 	new Action('fold_all_animations', {

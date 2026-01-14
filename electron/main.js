@@ -4,7 +4,6 @@ import url from 'url'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
-import {getColorHexRGB} from 'electron-color-picker'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -169,7 +168,6 @@ function createWindow(second_instance, options = {}) {
 		protocol: 'file:',
 		slashes: true
 	}))
-	win.webContents.openDevTools()
 	win.on('closed', () => {
 		win = null;
 		all_wins.splice(all_wins.indexOf(win), 1);
@@ -204,6 +202,9 @@ app.on('open-file', function (event, path) {
 
 ipcMain.on('edit-launch-setting', (event, arg) => {
 	LaunchSettings.set(arg.key, arg.value);
+})
+ipcMain.handle('get-launch-setting', (event, arg) => {
+	return LaunchSettings.get(arg.key);
 })
 ipcMain.on('add-recent-project', (event, path) => {
 	app.addRecentDocument(path);
@@ -244,7 +245,8 @@ ipcMain.on('close-detached-project', async (event, window_id, uuid) => {
 	if (window) window.send('close-detached-project', uuid);
 })
 ipcMain.on('request-color-picker', async (event, arg) => {
-	const color = await getColorHexRGB().catch((error) => {
+	const ColorPicker = await import('electron-color-picker');
+	const color = await ColorPicker.getColorHexRGB().catch((error) => {
 		console.warn('[Error] Failed to pick color', error)
 		return ''
 	})
@@ -264,7 +266,20 @@ ipcMain.on('open-in-default-app', async (event, path) => {
 
 app.on('ready', () => {
 
-	createWindow()
+	const dev_mode = process.execPath && process.execPath.match(/node_modules[\\\/]electron/);
+
+	if (dev_mode) {
+
+		// Timeout to avoid race condition of Blockbench opening before esbuild finishes. Needs proper solution long-term
+		setTimeout(() => {
+			createWindow()
+		}, 1000);
+
+	} else {
+
+		createWindow()
+		
+	}
 
 	let app_was_loaded = false;
 	ipcMain.on('app-loaded', () => {
@@ -280,7 +295,7 @@ app.on('ready', () => {
 		}
 
 		app_was_loaded = true;
-		if (process.execPath && process.execPath.match(/node_modules[\\\/]electron/)) {
+		if (dev_mode) {
 
 			console.log('[Blockbench] App launched in development mode')
 	

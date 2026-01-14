@@ -1,4 +1,4 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 type CardinalDirection = 'north' | 'south' | 'east' | 'west' | 'up' | 'down'
 
 interface ICubeOptions {
@@ -13,6 +13,7 @@ interface ICubeOptions {
 	to?: ArrayVector3
 	rotation?: ArrayVector3
 	origin?: ArrayVector3
+	stretch?: ArrayVector3
 	box_uv?: boolean
 	/**
 	 * UV position for box UV mode
@@ -54,6 +55,7 @@ declare class Cube extends OutlinerElement {
 	to: ArrayVector3
 	rotation: ArrayVector3
 	origin: ArrayVector3
+	stretch: ArrayVector3
 	faces: {
 		[fkey: string]: CubeFace
 	}
@@ -72,12 +74,16 @@ declare class Cube extends OutlinerElement {
 
 	extend(options: ICubeOptions): this
 	/**
-	 * Calculates and returns the size of a cube across a certain axis. If the axis argument is omitted, it returns all sizes as an array vector.
+	 * Calculates and returns the size of the cube
 	 */
-	size(axis?: number, floored?: boolean): number | ArrayVector3
+	size(): ArrayVector3
+	/**
+	 * Calculates and returns the size of a cube on a certain axis
+	 */
+	size(axis: number, floored?: boolean): number
 	rotationAxis(): string
-	getUndoCopy(aspects?: any): void
-	getSaveCopy(project?: boolean): Cube
+	getUndoCopy(aspects?: any): any
+	getSaveCopy(): Cube
 	/**
 	 * Rotate the cube around axis in 90 degree steps
 	 * @param axis Axis index
@@ -116,7 +122,7 @@ declare class Cube extends OutlinerElement {
 }
 
 interface FaceOptions {
-	texture?: Texture
+	texture?: Texture | UUID | false
 }
 declare class Face {
 	constructor()
@@ -129,9 +135,9 @@ declare class Face {
 	getBoundingRect(): any
 	reset(): void
 	/**
-	 * Returns a save copy of the face, ready for serialization. Set project to true to save for a bbmodel project file
+	 * Returns a save copy of the face, ready for serialization
 	 */
-	getSaveCopy(project?: boolean): any
+	getSaveCopy(): any
 	/**
 	 * Get a copy for undo tracking
 	 */

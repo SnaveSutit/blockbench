@@ -1,15 +1,16 @@
 import DarkTheme from '../../themes/dark.bbtheme'
 import LightTheme from '../../themes/light.bbtheme'
 import ContrastTheme from '../../themes/contrast.bbtheme'
-import { compareVersions, patchedAtob } from '../util/util'
+import { patchedAtob } from '../util/util'
 import { Dialog } from './dialog'
 import { settings, Settings } from './settings'
 import tinycolor from 'tinycolor2'
-import { FSWatcher } from 'original-fs'
 import { BBYaml } from '../util/yaml'
 import { Blockbench } from '../api'
 import { InputFormConfig } from './form'
 import { Filesystem } from '../file_system'
+import { fs } from '../native_apis'
+import VersionUtil from '../util/version_util'
 
 type ThemeSource = 'built_in' | 'file' | 'repository' | 'custom';
 type ThemeData = {
@@ -37,24 +38,24 @@ type ThemeData = {
 }
 
 const DEFAULT_COLORS = {
-	ui: '#282c34',
-	back: '#21252b',
-	dark: '#17191d',
-	border: '#181a1f',
-	selected: '#474d5d',
-	elevated: '#323640',
-	button: '#3a3f4b',
+	ui: '#1e2127',
+	back: '#181b1f',
+	dark: '#101316',
+	border: '#101316',
+	selected: '#3b3e49',
+	elevated: '#272a31',
+	button: '#33383f',
 	bright_ui: '#f4f3ff',
 	accent: '#3e90ff',
-	frame: '#121418',
+	frame: '#0f1012',
 	text: '#cacad4',
 	light: '#f4f3ff',
 	accent_text: '#000006',
 	bright_ui_text: '#000006',
 	subtle_text: '#848891',
-	grid: '#495061',
+	grid: '#30333d',
 	wireframe: '#576f82',
-	checkerboard: '#1c2026',
+	checkerboard: '#14171b',
 }
 
 export class CustomTheme {
@@ -118,7 +119,7 @@ export class CustomTheme {
 				if (data.colors[key]) {
 					Merge.string(this.colors, data.colors, key);
 				} else {
-					CustomTheme.selected.colors[key] = DEFAULT_COLORS[key];
+					this.colors[key] = DEFAULT_COLORS[key];
 				}
 			}
 		}
@@ -142,7 +143,7 @@ export class CustomTheme {
 			}
 		}
 		new Dialog('theme_configuration', {
-			name: 'layout.theme.configure',
+			title: 'layout.theme.configure',
 			form,
 			singleButton: true,
 			onFormChange(result: Record<string, string>) {
@@ -172,7 +173,7 @@ export class CustomTheme {
 	static dialog: Dialog|null = null
 	static setup() {
 
-		const theme_watchers: Record<string, FSWatcher> = {};
+		const theme_watchers: Record<string, any> = {};
 		let remote_themes_loaded = false;
 		CustomTheme.dialog = new Dialog({
 			id: 'theme',
@@ -325,7 +326,7 @@ export class CustomTheme {
 										Blockbench.showQuickMessage('texture.error.file');
 										return;
 									}
-									shell.showItemInFolder(theme.path);
+									Filesystem.showFileInFolder(theme.path);
 								}
 							},
 							{
@@ -457,7 +458,7 @@ export class CustomTheme {
 
 							<div class="dialog_bar" v-if="data.source == 'custom'">
 								<label class="name_space_left" for="layout_name">${tl('layout.version')}</label>
-								<input @input="customizeTheme($event)" type="text" class="half dark_bordered" id="layout_name" v-model="data.version">
+								<input @input="customizeTheme($event)" type="text" class="half dark_bordered" id="layout_name" v-model="data.version" placeholder="1.0.0">
 							</div>
 
 							<hr />
@@ -543,13 +544,14 @@ export class CustomTheme {
 				cancelText: tl('dialog.cancel'),
 				chooseText: tl('dialog.confirm'),
 				move(c) {
-					CustomTheme.selected.colors[scope_key] = c.toHexString();
 					CustomTheme.customizeTheme();
+					CustomTheme.selected.colors[scope_key] = c.toHexString();
 				},
 				change(c) {
 					last_color = c.toHexString();
 				},
 				hide(c) {
+					CustomTheme.customizeTheme();
 					CustomTheme.selected.colors[scope_key] = last_color;
 					field.spectrum('set', last_color);
 				},
@@ -630,7 +632,17 @@ export class CustomTheme {
 			variable_section += `\n\t${key}: ${variables[key]};`
 		}
 		variable_section += '\n}\n';
-		document.getElementById('theme_css').textContent = `@layer theme {${variable_section}${theme.css}};`
+
+		let css = theme.css || '';
+		// Move import statements ouf of the later as they do not function inside
+		let import_section = css.length > 10 && css.match(/^[\S\s]*@import .+/);
+		if (css && import_section) {
+			let remaining_css = css.substring(import_section.length);
+			css = `${import_section[0]}\n@layer theme {${variable_section}${remaining_css}};`
+		} else {
+			css = `@layer theme {${variable_section}${css}};`;
+		}
+		document.getElementById('theme_css').textContent = css;
 		document.body.classList.toggle('theme_borders', !!theme.borders);
 		// Options
 		for (let attribute of document.body.attributes) {
@@ -853,7 +865,7 @@ export function loadThemes() {
 				if (!text_content) return;
 				let theme = new CustomTheme().parseBBTheme(text_content);
 
-				if ((theme.version && !stored_theme.version) || (theme.version && stored_theme.version && compareVersions(theme.version, stored_theme.version))) {
+				if ((theme.version && !stored_theme.version) || (theme.version && stored_theme.version && VersionUtil.compare(theme.version, '>', stored_theme.version))) {
 					// Update theme
 					stored_theme.extend(theme);
 					stored_theme.source = 'repository';

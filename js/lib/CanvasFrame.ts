@@ -5,8 +5,9 @@ export class CanvasFrame {
 	canvas: HTMLCanvasElement
 	ctx: CanvasRenderingContext2D
 	
-	constructor(height: number, number: number)
-	constructor(source: HTMLCanvasElement | HTMLImageElement | number, copy_canvas?: number | boolean) {
+	constructor()
+	constructor(width: number, height: number)
+	constructor(source?: HTMLCanvasElement | HTMLImageElement | number, copy_canvas?: number | boolean) {
 		if (source instanceof HTMLCanvasElement) {
 			if (source.getContext('2d') && copy_canvas !== true) {
 				this.canvas = source;
@@ -35,6 +36,9 @@ export class CanvasFrame {
 	}
 	async loadFromURL(url: string) {
 		let img = new Image()
+		if (!isApp && url.startsWith('https')) {
+			img.crossOrigin = "blockbench.net";
+		}
 		img.src = url.replace(/#/g, '%23');
 		await new Promise<void>((resolve, reject) => {
 			img.onload = () => {

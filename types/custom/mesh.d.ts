@@ -1,4 +1,5 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
+
 type OccupationMatrix = {
 	[x: number]: {
 		[y: number]: boolean
@@ -19,8 +20,8 @@ interface MeshOptions {
 }
 
 interface MeshFaceOptions extends FaceOptions {
-	vertices: string[]
-	uv: { [vkey: string]: ArrayVector2 }
+	vertices?: string[]
+	uv?: { [vkey: string]: ArrayVector2 }
 }
 declare class MeshFace extends Face {
 	constructor(mesh: Mesh, data: MeshFaceOptions)
@@ -32,7 +33,7 @@ declare class MeshFace extends Face {
 	uv: {
 		[vertex: string]: ArrayVector2
 	}
-	extend(data: MeshFaceOptions): void
+	extend(data: MeshFaceOptions): this
 	/**
 	 * Returns the face normal in mesh space as calculated from the vertex positions
 	 * @param normalize If true, the values will be normalized.
@@ -99,6 +100,7 @@ interface MeshOptions {
 	name?: string
 	color?: number
 	visibility?: boolean
+	shading?: 'flat' | 'smooth'
 	rotation?: ArrayVector3
 	origin?: ArrayVector3
 	vertices?: {
@@ -108,8 +110,11 @@ interface MeshOptions {
 declare class Mesh extends OutlinerElement {
 	constructor(options: Partial<MeshOptions>, uuid?: string)
 
+	shading: 'flat' | 'smooth'
 	visibility: boolean
 	color: number
+	origin: ArrayVector3
+	rotation: ArrayVector3
 
 	vertices: {
 		[vkey: string]: ArrayVector3
@@ -128,22 +133,27 @@ declare class Mesh extends OutlinerElement {
 	 * Get selected vertices as vertex keys
 	 * @param can_write If true, the array can safely be modified to update the selection
 	 */
-	getSelectedVertices(can_write: boolean): string[]
+	getSelectedVertices(can_write?: boolean): string[]
 	/**
 	 * Get selected edges as vertex key pairs
 	 * @param can_write If true, the array can safely be modified to update the selection
 	 */
-	getSelectedEdges(can_write: boolean): [string, string][]
+	getSelectedEdges(can_write?: boolean): [string, string][]
 	/**
 	 * Get selected faces as face keys
 	 * @param can_write If true, the array can safely be modified to update the selection
 	 */
-	getSelectedVertices(can_write: boolean): string[]
+	getSelectedFaces(can_write?: boolean): string[]
 
 	/**
 	 * Get the armature if one is attached to the mesh
 	 */
 	getArmature() : Armature | undefined
+	/**
+	 * Vertex lists of quads are generally in arbitrary order, the order is calculated when calling getSortedVertices() to account for dfiferent face geometries. Calling this method pre-sorts all faces to allow optimizing subsequent processing
+	 */
+	sortAllFaceVertices(): void
+	calculateNormals(): Record<string, ArrayVector3>
 
 	setSeam(edge: MeshEdge, value: any): void
 	getSeam(edge: MeshEdge): MeshSeamValue

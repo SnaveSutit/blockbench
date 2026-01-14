@@ -13,6 +13,7 @@ import "./lib/GLTFExporter"
 import "./lib/CanvasFrame"
 import "./lib/canvas2apng"
 import "./lib/easing"
+import "./native_apis"
 import "./preview/OrbitControls"
 
 import './languages'
@@ -54,16 +55,16 @@ import "./validator"
 import "./outliner/outliner"
 import "./outliner/element_panel"
 import "./outliner/collections"
-import "./outliner/group"
-import "./outliner/mesh"
-import "./outliner/cube"
-import "./outliner/billboard"
-import "./outliner/texture_mesh"
-import "./outliner/armature"
-import "./outliner/armature_bone"
-import "./outliner/locator"
-import "./outliner/null_object"
-import "./outliner/spline_mesh"
+import "./outliner/types/group"
+import "./outliner/types/mesh"
+import "./outliner/types/cube"
+import "./outliner/types/billboard"
+import "./outliner/types/texture_mesh"
+import "./outliner/types/armature"
+import "./outliner/types/armature_bone"
+import "./outliner/types/locator"
+import "./outliner/types/null_object"
+import "./outliner/types/spline_mesh"
 import "./preview/preview"
 import "./preview/reference_images"
 import "./preview/screenshot"
@@ -73,19 +74,21 @@ import "./modeling/edit"
 import "./modeling/transform/transform_gizmo"
 import "./modeling/transform"
 import "./modeling/scale"
+import "./modeling/vertex_snap"
 import "./modeling/mesh_editing"
 import "./modeling/mirror_modeling"
 import "./modeling/spline_editing"
 import "./modeling/weight_paint"
-import "./texturing/layers"
 import "./texturing/textures"
+import "./texturing/layers"
 import "./texturing/texture_groups"
 import "./texturing/texture_flipbook"
 import "./texturing/uv"
 import "./texturing/painter"
 import "./texturing/texture_generator"
 import "./texturing/edit_image"
-import "./display_mode"
+import "./display_mode/display_mode"
+import "./display_mode/attachable_preview"
 import "./animations/animation_mode"
 import "./animations/animation"
 import "./animations/molang"
@@ -111,6 +114,7 @@ import "./io/formats/obj"
 import "./io/formats/gltf"
 import "./io/formats/fbx"
 import "./io/formats/collada"
+import "./io/formats/stl"
 import "./io/formats/modded_entity"
 import "./io/formats/optifine_jem"
 import "./io/formats/optifine_jpm"
@@ -118,34 +122,4 @@ import "./io/formats/skin"
 import "./io/formats/image"
 import "./boot_loader"
 import "./globals"
-
-import {
-	settings as _settings,
-	Setting as _Setting,
-	SettingsProfile as _SettingsProfile,
-	Settings as _Settings,
-} from './interface/settings'
-declare global {
-	const settings: typeof _settings
-	const Setting: typeof _Setting
-	const SettingsProfile: typeof _SettingsProfile
-	const Settings: typeof _Settings
-	namespace Blockbench {
-		const settings: typeof _settings
-		const Setting: typeof _Setting
-		const SettingsProfile: typeof _SettingsProfile
-		const Settings: typeof _Settings
-	}
-}
-import {
-	Modes as _Modes,
-	Mode as _Mode,
-} from './modes'
-declare global {
-	const Modes: typeof _Modes
-	const Mode: typeof _Mode
-	namespace Blockbench {
-		const Modes: typeof _Modes
-		const Mode: typeof _Mode
-	}
-}
+import "./global_types"

@@ -1,6 +1,8 @@
 import { Blockbench } from "../api";
 import { Filesystem } from "../file_system";
 import { openMolangEditor } from "./molang_editor";
+import { clipboard, currentwindow, dialog, fs, ipcRenderer } from "../native_apis";
+import { invertMolang } from "../util/molang";
 
 export class AnimationItem {
 	constructor() {}
@@ -42,8 +44,8 @@ export class Animation extends AnimationItem {
 		for (var key in Animation.properties) {
 			Animation.properties[key].merge(this, data)
 		}
-		if (data.path && isApp && !PathModule.isAbsolute(this.path) && Project.save_path) {
-			this.path = PathModule.resolve(PathModule.dirname(Project.save_path), this.path);
+		if (data.path && isApp && !PathModule.isAbsolute(data.path) && Project.save_path) {
+			this.path = PathModule.resolve(PathModule.dirname(Project.save_path), data.path);
 		}
 		Merge.string(this, data, 'name')
 		Merge.string(this, data, 'loop', val => ['once', 'loop', 'hold'].includes(val))
@@ -72,6 +74,7 @@ export class Animation extends AnimationItem {
 					if (key == 'effects') {
 						// Effects
 						animator = this.animators[key] = new EffectAnimator(this);
+						animator.extend(animator_blueprint);
 					} else if (animator_blueprint.type && animator_blueprint.type !== 'bone') {
 						// Element
 						let uuid = isUUID(key) && key;
@@ -85,6 +88,7 @@ export class Animation extends AnimationItem {
 						if (element) {
 							animator = this.animators[uuid] = new element.constructor.animator(uuid, this, animator_blueprint.name);
 						}
+						animator.extend(animator_blueprint);
 					} else {
 						// Bone
 						let uuid = isUUID(key) && key;
@@ -94,20 +98,20 @@ export class Animation extends AnimationItem {
 							uuid = group_match ? group_match.uuid : guid();
 						}
 						animator = this.animators[uuid] = new BoneAnimator(uuid, this, animator_blueprint.name);
-						if (animator_blueprint.rotation_global) animator.rotation_global = true;
+						animator.extend(animator_blueprint);
 					}
 				} else {
 					animator = this.animators[key];
 					for (let channel in animator.channels) {
 						animator[channel].empty()
 					}
+					animator.extend(animator_blueprint);
 				}
 				if (kfs && animator) {
 					kfs.forEach(kf_data => {
 						animator.addKeyframe(kf_data, kf_data.uuid);
 					})
 				}
-
 			}
 		}
 		if (data.markers instanceof Array) {
@@ -120,7 +124,7 @@ export class Animation extends AnimationItem {
 		return this;
 	}
 	getUndoCopy(options = 0, save) {
-		var copy = {
+		let copy = {
 			uuid: this.uuid,
 			name: this.name,
 			loop: this.loop,
@@ -129,7 +133,7 @@ export class Animation extends AnimationItem {
 			snapping: this.snapping,
 			selected: this.selected,
 		}
-		for (var key in Animation.properties) {
+		for (let key in Animation.properties) {
 			Animation.properties[key].copy(this, copy)
 		}
 		if (this.markers.length) {
@@ -137,20 +141,9 @@ export class Animation extends AnimationItem {
 		}
 		if (Object.keys(this.animators).length) {
 			copy.animators = {}
-			for (var uuid in this.animators) {
+			for (let uuid in this.animators) {
 				let ba = this.animators[uuid]
-				let kfs = ba.keyframes
-				if ((kfs && kfs.length) || ba.rotation_global || !save) {
-					let ba_copy = copy.animators[uuid] = {
-						name: ba.name,
-						type: ba.type,
-						rotation_global: ba.rotation_global ? true : undefined,
-						keyframes: []
-					}
-					kfs.forEach(kf => {
-						ba_copy.keyframes.push(kf.getUndoCopy(true, {absolute_paths: options.absolute_paths}));
-					})
-				}
+				copy.animators[uuid] = ba.getUndoCopy(options);
 			}
 		}
 		return copy;
@@ -194,7 +187,6 @@ export class Animation extends AnimationItem {
 
 				var group = animator.getGroup(); 
 				var bone_tag = ani_tag.bones[group ? group.name : animator.name] = {};
-				var channels = {};
 				if (animator.rotation_global) {
 					bone_tag.relative_to = {rotation: 'entity'};
 					bone_tag.rotation = [0, 0, 0.01];
@@ -224,6 +216,8 @@ export class Animation extends AnimationItem {
 								let value = [0, 1, 2].map(axis => {
 									return kf.getBezierLerp(kf, next_keyframe, getAxisLetter(axis), lerp);
 								})
+								if (channel == 'position' || channel == 'rotation') value[0] = -value[0];
+								if (channel == 'rotation') value[1] = -value[1];
 								interpolated_values[itimecode] = value;
 							}
 							// Optimize data
@@ -277,6 +271,8 @@ export class Animation extends AnimationItem {
 				if (!timecode.includes('.')) {
 					timecode += '.0';
 				}
+				rotation.array[0] = invertMolang(rotation.array[0]);
+				rotation.array[1] = invertMolang(rotation.array[1]);
 				bone_tag.rotation[timecode] = rotation.array;
 			})
 		}
@@ -366,7 +362,7 @@ export class Animation extends AnimationItem {
 
 				} catch (err) {
 					data = null;
-					var answer = electron.dialog.showMessageBoxSync(currentwindow, {
+					var answer = dialog.showMessageBoxSync(currentwindow, {
 						type: 'warning',
 						buttons: [
 							tl('message.bedrock_overwrite_error.overwrite'),
@@ -581,7 +577,8 @@ export class Animation extends AnimationItem {
 		} else if (!group) {
 			return;
 		}
-		var uuid = group.uuid
+		if (!group.constructor.animator) return;
+		var uuid = group.uuid;
 		if (!this.animators[uuid]) {
 			let match;
 			for (let uuid2 in this.animators) {
@@ -762,6 +759,7 @@ export class Animation extends AnimationItem {
 						]).open(event);
 					},
 					autocomplete(text, position) {
+						if (Settings.get('autocomplete_code') == false) return [];
 						let test = MolangAutocomplete.AnimationContext.autocomplete(text, position);
 						return test;
 					}
@@ -889,7 +887,7 @@ export class Animation extends AnimationItem {
 			icon: 'folder',
 			condition(animation) {return isApp && Format.animation_files && animation.path && fs.existsSync(animation.path)},
 			click(animation) {
-				showItemInFolder(animation.path);
+				Filesystem.showFileInFolder(animation.path);
 			}
 		},
 		{
@@ -906,16 +904,20 @@ export class Animation extends AnimationItem {
 			id: 'reload',
 			name: 'menu.animation.reload',
 			icon: 'refresh',
-			condition: (animation) => (Format.animation_files && isApp && animation.saved),
+			condition: (animation) => (Format.animation_files && Format.id.includes('bedrock') && isApp && animation.saved),
 			click(animation) {
 				Blockbench.read([animation.path], {}, ([file]) => {
 					Undo.initEdit({animations: [animation]})
 					let anim_index = Animation.all.indexOf(animation);
 					animation.remove(false, false);
 					let [new_animation] = Animator.loadFile(file, [animation.name]);
-					Animation.all.remove(new_animation);
-					Animation.all.splice(anim_index, 0, new_animation);
-					Undo.finishEdit('Reload animation', {animations: [new_animation]})
+					if (new_animation) {
+						Animation.all.remove(new_animation);
+						Animation.all.splice(anim_index, 0, new_animation);
+						Undo.finishEdit('Reload animation', {animations: [new_animation]})
+					} else {
+						Undo.cancelEdit();
+					}
 				})
 			}
 		},
@@ -950,6 +952,14 @@ export class Animation extends AnimationItem {
 				animation.remove(false, false);
 			})
 			Undo.finishEdit('Unload animation file', {animations: [], animation_controllers: []});
+		}},
+		{name: 'menu.animation_file.save_as', icon: 'save', click(path) {
+			let item = AnimationItem.all.find(item => item.path == path);
+			if (item.type == 'animation') {
+				Animator.exportAnimationFile(path, true);
+			} else {
+				Animator.exportAnimationControllerFile(path, true);
+			}
 		}},
 		{name: 'menu.animation.reload', icon: 'refresh', click(id) {
 			let animations_to_remove = Animation.all.filter(anim => anim.path == id && anim.saved);
@@ -1001,7 +1011,7 @@ export class Animation extends AnimationItem {
 	])
 	new Property(Animation, 'boolean', 'saved', {default: true, condition: () => Format.animation_files})
 	new Property(Animation, 'string', 'path', {condition: () => isApp && Format.animation_files})
-	new Property(Animation, 'string', 'group_name', {condition: () => !Format.animation_files})
+	new Property(Animation, 'string', 'group_name', {condition: () => Format.animation_grouping == 'custom'})
 	new Property(Animation, 'molang', 'anim_time_update', {default: ''});
 	new Property(Animation, 'molang', 'blend_weight', {default: ''});
 	new Property(Animation, 'molang', 'start_delay', {default: ''});
@@ -1179,7 +1189,7 @@ BARS.defineActions(function() {
 		condition: {modes: ['animate']},
 		click: function () {
 			new Animation({
-				name: Format.animation_files ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
+				name: Format.id.includes('bedrock') ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
 				saved: false
 			}).add(true).propertiesDialog()
 
@@ -1188,7 +1198,7 @@ BARS.defineActions(function() {
 	new Action('create_animation_group', {
 		icon: 'create_new_folder',
 		category: 'animation',
-		condition: {modes: ['animate'], selected: {animation: true}},
+		condition: {modes: ['animate'], selected: {animation: true}, method: () => Format.animation_grouping == 'custom'},
 		click: async function () {
 			let name = await Blockbench.textPrompt('Group Name', 'Animation Group');
 			if (!name) return;
@@ -1231,7 +1241,9 @@ BARS.defineActions(function() {
 			let form = {};
 			let keys = [];
 			let animations = Animation.all.slice()
-			if (Format.animation_files) animations.sort((a1, a2) => a1.path.hashCode() - a2.path.hashCode())
+			if (Condition(Animation.properties.path.condition)) {
+				animations.sort((a1, a2) => (a1.path ?? a1.name).hashCode() - (a2.path ?? a2.name).hashCode())
+			}
 			animations.forEach(animation => {
 				let key = animation.name;
 				keys.push(key)
@@ -1330,7 +1342,7 @@ BARS.defineActions(function() {
 		condition: {modes: ['animate']},
 		click: function () {
 			let elements = Outliner.elements;
-			Undo.initEdit({elements, outliner: true});
+			Undo.initEdit({elements, outliner: true, groups: Group.all});
 
 			let animatable_elements = Outliner.elements.filter(el => el.constructor.animator);
 			[...Group.all, ...animatable_elements].forEach(node => {
@@ -1341,18 +1353,20 @@ BARS.defineActions(function() {
 						let animator = animation.getBoneAnimator(node);
 						let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
 						
-						if (node instanceof Group) {
+						if (animator.channels.rotation) {
 							let rotation = animator.interpolate('rotation');
-							let position = animator.interpolate('position');
 							if (rotation instanceof Array) offset_rotation.V3_add(rotation.map(v => v * multiplier));
+						}
+						if (animator.channels.position) {
+							let position = animator.interpolate('position');
 							if (position instanceof Array) offset_position.V3_add(position.map(v => v * multiplier));
 						}
 					}
 				})
 				// Rotation
 				if (node.getTypeBehavior('rotatable')) {
-					node.rotation[0] -= offset_rotation[0];
-					node.rotation[1] -= offset_rotation[1];
+					node.rotation[0] += offset_rotation[0];
+					node.rotation[1] += offset_rotation[1];
 					node.rotation[2] += offset_rotation[2];
 				}
 				// Position
@@ -1368,9 +1382,18 @@ BARS.defineActions(function() {
 				}
 				offset(node);
 			});
+			for (let mesh of Mesh.all) {
+				if (mesh.parent instanceof Armature) {
+					let vertex_offsets = mesh.parent.calculateVertexDeformation(mesh);
+					for (let vkey in mesh.vertices) {
+						if (vertex_offsets[vkey]) mesh.vertices[vkey].V3_add(vertex_offsets[vkey]);
+					}
+					Mesh.preview_controller.updateGeometry(mesh);
+				}
+			}
 
 			Modes.options.edit.select();
-			Canvas.updateAllBones();
+			Canvas.updateView({elements: Outliner.elements, element_aspects: {transform: true}, groups: Group.all, group_aspects: {transform: true}});
 			Undo.finishEdit('Bake animation into model')
 		}
 	})
@@ -1431,7 +1454,6 @@ BARS.defineActions(function() {
 						}
 					})
 					animation.setLength(initial_length / speed);
-					TickUpdates.keyframes = true;
 					Animator.preview();
 				},
 				onConfirm(result) {
@@ -1648,10 +1670,11 @@ BARS.defineActions(function() {
 						if (!animator[channel]?.length) continue;
 						if (!animator.channels[channel].transform) continue;
 						let first = animator[channel][0];
+						let expected = +(channel === "scale");
 						// todo: add data points
 						if (animator[channel].length == 1 && first.data_points.length == 1 && (response.selection != 'selected_keyframes' || first.selected)) {
 							let value = first.getArray();
-							if (!value[0] && !value[1] && !value[2]) {
+							if (value.allAre(v => v === expected)) {
 								first.remove();
 								continue;
 							}
@@ -1715,7 +1738,7 @@ BARS.defineActions(function() {
 									}
 								}
 							} else if (!prev && !next) {
-								if (d_kf.allAre(val => !val)) {
+								if (d_kf.allAre(val => val === expected)) {
 									remove = true;
 								} else {
 									kf.time = 0;
@@ -1820,13 +1843,15 @@ BARS.defineActions(function() {
 						kf.animator = target;
 					}
 				}
-				target.rotation_global = source.rotation_global;
+				target.extend(source);
 			}
 			function resetAnimator(animator) {
 				for (let channel in animator.channels) {
 					animator[channel].empty();
 				}
-				animator.rotation_global = false;
+				for (let key in animator.constructor.properties) {
+					animator.constructor.properties[key].reset(animator);
+				}
 			}
 
 			for (let animator of all_animators) {
@@ -1909,7 +1934,8 @@ Interface.definePanels(function() {
 			slot: 'left_bar',
 			float_position: [0, 0],
 			float_size: [300, 400],
-			height: 400
+			height: 400,
+			sidebar_index: 0,
 		},
 		toolbars: [
 			new Toolbar('animations', {
@@ -1931,7 +1957,8 @@ Interface.definePanels(function() {
 				animations: Animation.all,
 				animation_controllers: AnimationController.all,
 				files_folded: {},
-				animation_files_enabled: true,
+				animation_files: true,
+				group_animations_by_file: true,
 				search_enabled: false,
 				search_term: '',
 			}},
@@ -1951,11 +1978,11 @@ Interface.definePanels(function() {
 					}
 				},
 				addAnimation(group_name) {
-					let other_animation = AnimationItem.all.find(a => (this.animation_files_enabled ? a.path : a.group_name) == group_name);
+					let other_animation = AnimationItem.all.find(a => (this.group_animations_by_file ? a.path : a.group_name) == group_name);
 					if (other_animation instanceof Animation) {
 						new Animation({
 							name: other_animation && other_animation.name.replace(/\w+$/, 'new'),
-							path: this.animation_files_enabled ? group_name : undefined,
+							path: this.group_animations_by_file ? group_name : undefined,
 							group_name: group_name,
 							saved: false
 						}).add(true).propertiesDialog()
@@ -1968,7 +1995,7 @@ Interface.definePanels(function() {
 					}
 				},
 				showFileContextMenu(event, id) {
-					if (this.animation_files_enabled) {
+					if (this.group_animations_by_file) {
 						Animation.prototype.file_menu.open(event, id);
 					} else {
 						Animation.prototype.group_menu.open(event, id);
@@ -1994,7 +2021,7 @@ Interface.definePanels(function() {
 					let drop_target, drop_target_node, order;
 					let last_event = e1;
 
-					let group_name_key = this.animation_files_enabled ? 'path' : 'group_name';
+					let group_name_key = this.group_animations_by_file ? 'path' : 'group_name';
 
 					function move(e2) {
 						convertTouchEvent(e2);
@@ -2121,8 +2148,8 @@ Interface.definePanels(function() {
 					}
 					const groups = {};
 					this.animations.forEach(animation => {
-						let key = (this.animation_files_enabled ? animation.path : animation.group_name) || '';
-						let name = this.animation_files_enabled ? (pathToName(key, true) || 'Unsaved') : key;
+						let key = (this.group_animations_by_file ? animation.path : animation.group_name) || '';
+						let name = this.group_animations_by_file ? (pathToName(key, true) || 'Unsaved') : key;
 						if (!groups[key]) {
 							groups[key] = {
 								animations: [],
@@ -2131,7 +2158,7 @@ Interface.definePanels(function() {
 								saved: true
 							};
 						}
-						if (!key && !this.animation_files_enabled) groups[key].hide_head = true;
+						if (!key && !this.group_animations_by_file) groups[key].hide_head = true;
 						if (!animation.saved) groups[key].saved = false;
 						if (!filter(animation)) return;
 						groups[key].animations.push(animation);
@@ -2230,7 +2257,7 @@ Interface.definePanels(function() {
 						<div class="animation_file_head" v-if="!file.hide_head" v-on:click.stop="toggle(key)">
 							<i v-on:click.stop="toggle(key)" class="icon-open-state fa" :class=\'{"fa-angle-right": files_folded[key], "fa-angle-down": !files_folded[key]}\'></i>
 							<label :title="key">{{ file.name }}</label>
-							<div class="in_list_button" v-if="animation_files_enabled && !file.saved" v-on:click.stop="saveFile(key, file)">
+							<div class="in_list_button" v-if="group_animations_by_file && !file.saved" v-on:click.stop="saveFile(key, file)">
 								<i class="material-icons">save</i>
 							</div>
 							<div class="in_list_button" v-on:click.stop="addAnimation(key)">
@@ -2258,7 +2285,7 @@ Interface.definePanels(function() {
 									{{ common_controller_namespace ? animation.name.split(common_controller_namespace).join('') : animation.name }}
 									<span v-if="common_controller_namespace"> - {{ animation.name }}</span>
 								</label>
-								<div v-if="animation_files_enabled" class="in_list_button" v-bind:class="{unclickable: animation.saved}" @lick.stop="animation.save()" title="${tl('menu.animation.save')}">
+								<div v-if="animation_files" class="in_list_button" v-bind:class="{unclickable: animation.saved}" @click.stop="animation.save()" title="${tl('menu.animation.save')}">
 									<i v-if="animation.saved" class="material-icons">check_circle</i>
 									<i v-else class="material-icons">save</i>
 								</div>

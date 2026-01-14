@@ -1,9 +1,14 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
+interface LoadOptions {
+	import_to_current_project?: boolean
+	externalDataLoader?: (path: string) => any
+	[key: string]: unknown
+}
 interface CodecOptions {
 	name: string
-	load?(model: any, file: FileResult, add?: boolean): void
+	load?(model: any, file: FileResult, args?: LoadOptions): void
 	compile?(options?: any): string | ArrayBuffer | any
-	parse?(data: any, path: string, add?: boolean): void
+	parse?(data: any, path: string, args?: LoadOptions): void
 	export?(): void
 	/**
 	 * Generate a file name to suggest when exporting
@@ -19,11 +24,15 @@ interface CodecOptions {
 
 	dispatchEvent?(event_name: string, data: any): void
 
-	extension: string
+	extension?: string
 	/**
 	 * Whether to remember the models exported using this codec
 	 */
-	remember: boolean
+	remember?: boolean
+	/**
+	 * Whether the codec can be used to export a part of the model via a collection
+	 */
+	support_partial_export?: boolean
 	load_filter?: {
 		extensions: string[]
 		type: 'json' | 'text'
@@ -59,7 +68,7 @@ declare class Codec extends Deletable {
 	 * @param file
 	 * @param add
 	 */
-	load(model: any, file?: any, add?: boolean): void
+	load(model: any, file?: any, args?: LoadOptions): void
 	/**
 	 * Compiles the file content
 	 * @param options
@@ -70,7 +79,7 @@ declare class Codec extends Deletable {
 	 * @param data File content
 	 * @param path File path
 	 */
-	parse?(data: any, path: string, add?: boolean): void
+	parse?(data: any, path: string, args?: LoadOptions): void
 	/**
 	 * Opens the file browser to export a file of this type
 	 */
@@ -136,6 +145,10 @@ declare class Codec extends Deletable {
 	 * Whether to remember files that use this codec in the recent models list
 	 */
 	remember: boolean
+	/**
+	 * Whether the codec can be used to export a part of the model via a collection
+	 */
+	support_partial_export: boolean
 	/**
 	 * If available, the action that is used to export files using this codec
 	 */

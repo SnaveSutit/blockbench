@@ -1,5 +1,5 @@
 /// <reference types="vue" />
-/// <reference types="./three" />
+/// <reference types="./libs" />
 /// <reference types="@types/prismjs" />
 /// <reference types="@types/jquery" />
 /// <reference types="wintersky" />
@@ -14,15 +14,14 @@
 /// <reference types="./codec" />
 /// <reference types="./cube" />
 /// <reference types="./desktop" />
-/// <reference types="./dialog" />
 /// <reference types="./display_mode" />
-/// <reference types="./format" />
 /// <reference types="./global" />
 /// <reference types="./group" />
 /// <reference types="./interface" />
 /// <reference types="./keyframe" />
 /// <reference types="./menu" />
 /// <reference types="./mesh" />
+/// <reference types="./spline_mesh" />
 /// <reference types="./misc" />
 /// <reference types="./molang" />
 /// <reference types="./outliner" />
@@ -44,6 +43,8 @@
 /// <reference types="./math_util" />
 /// <reference types="./canvas_frame" />
 /// <reference types="./io" />
+/// <reference types="./native_apis" />
+/// <reference types="./util/VersionUtil" />
 
 /**
  * Provides access to global Javascript/DOM variables that are overwritten by Blockbench's own variables

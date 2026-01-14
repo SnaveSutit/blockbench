@@ -1,4 +1,9 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
+
+/**
+ * Keyframes are used in animations to specify transformation or other data at specific points in the timeline
+ * @module
+ */
 
 interface KeyframeDataPointData {
 	[key: string]: any
@@ -6,6 +11,7 @@ interface KeyframeDataPointData {
 declare class KeyframeDataPoint extends Object {
 	static properties: Record<string, Property<any>>
 	constructor(keyframe: _Keyframe)
+	readonly keyframe: Keyframe
 	extend(data: KeyframeDataPointData): void
 	getUndoCopy(): {
 		[key: string]: any
@@ -27,6 +33,7 @@ interface KeyframeOptions {
 	bezier_right_value?: ArrayVector3
 }
 type axisLetter = 'x' | 'y' | 'z'
+type axisNumber = 0 | 1 | 2
 
 declare class _Keyframe {
 	constructor(options: KeyframeOptions, uuid: any)
@@ -38,7 +45,7 @@ declare class _Keyframe {
 	uuid: string
 	color: number
 	uniform: boolean
-	interpolation: 'linear' | 'catmullrom' | 'bezier' | 'step'
+	interpolation: 'linear' | 'catmullrom' | 'bezier' | 'step' | string
 	cooldown?: boolean
 	bezier_linked: boolean
 	bezier_left_time: ArrayVector3

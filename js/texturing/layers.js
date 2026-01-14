@@ -223,8 +223,8 @@ export class TextureLayer {
 		let max = this.offset.slice().V2_add(this.width, this.height);
 		points.forEach(point => {
 			point = [
-				Math.clamp(point[0], 0, this.texture.width),
-				Math.clamp(point[1], 0, this.texture.height),
+				Math.clamp(Math.round(point[0]), 0, this.texture.width),
+				Math.clamp(Math.round(point[1]), 0, this.texture.height),
 			]
 			min[0] = Math.min(min[0], point[0]);
 			min[1] = Math.min(min[1], point[1]);
@@ -451,6 +451,61 @@ BARS.defineActions(() => {
 			BARS.updateConditions();
 		}
 	})
+	new Action('import_layer', {
+		icon: 'add_photo_alternate',
+		category: 'layers',
+		condition: () => Modes.paint && Texture.selected && Texture.selected.layers_enabled,
+		click() {
+			let start_path;
+			if (!isApp) {} else
+			if (Texture.all.length > 0) {
+				let arr = Texture.all[0].path.split(osfs)
+				arr.splice(-1)
+				start_path = arr.join(osfs)
+			} else if (Project.export_path) {
+				let arr = Project.export_path.split(osfs)
+				arr.splice(-3)
+				arr.push('textures')
+				start_path = arr.join(osfs)
+			}
+			Blockbench.import({
+				resource_id: 'texture',
+				readtype: 'image',
+				type: 'PNG Texture',
+				extensions: ['png'],
+				multiple: true,
+				startpath: start_path
+			}, async (files) => {
+				let texture = Texture.selected;
+				Undo.initEdit({textures: [texture], bitmap: true});
+
+				for (let file of files) {
+					let img = new Image();
+					await new Promise((resolve, reject) => {
+						img.src = isApp ? file.path : file.content;
+						img.onload = resolve;
+						img.onerror = reject;
+					})
+					let frame = new CanvasFrame(img);
+					let layer = new TextureLayer({name: file.name, offset: [0, 0]}, texture);
+					let image_data = frame.ctx.getImageData(0, 0, frame.width, frame.height);
+					layer.setSize(frame.width, frame.height);
+					layer.ctx.putImageData(image_data, 0, 0);
+					texture.layers.push(layer);
+					layer.center();
+					if (file == files.last()) {
+						layer.select();
+						layer.setLimbo();
+					}
+				}
+				texture.updateLayerChanges(true);
+				Undo.finishEdit('Add image as layer');
+				updateInterfacePanels();
+				BARS.updateConditions();
+				BarItems.move_layer_tool.select();
+			})
+		}
+	})
 	new Action('enable_texture_layers', {
 		icon: 'library_add_check',
 		category: 'layers',
@@ -614,12 +669,20 @@ Interface.definePanels(function() {
 			slot: 'left_bar',
 			float_position: [0, 0],
 			float_size: [300, 300],
-			height: 300
+			height: 300,
+			sidebar_index: 5,
+		},
+		mode_positions: {
+			paint_2d: {
+				slot: 'right_bar',
+				sidebar_index: 7,
+			}
 		},
 		toolbars: [
 			new Toolbar('layers', {
 				children: [
 					'create_empty_layer',
+					'import_layer',
 					'enable_texture_layers',
 					'layer_opacity',
 					'layer_blend_mode'
@@ -775,6 +838,7 @@ Interface.definePanels(function() {
 		},
 		menu: new Menu([
 			'create_empty_layer',
+			'import_layer',
 		])
 	})
 })

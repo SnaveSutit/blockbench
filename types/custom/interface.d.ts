@@ -1,4 +1,4 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 
 interface ResizeLineOptions {
 	condition?: ConditionResolvable
@@ -92,3 +92,4 @@ declare namespace Interface {
 		const ResizeLine: any
 	}
 }
+declare function updateInterface(): void

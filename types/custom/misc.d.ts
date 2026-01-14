@@ -1,4 +1,4 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 
 declare class Deletable {
 	/**
@@ -24,6 +24,8 @@ declare const VuePrismEditor: Vue.Component
 type EventName =
 	| 'remove_animation'
 	| 'display_animation_frame'
+	| 'display_default_pose'
+	| 'interpolate_keyframes'
 	| 'before_closing'
 	| 'create_session'
 	| 'join_session'
@@ -33,6 +35,10 @@ type EventName =
 	| 'user_joins_session'
 	| 'user_leaves_session'
 	| 'process_chat_message'
+	| 'loaded_plugin'
+	| 'unloaded_plugin'
+	| 'installed_plugin'
+	| 'uninstalled_plugin'
 	| 'update_settings'
 	| 'update_project_settings'
 	| 'save_project'
@@ -47,6 +53,7 @@ type EventName =
 	| 'add_group'
 	| 'add_texture_mesh'
 	| 'add_armature'
+	| 'add_armature_bone'
 	| 'group_elements'
 	| 'update_selection'
 	| 'compile_bedrock_animations'
@@ -60,6 +67,7 @@ type EventName =
 	| 'canvas_click'
 	| 'change_texture_path'
 	| 'add_texture'
+	| 'generate_texture_template'
 	| 'update_texture_selection'
 	| 'init_edit'
 	| 'finish_edit'
@@ -83,6 +91,7 @@ type EventName =
 	| 'setup_project'
 	| 'update_project_resolution'
 	| 'merge_project'
+	| 'display_model_stats'
 	| 'update_view'
 	| 'update_camera_position'
 	| 'render_frame'
@@ -124,150 +133,13 @@ type EventName =
 
 type IconString = string
 
-interface MessageBoxOptions {
-	/**
-	 * Index of the confirm button within the buttons array
-	 */
-	confirm?: number
-	/**
-	 * Index of the cancel button within the buttons array
-	 */
-	cancel?: number
-	buttons?: string[]
-	translateKey?: string
-	title?: string
-	message?: string
-	icon?: string
-	width?: number
-	cancelIndex?: number
-	confirmIndex?: number
-	/**
-	 * Display a list of actions to do in the dialog. When clicked, the message box closes with the string ID of the command as first argument.
-	 */
-	commands?: {
-		[id: string]:
-			| string
-			| {
-					text: string
-					icon?: IconString
-					condition?: ConditionResolvable
-					description?: string
-			  }
-	}
-	/**
-	 * Adds checkboxes to the bottom of the message box
-	 */
-	checkboxes?: {
-		[id: string]:
-			| string
-			| {
-					value?: boolean
-					condition: ConditionResolvable
-					text: string
-			  }
-	}
-}
-
-interface PropertyOptions {
-	default?: any
-	condition?: ConditionResolvable
-	exposed?: boolean
-	label?: string
-	/**
-	 * Options used for select types
-	 */
-	options?: any
-	/**
-	 * Enum possible values
-	 */
-	values?: string[]
-	merge?(instance: any, data: any): void
-	reset?(instance: any): void
-	merge_validation?(value: any): boolean
-}
-
-interface IPropertyType {
-	string: string
-	molang: string
-	number: number
-	boolean: boolean
-	array: any[]
-	object: any
-	instance: any
-	vector: ArrayVector3
-	vector2: ArrayVector2
-}
-
-/**
- * Creates a new property on the specified target class
- */
-declare class Property<T extends keyof IPropertyType> extends Deletable {
-	constructor(target_class: any, type: T, name: string, options?: PropertyOptions)
-	class: any
-	name: string
-	type: T
-	default: IPropertyType[T]
-	export?: boolean
-
-	isString: boolean
-	isEnum: boolean
-	isMolang: boolean
-	isNumber: boolean
-	isBoolean: boolean
-	isArray: boolean
-	isVector: boolean
-	isVector2: boolean
-	isInstance: boolean
-
-	enum_values?: string[]
-	merge_validation: undefined | ((value: IPropertyType[T]) => boolean)
-	condition: ConditionResolvable
-	exposed: boolean
-	label: any
-	inputs?: any
-	merge(instance: IPropertyType[T], data: IPropertyType[T]): void
-	reset(instance: IPropertyType[T]): void
-	getDefault(instance: IPropertyType[T]): IPropertyType[T]
-	copy(instance: IPropertyType[T], target: IPropertyType[T]): void
-
-	static resetUniqueValues(type: any, instance: any): void
-}
+declare const osfs: '\\' | '/';
 
 declare function updateSelection(): void
 
-/**
- * Returns a translated string in the current language
- * @param key Translation key
- * @param arguments Array of arguments that replace anchors (%0, etc.) in the translation. Items can be strings or anything that can be converted to strings
- */
-declare function tl(key: string, arguments?: any[]): string
-
-declare namespace Language {
-	/**
-	 * Translation data for the current language
-	 */
-	const data: {
-		[key: string]: string
-	}
-	/**
-	 * Language code indicating the currently selected language
-	 */
-	const code: string
-	/**
-	 * Add translations for custom translation strings
-	 * @param language Two letter language code, e. G. 'en'
-	 * @param strings Object listing the translation keys and values
-	 */
-	function addTranslations(language: string, strings: { [key: string]: string }): void
-}
-
-interface Object {
-	boneConfig: Record<string, Property<any> | undefined>
-}
-
 declare var LZUTF8: any
 
-declare function unselectAllElements(): void
+declare function unselectAllElements(exceptions?: OutlinerNode[]): void
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number
 
@@ -281,6 +153,9 @@ declare const Pressing: {
 		alt: boolean
 	}
 }
+
+declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
+declare function getRescalingFactor(angle: number): number
 
 declare function isStringNumber(value: any): boolean
 

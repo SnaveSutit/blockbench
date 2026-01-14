@@ -3,6 +3,8 @@ import OrbitControls from './OrbitControls';
 import StateMemory from "../util/state_memory";
 import { ConfigDialog } from '../interface/dialog';
 import { toSnakeCase } from '../util/util';
+import { electron, ipcRenderer } from '../native_apis';
+import { Pressing } from '../misc';
 
 window.scene = null;
 window.main_preview = null;
@@ -37,8 +39,21 @@ export const DefaultCameraPresets = [
 		name: 'menu.preview.angle.initial',
 		id: 'initial',
 		projection: 'perspective',
-		position: [-40, 32, -40],
-		target: [0, 8, 0],
+		get position() {
+			let base;
+			switch (Format.forward_direction) {
+				case '+x': base = [40, 32, -40]; break;
+				case '-x': base = [-40, 32, 40]; break;
+				case '+z': base = [40, 32, 40]; break;
+				case '-z': default: base = [-40, 32, -40]; break;
+			}
+			if (!Format) return base;
+			return base.map(v => v * (Format.block_size / 16));
+		},
+		get target() {
+			let block_size = Format.block_size ?? 16;
+			return [0, block_size * 0.75, 0]
+		},
 		default: true
 	},
 	{
@@ -285,7 +300,7 @@ export class Preview {
 			});
 		} catch (err) {
 			let error_element = document.querySelector('#loading_error_detail')
-			error_element.innerHTML = `Error creating WebGL context. Try to update your graphics drivers.`
+			error_element.innerHTML = `Error creating WebGL context. Try to update your ${isApp ? 'graphics drivers' : 'web browser'}.`
 
 			if (isApp) {
 				window.restartWithoutHardwareAcceleration = function() {
@@ -300,7 +315,7 @@ export class Preview {
 				error_element.innerHTML = error_element.innerHTML +
 					'\nAlternatively, try to <a href onclick="restartWithoutHardwareAcceleration()">Restart without Hardware Acceleration.</a>'
 				
-				var {BrowserWindow} = require('@electron/remote');
+				var {BrowserWindow} = electron;
 				new BrowserWindow({
 					icon:'icon.ico',
 					backgroundColor: '#ffffff',
@@ -334,7 +349,7 @@ export class Preview {
 				this.static_rclick = false;
 			}
 		}, false)
-		addEventListeners(this.canvas, 'mousemove', 			event => { this.mousemove(event)}, false)
+		addEventListeners(this.canvas, 'mousemove touchmove',	event => { this.mousemove(event)}, false)
 		addEventListeners(this.canvas, 'mouseup touchend',		event => { this.mouseup(event)}, false)
 		addEventListeners(this.canvas, 'dblclick', 				event => { if (settings.double_click_switch_tools.value) Toolbox.toggleTransforms(event); }, false)
 		addEventListeners(this.canvas, 'mouseenter touchstart', event => { this.occupyTransformer(event)}, false)
@@ -395,7 +410,7 @@ export class Preview {
 
 		var objects = []
 		Outliner.elements.forEach(element => {
-			if (element.visibility === false || element.locked === true) return;
+			if (element.visibility === false || element.locked === true || (element.mesh && element.mesh.visible == false)) return;
 			if (element.mesh && element.mesh.geometry) {
 				objects.push(element.mesh);
 				if (Modes.edit && element.selected) {
@@ -411,6 +426,7 @@ export class Preview {
 			} else if (element instanceof Locator) {
 				objects.push(element.mesh.sprite);
 			} else if (element instanceof ArmatureBone) {
+				if (Toolbox.selected.id == 'weight_brush' && !(event.altKey || Pressing.overrides.alt)) return;
 				objects.push(element.mesh.children[0]);
 			}
 		})
@@ -461,8 +477,12 @@ export class Preview {
 			let element, face;
 			while (true) {
 				element = OutlinerNode.uuids[intersect_object.name];
-				if (element.getTypeBehavior('cube_faces') && element.getTypeBehavior('select_faces')) {
-					face = intersect_object.geometry.faces[Math.floor(intersects[0].faceIndex / 2)];
+				if (element.getTypeBehavior('cube_faces')) {
+					if (element.getTypeBehavior('select_faces')) {
+						face = intersect_object.geometry.faces[Math.floor(intersects[0].faceIndex / 2)];
+					} else {
+						face = Object.keys(element.faces)[0];
+					}
 				} else if (element instanceof Mesh) {
 					let index = intersects[0].faceIndex;
 					for (let key in element.faces) {
@@ -852,6 +872,10 @@ export class Preview {
 			if (!Condition(BarItems.selection_mode.condition)) {
 				select_mode = 'object';
 			}
+			if (select_mode != 'object') {
+				multi_select = multi_select || group_select;
+				group_select = false;
+			}
 
 			if (Toolbox.selected.selectElements && Modes.selected.selectElements && (data.type === 'element' || Toolbox.selected.id == 'knife_tool' || (data.type == 'line' && data.element instanceof SplineMesh))) {
 				Undo.initSelection();
@@ -878,10 +902,13 @@ export class Preview {
 							node_to_select = node_to_select.parent;
 						}
 					}
+					// Select clicked first so selected face is registered properly
+					data.element.markAsSelected();
+
 					if (multi_select) {
 						node_to_select.multiSelect();
 					} else {
-						node_to_select.select();
+						node_to_select.select(event);
 					}
 					if (settings.outliner_reveal_on_select.value) {
 						node_to_select.showInOutliner();
@@ -932,7 +959,7 @@ export class Preview {
 							processed_faces.forEach(face => {
 								selected_vertices.safePush(...face.vertices);
 								let fkey = face.getFaceKey();
-								selected_faces.push(fkey);
+								selected_faces.safePush(fkey);
 							});
 						} else {
 							let face_vkeys = data.element.faces[data.face].vertices;
@@ -985,8 +1012,9 @@ export class Preview {
 							selected_faces.push(fkey);
 							selected_vertices.safePush(...face.vertices);
 
-							for (let fkey2 in mesh.faces) {
-								let face2 = mesh.faces[fkey2];
+							let faces = mesh.faces;
+							for (let fkey2 in faces) {
+								let face2 = faces[fkey2];
 								if (face.vertices.find(vkey => face2.vertices.includes(vkey))) {
 									selectFace(face2, fkey2);
 								}
@@ -1145,18 +1173,19 @@ export class Preview {
 			updateCubeHighlights(data && data.element);
 		}
 
+		brush_cursor:
 		if (Toolbox.selected.brush?.size && Settings.get('brush_cursor_3d')) {
 			if (!data) {
 				scene.remove(Canvas.brush_outline);
-				return;
+				break brush_cursor;
 			}
-			if (!data.element.faces) return;
-			if (data.element instanceof SplineMesh && data.element.render_mode !== "mesh") return;
+			if (!data.element.faces) break brush_cursor;
+			if (data.element instanceof SplineMesh && data.element.render_mode !== "mesh") break brush_cursor;
 			let face = data.element.faces[data.face];
 			let texture = face.getTexture();
 			if (!texture) {
 				scene.remove(Canvas.brush_outline);
-				return;
+				break brush_cursor;
 			}
 			scene.add(Canvas.brush_outline);
 
@@ -1209,8 +1238,9 @@ export class Preview {
 			brush_matrix.multiplyMatrices(matrix_offset, brush_matrix);
 
 			// Since we're setting the brush matrix, we need to multiply in its parents matrix as well in case there are any.
-			if (Canvas.brush_outline.parent)
+			if (Canvas.brush_outline.parent) {
 				brush_matrix.multiplyMatrices(Canvas.brush_outline.parent.matrixWorld.clone().invert(), brush_matrix);
+			}
 			Canvas.brush_outline.matrix = brush_matrix;
 		}
 		
@@ -1286,13 +1316,16 @@ export class Preview {
 			(event.which === 1 || event.which === 3 || event instanceof TouchEvent) &&
 			!this.controls.hasMoved &&
 			!this.selection.activated &&
-			!Transformer.dragging &&
+			!Transformer.was_clicked &&
 			Toolbox.selected.selectElements != false &&
 			!this.selection.click_target
 		) {
 			unselectAllElements();
 		}
 		delete this.selection.click_target;
+		if (event instanceof TouchEvent) {
+			Canvas.scene.remove(Canvas.brush_outline);
+		}
 		return this;
 	}
 	raycastMouseCoords(x,y) {
@@ -1440,10 +1473,11 @@ export class Preview {
 		unselectAllElements()
 		Outliner.elements.forEach((element) => {
 			let isSelected;
-			if (extend_selection && this.selection.old_selected.includes(element) && ((element instanceof Mesh == false || selection_mode == 'object') || (element instanceof SplineMesh == false || spline_selection_mode == "object"))) {
+			let select_in_object_mode = (element instanceof Mesh == false || selection_mode == 'object') && (element instanceof SplineMesh == false || spline_selection_mode == "object");
+			if (extend_selection && this.selection.old_selected.includes(element) && select_in_object_mode) {
 				isSelected = true
 
-			} else if (element.preview_controller?.viewportRectangleOverlap && element.mesh) {
+			} else if (element.visibility != false && element.preview_controller?.viewportRectangleOverlap) {
 				isSelected = element.preview_controller.viewportRectangleOverlap(element, {projectPoint, extend_selection, rect_start, rect_end, preview: this});
 			}
 			if (isSelected) {
@@ -1754,12 +1788,12 @@ export const ViewOptionsDialog = new ConfigDialog('preview_view_options', {
 				return result;
 			}
 		},
-		shading: { label: 'settings.shading', type: 'checkbox' },
-		grids: { label: 'settings.grids', type: 'checkbox' },
-		ground_plane: { label: 'settings.ground_plane', type: 'checkbox' },
-		pixel_grid: { label: 'settings.pixel_grid', condition: () => !Modes.paint, type: 'checkbox' },
-		painting_grid: { label: 'settings.painting_grid', condition: () => Modes.paint, type: 'checkbox' },
-		show_gizmos: { label: 'dialog.preview_options.show_gizmos', type: 'checkbox', value: true },
+		shading: { label: 'settings.shading', type: 'checkbox', style: 'toggle_switch' },
+		grids: { label: 'settings.grids', type: 'checkbox', style: 'toggle_switch' },
+		ground_plane: { label: 'settings.ground_plane', type: 'checkbox', style: 'toggle_switch' },
+		pixel_grid: { label: 'settings.pixel_grid', condition: () => !Modes.paint, type: 'checkbox', style: 'toggle_switch' },
+		painting_grid: { label: 'settings.painting_grid', condition: () => Modes.paint, type: 'checkbox', style: 'toggle_switch' },
+		show_gizmos: { label: 'dialog.preview_options.show_gizmos', type: 'checkbox', style: 'toggle_switch', value: true },
 	},
 	onOpen() {
 		let custom_color = StateMemory.get('viewport_background_color');
@@ -2021,7 +2055,6 @@ window.addEventListener("gamepadconnected", function(event) {
 	let interval = setInterval(() => {
 		let gamepad = navigator.getGamepads()[event.gamepad.index];
 		let preview = Preview.selected;
-		if (settings.gamepad_controls.value == false) return;
 		if (!document.hasFocus() || !preview || !gamepad || !gamepad.axes || !gamepad.connected || gamepad.axes.allEqual(0) || gamepad.axes.find(v => isNaN(v)) != undefined) return;
 
 		if (is_space_mouse) {
@@ -2051,6 +2084,8 @@ window.addEventListener("gamepadconnected", function(event) {
 
 			main_preview.controls.updateSceneScale();
 		} else {
+			if (settings.gamepad_controls.value == false) return;
+			
 			let drift_threshold = 0.2;
 			let axes = gamepad.axes.map(v => Math.abs(v) > drift_threshold ? v - drift_threshold * Math.sign(v) : 0);
 			let camera_matrix = preview.camera.matrixWorld;
@@ -2286,7 +2321,9 @@ BARS.defineActions(function() {
 			colored_solid: {name: true, icon: 'fas.fa-square-plus', condition: () => (!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('colored_solid'))},
 			wireframe: {name: true, icon: 'far.fa-square', condition: () => (!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('wireframe'))},
 			uv: {name: true, icon: 'grid_guides', condition: () => (!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('uv'))},
-			normal: {name: true, icon: 'fa-square-caret-up', condition: () => ((!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('normal')) && Mesh.all.length)},
+			normal: {name: true, icon: 'fa-square-caret-up', condition: () => ((!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('normal')))},
+			vertex_weight: {name: true, icon: 'weight', condition: () => ArmatureBone.all.length && (!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('vertex_weight'))},
+			weighted_bone_colors: {name: true, icon: 'weight', condition: () => ArmatureBone.all.length && (!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('weighted_bone_colors'))},
 			material: {name: true, icon: 'pages', condition: () => ((!Toolbox.selected.allowed_view_modes || Toolbox.selected.allowed_view_modes.includes('material')) && TextureGroup.all.find(tg => tg.is_material))},
 		},
 		onChange() {

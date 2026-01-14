@@ -1,4 +1,4 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 
 declare class AnimationItem {
 	static all: _Animation[]
@@ -71,6 +71,7 @@ declare class _Animation extends AnimationItem {
 	 * Returns (if necessary creates) the animator of a specific outliner node of this animation
 	 */
 	getBoneAnimator(node?: OutlinerNode): BoneAnimator
+	removeAnimator(id: string): void
 	/**
 	 * Adds the animation to the current project and to the interface
 	 * @param undo If true, the addition of the animation will be registered as an edit
@@ -147,7 +148,8 @@ declare namespace Animator {
 	 * @param animation_filter List of names of animations to import
 	 */
 	function loadFile(file: any, animation_filter?: string[]): void
-	function exportAnimationFile(path: string): void
+	function exportAnimationFile(path: string, save_as?: boolean): void
+	function exportAnimationControllerFile(path: string, save_as?: boolean): void
 	function resetLastValues(): void
 	function autocompleteMolang(
 		text: string,
@@ -161,6 +163,8 @@ interface AddChannelOptions {
 	transform?: boolean
 	mutable?: boolean
 	max_data_points?: number
+	condition?: ConditionResolvable
+	displayFrame?: (animator: GeneralAnimator, multiplier: number) => void
 }
 interface Channel {
 	name: string
@@ -221,6 +225,7 @@ declare class NullObjectAnimator extends GeneralAnimator {
 	displayFrame(): void
 }
 declare class EffectAnimator extends GeneralAnimator {
+	constructor(animation: _Animation)
 	name: string
 	uuid: string
 	rotations: _Keyframe[]

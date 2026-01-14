@@ -348,7 +348,9 @@
 		cursor: inherit;
 		margin: 8px 0;
 	}
-	.markdown li > p {
+	.markdown li > p,
+	.markdown h2 > p,
+	.markdown h3 > p {
 		margin: 0;
 	}
 	.markdown ul {
@@ -372,6 +374,7 @@
 		cursor: text;
 		user-select: text;
 		-webkit-user-select: text;
+		overflow: auto;
 	}
 	.markdown pre code {
 		user-select: text;
@@ -414,7 +417,12 @@
 	.toolbar_wrapper.narrow > .toolbar {
 		width: fit-content;
 		display: flex;
+		flex-direction: row-reverse;
+		justify-content: space-between;
 		height: 100%;
+	}
+	body.is_mobile .toolbar_wrapper.narrow > .toolbar:not(.vertical) {
+		width: 100%;
 	}
 	.toolbar_wrapper > .toolbar.no_wrap {
 		width: fit-content;
@@ -775,6 +783,7 @@
 		margin: -4px -8px -4px 2px;
 		padding: 4px 0;
 		text-align: center;
+		border-radius: 5px;
 	}
 	.contextMenu .menu_more_button:hover,
 	.hybrid_parent.opened .menu_more_button {
@@ -852,7 +861,6 @@
 /* Theme Borders */
 	body.theme_borders .contextMenu,
 	body.theme_borders dialog,
-	body.theme_borders .dialog_close_button,
 	body.theme_borders #start_screen > content,
 	body.theme_borders #quick_message_box,
 	body.theme_borders action_selector > #action_selector_list,

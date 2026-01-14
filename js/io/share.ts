@@ -1,9 +1,10 @@
 import { Blockbench } from "../api";
 import { Dialog } from "../interface/dialog";
+import { FormInputType } from "../interface/form";
 import { settings } from "../interface/settings";
 import { BARS } from "../interface/toolbars";
 import { tl } from "../languages";
-import { Mesh } from "../outliner/mesh";
+import { Mesh } from "../outliner/types/mesh";
 import { Outliner } from "../outliner/outliner";
 import { ReferenceImage } from "../preview/reference_images";
 import { capitalizeFirstLetter } from "../util/util";
@@ -58,16 +59,16 @@ BARS.defineActions(function() {
 				tag_suggestions: {label: 'dialog.sketchfab_uploader.suggested_tags', type: 'buttons', buttons: tag_suggestions, click(index) {
 					let {tags} = dialog.getFormResult();
 					let new_tag = tag_suggestions[index];
-					if (!tags.split(/\s/g).includes(new_tag)) {
+					if (!(tags as string).split(/\s/g).includes(new_tag)) {
 						tags += ' ' + new_tag;
 						dialog.setFormValues({tags});
 					}
 				}},
-				animations: {label: 'dialog.sketchfab_uploader.animations', value: true, type: 'checkbox', condition: (Format.animation_mode && Animator.animations.length)},
+				animations: {label: 'dialog.sketchfab_uploader.animations', value: true, type: 'checkbox', condition: (Format.animation_mode && !!Animator.animations.length)},
 				draft: {label: 'dialog.sketchfab_uploader.draft', type: 'checkbox', value: true},
 				divider: '_',
 				private: {label: 'dialog.sketchfab_uploader.private', type: 'checkbox'},
-				password: {label: 'dialog.sketchfab_uploader.password'},
+				password: {label: 'dialog.sketchfab_uploader.password', type: 'password'},
 			},
 			onConfirm(formResult) {
 	
@@ -107,7 +108,7 @@ BARS.defineActions(function() {
 	
 					$.ajax({
 						url: 'https://api.sketchfab.com/v3/models',
-						data: data,
+						data,
 						cache: false,
 						contentType: false,
 						processData: false,
@@ -117,6 +118,7 @@ BARS.defineActions(function() {
 							new Dialog('sketchfab_link', {
 								title: tl('message.sketchfab.success'),
 								icon: 'icon-sketchfab',
+								singleButton: true,
 								form: {
 									message: {type: 'info', text: `[${formResult.name} on Sketchfab](${url})`},
 									link: {type: 'text', value: url, readonly: true, share_text: true}
@@ -149,7 +151,7 @@ BARS.defineActions(function() {
 	new Action('upload_sketchfab', {
 		icon: 'icon-sketchfab',
 		category: 'file',
-		condition: () => Project && Outliner.elements.length,
+		condition: () => Project && !!Outliner.elements.length,
 		click() {
 			uploadSketchfabModel()
 		}
@@ -157,7 +159,7 @@ BARS.defineActions(function() {
 
 	new Action('share_model', {
 		icon: 'share',
-		condition: () => Project && Outliner.elements.length,
+		condition: () => Project && !!Outliner.elements.length,
 		async click() {
 			let thumbnail = await new Promise(resolve => {
 				// @ts-ignore

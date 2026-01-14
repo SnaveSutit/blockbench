@@ -1,4 +1,4 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 interface UndoAspects {
 	selection?: boolean
 	elements?: OutlinerElement[]
@@ -35,6 +35,7 @@ interface UndoAspects {
 	keyframes?: _Keyframe[]
 	display_slots?: string[]
 	exploded_view?: boolean
+	mirror_modeling?: false
 }
 interface UndoSelectionAspects {
 	texture_selection?: boolean
@@ -126,7 +127,7 @@ declare class UndoSystem {
 	 * Starts an edit to the current project by saving the state of the provided aspects
 	 * @param aspects Aspects to save
 	 */
-	initEdit(aspects: UndoAspects): UndoEntry
+	initEdit(aspects: UndoAspects, amended: boolean = false): UndoEntry
 	/**
 	 * Finishes an edit by saving the state of the project after it was changed
 	 * @param action Description of the edit
@@ -186,6 +187,7 @@ declare class UndoSystem {
 
 	history: UndoEntry[]
 	index: number
+	current_save?: UndoSave
 }
 
 /**

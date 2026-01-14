@@ -18,22 +18,33 @@ export function invertMolang(molang: number|string): number|string {
 	}
 	let invert = true;
 	let bracket_depth = 0;
+	let last_operator: undefined | string;
 	let result = '';
 	for (let char of molang) {
 		if (!bracket_depth) {
-			if (char == '-') {
-				if (!invert) result += '+';
+			let operator: undefined | string;
+			let had_input = true;
+			if (char == '-' && last_operator != '*' && last_operator != '/') {
+				if (!invert && !last_operator) result += '+';
 				invert = false;
 				continue;
-			} else if (char == '+') {
+			} else if (char == ' ' || char == '\n') {
+				had_input = false;
+			} else if (char == '+' && last_operator != '*' && last_operator != '/') {
 				result += '-';
 				invert = false;
 				continue;
 			} else if ('?:'.includes(char)) {
 				invert = true;
-			} else if (invert && char != ' ') {
+				operator = char;
+			} else if (invert) {
 				result += '-';
 				invert = false;
+			} else if ('+-*/&|'.includes(char)) {
+				operator = char;
+			}
+			if (had_input) {
+				last_operator = operator;
 			}
 		}
 		if (BRACKET_OPEN.includes(char)) {
@@ -49,7 +60,7 @@ function testInvertMolang(input: string) {
 	let positive_result = Animator.MolangParser.parse(input);
 	let inverted = invertMolang(input);
 	let negative_result = Animator.MolangParser.parse(inverted);
-	if (positive_result == -negative_result) {
+	if (Math.epsilon(positive_result, -negative_result, 0.00001)) {
 		return inverted
 	} else {
 		console.warn([positive_result, negative_result], inverted);

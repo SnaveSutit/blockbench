@@ -1,3 +1,4 @@
+import { currentwindow, fs, nativeImage } from "../native_apis";
 
 function createEmptyCanvas(width, height) {
 	let canvas = document.createElement('canvas');
@@ -257,6 +258,7 @@ export const Screencam = {
 			if (options.crop !== false) {
 
 				if (!options && Modes.display && DisplayMode.display_slot === 'gui') {
+					let display_preview = Preview.all.find(p => p.id == 'display');
 					var zoom = display_preview.camOrtho.zoom * devicePixelRatio
 					var resolution = 256 * zoom;
 	

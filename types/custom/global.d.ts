@@ -1,11 +1,9 @@
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 
 declare global {
 	// const Prism: typeof import('prismjs')
 	const scene: THREE.Scene
 	const Transformer: any
-	const electron: typeof import('electron')
-	const { clipboard, shell, nativeImage, ipcRenderer, dialog }: typeof electron
 
 	const main_preview: Preview
 	let open_interface: Dialog | undefined
@@ -13,16 +11,12 @@ declare global {
 	function confirm(message: string, title: string): boolean
 
 	const PathModule: typeof import('path')
-	const fs: typeof import('fs')
 
 	let selected: OutlinerElement[]
 	const Toolbars: Record<string, Toolbar>
 
 	function rotateOnAxis(modify: OutlinerNode, axis: number, slider?: boolean): void
 	function afterRotateOnAxis(): void
-
-	function showItemInFolder(path: string): void
-	const app: Electron.App
 
 	// const Transformer: THREE.TransformControls
 	interface HTMLImageElement {
@@ -112,12 +106,17 @@ declare global {
 		replace(items: T[]): boolean
 		allAre(callback: (item: T, index: number) => boolean): boolean
 		findInArray(key: string, value: any): number
+		findHighest(callback: ((item: T) => number)): T
 		positiveItems(): number
 		/**
 		 * Empties the array
 		 */
 		empty(): this
 		last(): T
+		/**
+		 * Get the item at the specified index with a modulo applied, so any index will return a value
+		 */
+		atWrapped(index: number): T
 		allEqual(item: T): boolean
 		random(): T
 		toggle(item: T, state?: boolean): boolean

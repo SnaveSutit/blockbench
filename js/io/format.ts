@@ -4,13 +4,63 @@ import { setProjectTitle } from "../interface/interface";
 import { settings, Settings } from "../interface/settings";
 import { TickUpdates } from "../misc";
 import { Mode, Modes } from "../modes";
-import { Group } from "../outliner/group";
+import { Group } from "../outliner/types/group";
 import { Canvas } from "../preview/canvas";
 import { DefaultCameraPresets } from "../preview/preview";
 import { Property } from "../util/property";
-import { SplineMesh } from "../outliner/spline_mesh";
+import { SplineMesh } from "../outliner/types/spline_mesh";
 
-export const Formats = {};
+export interface FormatPage {
+	component?: Vue.Component
+	content?: (
+		| {
+				type?: 'image' | 'h2' | 'h3' | 'h4' | 'text' | 'label' | 'image' | ''
+				text?: string
+				source?: string
+				width?: number
+				height?: number
+		  }
+		| string
+	)[]
+	button_text?: string
+}
+export interface CubeSizeLimiter {
+	/**
+	 * Test whether the cube with the optionally provided values violates the size restrictions
+	 */
+	test: (
+		cube: Cube,
+		values?: { from: ArrayVector3; to: ArrayVector3; inflate: number }
+	) => boolean
+	/**
+	 * Move the cube back into the restructions
+	 */
+	move(cube: Cube, values?: { from: ArrayVector3; to: ArrayVector3; inflate: number }): void
+	/**
+	 * Clamp the cube to fit into the restrictions. When an axis and direction is provided, clamp the element on that side to prevent wandering.
+	 */
+	clamp: (
+		cube: Cube,
+		values?: { from: ArrayVector3; to: ArrayVector3; inflate: number },
+		axis?: number,
+		direction?: boolean | null
+	) => void
+	/**
+	 * Set to true to tell Blockbench to check and adjust the cube limit after rotating a cube
+	 */
+	rotation_affected?: boolean
+	/**
+	 * Optionally set the coordinate limits of cubes in local space
+	 */
+	coordinate_limits?: [number, number]
+}
+
+/**
+ * The current format
+ */
+declare const Format: ModelFormat
+
+export const Formats: Record<string, ModelFormat> = {};
 
 Object.defineProperty(window, 'Format', {
 	get() {
@@ -19,28 +69,9 @@ Object.defineProperty(window, 'Format', {
 })
 
 //Formats
-interface FormatOptions {
-	id: string
-	icon: string
-	name?: string
-	description?: string
-	category?: string
-	target?: string | string[]
-	confidential?: boolean
-	condition?: ConditionResolvable
-	show_on_start_screen?: boolean
-	show_in_new_list?: boolean
-	can_convert_to?: boolean
-	plugin?: string
-	format_page?: FormatPage
-	onFormatPage?(): void
-	onStart?(): void
-	onSetup?(project: ModelProject, newModel?: boolean): void
-	new?(): boolean
-	convertTo?(): void
-
+export interface FormatFeatures {
 	/**
-	 * Enables Box UV on cubes by default or something
+	 * Enables Box UV on cubes by default
 	 */
 	box_uv: boolean
 	/**
@@ -96,6 +127,14 @@ interface FormatOptions {
 	 */
 	centered_grid: boolean
 	/**
+	 * Specify how large in pixels a block is. Defaults to 16.
+	 */
+	block_size: number
+	/**
+	 * Which direction of the model is facing forward
+	 */
+	forward_direction: '-z' | '+z' | '-x' | '+x'
+	/**
 	 * Add the ability to rotate cubes
 	 */
 	rotate_cubes: boolean
@@ -112,7 +151,7 @@ interface FormatOptions {
 	 */
 	meshes: boolean
 	/**
-	 * Enable mesh elements
+	 * Enable spline elements
 	 */
 	splines: boolean
 	/**
@@ -120,13 +159,17 @@ interface FormatOptions {
 	 */
 	texture_meshes: boolean
 	/**
-	 * Enable billboards
+	 * Enable billboard elements
 	 */
 	billboards: boolean
 	/**
 	 * Enable locators
 	 */
 	locators: boolean
+	/**
+	 * Enable PBR texture materials yay
+	 */
+	pbr: boolean
 	/**
 	 * Enforces a rotation limit for cubes of up to 45 degrees in either direction and one axis at a time
 	 */
@@ -135,6 +178,10 @@ interface FormatOptions {
 	 * Forces cube rotations to snap to 22.5 degree increments
 	 */
 	rotation_snap: boolean
+	/**
+	 * Rotation euler order for outliner nodes
+	 */
+	euler_order: 'XYZ' | 'ZYX'
 	/**
 	 * Allows cube UVs to be rotated
 	 */
@@ -159,6 +206,10 @@ interface FormatOptions {
 	 * If true, animations will be saved into files
 	 */
 	animation_files: boolean
+	/**
+	 * Change how animations can be grouped
+	 */
+	animation_grouping: 'by_file' | 'custom' | 'disabled'
 	/**
 	 * Enables a folder path per texture that can be set in the texture properties window
 	 */
@@ -192,6 +243,18 @@ interface FormatOptions {
 	 */
 	animation_controllers: boolean
 	/**
+	 * If true, interpolation between keyframes in looping animations will wrap around
+	 */
+	animation_loop_wrapping: boolean
+	/**
+	 * If true, use quaternion lerping to interpolate between rotation keyframes
+	 */
+	quaternion_interpolation: boolean
+	/**
+	 * Toggle quaternion interpolation per node / animator
+	 */
+	per_animator_rotation_interpolation: boolean
+	/**
 	 * If true, cube sizes will not be floored to calculate UV sizes with box UV. This can result in UVs not aligning with pixel edges
 	 */
 	box_uv_float_size: boolean
@@ -216,11 +279,30 @@ interface FormatOptions {
 	 * Options to limit the size of cubes
 	 */
 	cube_size_limiter?: CubeSizeLimiter
+}
+export type FormatOptions = FormatFeatures & {
+	id: string
+	icon: string
+	name?: string
+	description?: string
+	category?: string
+	target?: string | string[]
+	confidential?: boolean
+	condition?: ConditionResolvable
+	show_on_start_screen?: boolean
+	can_convert_to?: boolean
+	format_page?: FormatPage
+	onFormatPage?(): void
+	onStart?(): void
+	onSetup?(project: ModelProject, newModel?: boolean): void
+	convertTo?(): void
+	new?(): boolean
 
 	codec?: Codec
 	onActivation?(): void
 	onDeactivation?(): void
 }
+export interface ModelFormat extends FormatOptions {}
 
 export class ModelFormat implements FormatOptions {
 	id: string
@@ -239,50 +321,8 @@ export class ModelFormat implements FormatOptions {
 	onFormatPage?(): void
 	onStart?(): void
 	onSetup?(project: ModelProject, newModel?: boolean): void
+	
 
-	box_uv: boolean
-	optional_box_uv: boolean
-	single_texture: boolean
-	single_texture_default: boolean
-	per_group_texture: boolean
-	per_texture_uv_size: boolean
-	model_identifier: boolean
-	legacy_editable_file_name: boolean
-	parent_model_id: boolean
-	vertex_color_ambient_occlusion: boolean
-	animated_textures: boolean
-	bone_rig: boolean
-	armature_rig: boolean
-	centered_grid: boolean
-	rotate_cubes: boolean
-	stretch_cubes: boolean
-	integer_size: boolean
-	meshes: boolean
-	splines: boolean
-	texture_meshes: boolean
-	billboards: boolean
-	locators: boolean
-	rotation_limit: boolean
-	rotation_snap: boolean
-	uv_rotation: boolean
-	java_face_properties: boolean
-	select_texture_for_particles: boolean
-	texture_mcmeta: boolean
-	bone_binding_expression: boolean
-	animation_files: boolean
-	texture_folder: boolean
-	image_editor: boolean
-	edit_mode: boolean
-	paint_mode: boolean
-	display_mode: boolean
-	animation_mode: boolean
-	pose_mode: boolean
-	animation_controllers: boolean
-	box_uv_float_size: boolean
-	java_cube_shading_properties: boolean
-	cullfaces: boolean
-	node_name_regex: string
-	render_sides: 'front' | 'double' | 'back' | (() => 'front' | 'double' | 'back')
 
 	cube_size_limiter?: CubeSizeLimiter
 
@@ -290,9 +330,10 @@ export class ModelFormat implements FormatOptions {
 	onActivation?(): void
 	onDeactivation?(): void
 
-	static properties: Record<string, Property>
+	static properties: Record<string, Property<any>>
+	public type = 'format';
 
-	constructor(id, data: FormatOptions) {
+	constructor(id: string, data: Partial<FormatOptions>) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -334,6 +375,9 @@ export class ModelFormat implements FormatOptions {
 		for (let id in ModelFormat.properties) {
 			ModelFormat.properties[id].merge(this, data);
 		}
+		if (!data.animation_files && !data.animation_grouping) {
+			this.animation_grouping = 'custom';
+		}
 		if (this.format_page && this.format_page.component) {
 			Vue.component(`format_page_${this.id}`, this.format_page.component)
 		}
@@ -345,17 +389,17 @@ export class ModelFormat implements FormatOptions {
 		}
 		// @ts-ignore Incompatible internal and external types
 		Blockbench.Format = Blockbench.Project.format = this;
-		if (typeof this.onActivation == 'function') {
-			Format.onActivation()
-		}
 		Canvas.buildGrid()
 		if (Format.centered_grid) {
 			scene.position.set(0, 0, 0);
-			Canvas.ground_plane.position.x = Canvas.ground_plane.position.z = 8;
+			Canvas.ground_plane.position.x = Canvas.ground_plane.position.z = Format.block_size/2;
 		} else {
-			scene.position.set(-8, 0, -8);
+			scene.position.set(-Format.block_size/2, 0, -Format.block_size/2);
 			Canvas.ground_plane.position.x = Canvas.ground_plane.position.z = 0;
 		}
+		let ground_plane_scale = Format.block_size / 16;
+		Canvas.ground_plane.scale.set(ground_plane_scale, ground_plane_scale, ground_plane_scale);
+
 		PreviewModel.getActiveModels().forEach(model => {
 			model.update();
 		})
@@ -369,10 +413,15 @@ export class ModelFormat implements FormatOptions {
 		if (Mode.selected && !Condition(Mode.selected.condition)) {
 			(this.pose_mode ? Modes.options.paint : Modes.options.edit).select();
 		}
-		Interface.Panels.animations.inside_vue.$data.animation_files_enabled = this.animation_files;
+		Interface.Panels.animations.inside_vue.$data.animation_files = this.animation_files;
+		Interface.Panels.animations.inside_vue.$data.group_animations_by_file = this.animation_grouping == 'by_file';
 		// @ts-ignore
 		Interface.status_bar.vue.Format = this;
 		UVEditor.vue.cube_uv_rotation = this.uv_rotation;
+		
+		if (typeof this.onActivation == 'function') {
+			Format.onActivation()
+		}
 		if (Modes.vue) Modes.vue.$forceUpdate();
 		TickUpdates.interface = true;
 		Canvas.updateShading();
@@ -473,6 +522,10 @@ export class ModelFormat implements FormatOptions {
 				el.applyTexture(texture, true)
 			})
 		}
+
+		// Outliner names
+		Group.all.forEach(group => group.sanitizeName());
+		Outliner.elements.forEach(group => group.sanitizeName());
 
 		//Rotate Cubes
 		if (!this.rotate_cubes && old_format.rotate_cubes) {
@@ -583,6 +636,8 @@ new Property(ModelFormat, 'boolean', 'animated_textures');
 new Property(ModelFormat, 'boolean', 'bone_rig');
 new Property(ModelFormat, 'boolean', 'armature_rig');
 new Property(ModelFormat, 'boolean', 'centered_grid');
+new Property(ModelFormat, 'number', 'block_size', {default: 16});
+new Property(ModelFormat, 'enum', 'forward_direction', {default: '-z', values: ['-z', '+z', '-x', '+x']});
 new Property(ModelFormat, 'boolean', 'rotate_cubes');
 new Property(ModelFormat, 'boolean', 'stretch_cubes');
 new Property(ModelFormat, 'boolean', 'integer_size');
@@ -601,7 +656,11 @@ new Property(ModelFormat, 'boolean', 'select_texture_for_particles');
 new Property(ModelFormat, 'boolean', 'texture_mcmeta');
 new Property(ModelFormat, 'boolean', 'bone_binding_expression');
 new Property(ModelFormat, 'boolean', 'animation_files');
+new Property(ModelFormat, 'enum', 'animation_grouping', {default: 'by_file', values: ['by_file', 'custom', 'disabled']});
 new Property(ModelFormat, 'boolean', 'animation_controllers');
+new Property(ModelFormat, 'boolean', 'animation_loop_wrapping');
+new Property(ModelFormat, 'boolean', 'quaternion_interpolation');
+new Property(ModelFormat, 'boolean', 'per_animator_rotation_interpolation');
 new Property(ModelFormat, 'boolean', 'image_editor');
 new Property(ModelFormat, 'boolean', 'edit_mode', {default: true});
 new Property(ModelFormat, 'boolean', 'paint_mode', {default: true});
@@ -610,6 +669,7 @@ new Property(ModelFormat, 'boolean', 'display_mode');
 new Property(ModelFormat, 'boolean', 'animation_mode');
 new Property(ModelFormat, 'boolean', 'texture_folder');
 new Property(ModelFormat, 'boolean', 'pbr');
+new Property(ModelFormat, 'enum', 'euler_order', {default: 'ZYX'});
 
 
 Object.assign(window, {

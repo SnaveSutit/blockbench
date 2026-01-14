@@ -3,7 +3,7 @@
  * modified for Blockbench by jannisx11
  */
 
-import { getPivotObjects, getRotationObjects } from "../transform";
+import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveElementsInSpace } from "../transform";
 import { TransformerModule } from "./transform_modules";
 
  ( function () {
@@ -675,8 +675,6 @@ import { TransformerModule } from "./transform_modules";
 					
 				return colors[!BarItems.spline_handle_mode ? "aligned" : BarItems.spline_handle_mode.value];
 			}
-			
-			// this.isTilt = handlePropertiesEdit;
 			this.spline = data.uuid;
 			this.handle = data.hKey;
 			this.joint = data.joint;
@@ -723,7 +721,6 @@ import { TransformerModule } from "./transform_modules";
 				this.handleGizmos["DEBUG_PICKER"][0][0].position.set( newPos.x, newPos.y, newPos.z );
 			}
 			this.setHandleScale = function() {
-				let scale = this.getScale();
 
 				// What's below might be a little dirty, need to see if it can be improved
 				// I'm essentially doing a second init(), but only for scaling. Since I can't affort to scale the entire Gizmo object
@@ -731,6 +728,7 @@ import { TransformerModule } from "./transform_modules";
 					if (name === "DEBUG_PICKER") continue;
 					let object = this.handleGizmos[name][0][0];
 					let position = this.handleGizmos[name][0][1];
+					let scale = this.getScale(position);
 
 					object.geometry.center();
 					object.scale.set(scale, scale, scale);
@@ -740,18 +738,21 @@ import { TransformerModule } from "./transform_modules";
 				for (let name in this.pickerGizmos) {
 					let object = this.pickerGizmos[name][0][0];
 					let position = this.pickerGizmos[name][0][1];
+					let scale = this.getScale(position);
 
 					object.geometry.center();
 					object.scale.set(scale, scale, scale);
 					object.geometry.translate(position[0] / scale, position[1] / scale, position[2] / scale);
 				}
 			};
+			// Gets the scale for each point of this handle, 
+			// using the same scaling as regular transform gizmos.
+			this.getScale = function(pointPos) {
+				let splineNode = OutlinerNode.uuids[this.spline]
+				let splineMesh = splineNode.mesh;
 
-			this.getScale = function() {
-				let jointPos = this.joint.V3_toThree();
-				let handlePos = OutlinerNode.uuids[this.spline].position.V3_toThree();
-				let center = new THREE.Vector3().addVectors(jointPos, handlePos);
-				return Transformer.camera.preview.calculateControlScale(center) * settings.control_size.value * 0.74;
+				let jointPos = splineMesh.localToWorld(pointPos.V3_toThree());
+				return Transformer.camera.preview.calculateControlScale(jointPos) * settings.control_size.value * 0.74;
 			}
 			// Get any matches in the spline selection
 			this.verifySelection = function() {
@@ -958,16 +959,22 @@ import { TransformerModule } from "./transform_modules";
 					this.updateGizmoTransform(gizmo);
 				})
 			}
+			// Spline Gizmos are treated as having no transform by default, 
+			// so they need to be oriented and positioned over their splines to work.
 			this.updateGizmoTransform = function(gizmo) {
-				let { vec1, euler1 } = Reusable;
-				let splinePosArr = OutlinerNode.uuids[gizmo.spline].position;
-				let splineRotArr = OutlinerNode.uuids[gizmo.spline].rotation;
-				let splinePos = vec1.fromArray(splinePosArr);
-				let splineRot = euler1.fromArray([Math.degToRad(splineRotArr[0]), Math.degToRad(splineRotArr[1]), Math.degToRad(splineRotArr[2])]);
+				let { vec1, euler1, quat1 } = Reusable;
+				let splineNode = OutlinerNode.uuids[gizmo.spline]
+				let splineMesh = splineNode.mesh;
+            	let splineMeshQuat = splineMesh.getWorldQuaternion(quat1);
+				
+        		vec1.set(0, 0, 0)
+            	vec1.applyQuaternion(splineMeshQuat);
+            	vec1.add(THREE.fastWorldPosition(splineMesh, Reusable.vec2));
+				euler1.setFromQuaternion(splineMeshQuat);
 
 				gizmo.setHandleScale();
-				gizmo.position.copy(splinePos);
-				gizmo.rotation.copy(splineRot);
+				gizmo.position.copy(vec1);
+				gizmo.rotation.copy(euler1);
 			}
 		}
 	};
@@ -997,7 +1004,6 @@ import { TransformerModule } from "./transform_modules";
 
 			var _mode = "translate";
 			var _dragging = false;
-			var _has_groups = false;
 			var _gizmo = {
 
 				"translate": new THREE.TransformGizmoTranslate(),
@@ -1330,6 +1336,9 @@ import { TransformerModule } from "./transform_modules";
 								rotation_object = getPivotObjects();
 								break;
 							}
+							case 'move_tool': {
+								if (Group.selected.length) rotation_object = Group.selected;
+							}
 						}
 						if (rotation_object instanceof Array || (!rotation_object && !rotation_tool)) {
 							let arr = rotation_object instanceof Array ? rotation_object : Outliner.selected;
@@ -1399,10 +1408,15 @@ import { TransformerModule } from "./transform_modules";
 					}
 
 
-				} else if (Modes.animate && Group.first_selected) {
+				} else if (Modes.animate && (Group.first_selected || Outliner.selected[0]?.constructor.animator)) {
 
-					this.attach(Group.first_selected);
-					Group.first_selected.mesh.getWorldPosition(this.position);
+					let target_node = Group.first_selected || Outliner.selected[0];
+					this.attach(target_node);
+					if (target_node.getWorldCenter) {
+						this.position.copy(target_node.getWorldCenter(true));
+					} else {
+						target_node.scene_object.getWorldPosition(this.position);
+					}
 
 					if (Toolbox.selected.id === 'rotate_tool' && BarItems.rotation_space.value === 'global') {
 						delete Transformer.rotation_ref;
@@ -1411,23 +1425,13 @@ import { TransformerModule } from "./transform_modules";
 						delete Transformer.rotation_ref;
 
 					} else if (Toolbox.selected.id === 'move_tool' && BarItems.transform_space.value === 'local') {
-						Transformer.rotation_ref = Group.first_selected.mesh;
+						Transformer.rotation_ref = target_node.mesh;
 
 					} else if (Toolbox.selected.id == 'resize_tool' || (Toolbox.selected.id === 'rotate_tool' && BarItems.rotation_space.value !== 'global')) {
-						Transformer.rotation_ref = Group.first_selected.mesh;
+						Transformer.rotation_ref = target_node.mesh;
 
 					} else {
-						Transformer.rotation_ref = Group.first_selected.mesh.parent;
-					}
-				} else if (Modes.animate && (Outliner.selected[0] && Outliner.selected[0].constructor.animator)) {
-
-					this.attach(Outliner.selected[0]);
-					this.position.copy(Outliner.selected[0].getWorldCenter(true));
-					
-					if (BarItems.rotation_space.value === 'global') {
-						delete Transformer.rotation_ref;
-					} else {
-						Transformer.rotation_ref = Outliner.selected[0].mesh.parent;
+						Transformer.rotation_ref = target_node.mesh.parent;
 					}
 				}
 			}
@@ -1512,6 +1516,7 @@ import { TransformerModule } from "./transform_modules";
 
 					var intersect = intersectObjects( pointer, _gizmo[ _mode ].pickers.children ) || SplineGizmos.interesct(pointer, intersectObjects);
 					if ( intersect ) {
+						scope.was_clicked = true;
 						if ( scope.axis == "C1" || scope.axis == "C2" || scope.axis == "J" ) {
 							// Spline Gizmos cannot and should not trigger draggin states.
 							scope.dragging = false;
@@ -1598,7 +1603,6 @@ import { TransformerModule } from "./transform_modules";
 							}
 						})
 					}
-					_has_groups = Format.bone_rig && Group.first_selected && Toolbox.selected.transformerMode == 'translate';
 					var rotate_group = Format.bone_rig && Group.first_selected && (Toolbox.selected.transformerMode == 'rotate');
 
 					if (Toolbox.selected.id == 'move_tool') {
@@ -1618,10 +1622,8 @@ import { TransformerModule } from "./transform_modules";
 
 					if (rotate_group) {
 						Undo.initEdit({groups: Group.multi_selected})
-					} else if (_has_groups) {
-						Undo.initEdit({elements: selected, outliner: true, selection: true})
 					} else {
-						Undo.initEdit({elements: selected})
+						Undo.initEdit({elements: getSelectedMovingElements(), groups: Group.all.filter(g => g.selected)});
 					}
 
 				} else if (Modes.id === 'animate') {
@@ -1757,7 +1759,7 @@ import { TransformerModule } from "./transform_modules";
 
 							selected.forEach(function(obj, i) {
 								if (obj.getTypeBehavior('resizable')) {
-									let bidirectional = ((event.altKey || Pressing.overrides.alt) && BarItems.swap_tools.keybind.key != 18) !== selected[0] instanceof Mesh;
+									let bidirectional = ((event.altKey || Pressing.overrides.alt) && BarItems.swap_tools.keybind.key != 18) !== Mesh.hasSelected();
 
 									if (axis == 'e') {
 										let value = move_value;
@@ -1791,7 +1793,7 @@ import { TransformerModule } from "./transform_modules";
 						let move_value = point[axis];
 						if (axis == 'e') move_value = point.length() * Math.sign(point.y||point.x);
 						move_value = Math.round( move_value / snap_factor ) * snap_factor;
-						move_value *= (scope.direction ? 1 : -1);
+						move_value *= (scope.direction ? 1 : -1) * 1/8;
 
 						if (previousValue !== move_value) {
 							beforeFirstChange(event)
@@ -1875,9 +1877,15 @@ import { TransformerModule } from "./transform_modules";
 								origin[axisNumber] += difference;
 							}
 							
+							let elements_to_update = Outliner.selected.slice();
 							if (Format.bone_rig && Group.first_selected) {
 								for (let group of Group.multi_selected) {
 									group.transferOrigin(origin);
+									group.forEachChild(child => {
+										if (child instanceof OutlinerElement) {
+											elements_to_update.safePush(child);
+										}
+									})
 								}
 							} else {
 								selected.forEach(obj => {
@@ -1888,7 +1896,7 @@ import { TransformerModule } from "./transform_modules";
 							}
 							displayDistance(point[axis] - originalValue);
 							Canvas.updateView({
-								elements: Outliner.selected,
+								elements: elements_to_update,
 								element_aspects: {geometry: true, transform: true},
 								groups: Group.all,
 								group_aspects: {transform: true},
@@ -1909,7 +1917,7 @@ import { TransformerModule } from "./transform_modules";
 						Blockbench.showQuickMessage('message.no_animation_selected')
 					}
 					if (Toolbox.selected.id === 'rotate_tool') {
-						value = Math.trimDeg(axisNumber === 2 ? angle : -angle)
+						value = Math.trimDeg(angle)
 						var round_num = getRotationInterval(event)
 					} else {
 						value = point[axis]
@@ -1943,7 +1951,6 @@ import { TransformerModule } from "./transform_modules";
 							let normal = scope.axis == 'E'
 								? rotate_normal
 								: axisNumber == 0 ? THREE.NormalX : (axisNumber == 1 ? THREE.NormalY : THREE.NormalZ);
-							if (axisNumber != 2) difference *= -1;
 							let rotWorldMatrix = new THREE.Matrix4();
 							rotWorldMatrix.makeRotationAxis(normal, Math.degToRad(difference))
 							rotWorldMatrix.multiply(mesh.matrixWorld)
@@ -1957,12 +1964,11 @@ import { TransformerModule } from "./transform_modules";
 							mesh.setRotationFromMatrix(rotWorldMatrix)
 							let e = mesh.rotation;
 
-							scope.keyframes[0].offset('x', Math.trimDeg( (-Math.radToDeg(e.x - old_rotation.x)) - scope.keyframes[0].calc('x') ));
-							scope.keyframes[0].offset('y', Math.trimDeg( (-Math.radToDeg(e.y - old_rotation.y)) - scope.keyframes[0].calc('y') ));
+							scope.keyframes[0].offset('x', Math.trimDeg( ( Math.radToDeg(e.x - old_rotation.x)) - scope.keyframes[0].calc('x') ));
+							scope.keyframes[0].offset('y', Math.trimDeg( ( Math.radToDeg(e.y - old_rotation.y)) - scope.keyframes[0].calc('y') ));
 							scope.keyframes[0].offset('z', Math.trimDeg( ( Math.radToDeg(e.z - old_rotation.z)) - scope.keyframes[0].calc('z') ));
 						
 						} else if (Toolbox.selected.id === 'rotate_tool' && Transformer.getTransformSpace() == 2 && [0, 1, 2].find(axis => axis !== axisNumber && scope.keyframes[0].get(getAxisLetter(axis))) !== undefined) {
-							if (axisNumber != 2) difference *= -1;
 
 							let old_rotation = mesh.pre_rotation ?? mesh.fix_rotation;
 							let old_order = mesh.rotation.order;
@@ -1971,8 +1977,8 @@ import { TransformerModule } from "./transform_modules";
 							mesh.rotation[axis] = Math.degToRad(obj_val);
 							mesh.rotation.reorder(old_order);
 				
-							scope.keyframes[0].offset('x', Math.trimDeg( (-Math.radToDeg(mesh.rotation.x - old_rotation.x)) - scope.keyframes[0].calc('x') ));
-							scope.keyframes[0].offset('y', Math.trimDeg( (-Math.radToDeg(mesh.rotation.y - old_rotation.y)) - scope.keyframes[0].calc('y') ));
+							scope.keyframes[0].offset('x', Math.trimDeg( ( Math.radToDeg(mesh.rotation.x - old_rotation.x)) - scope.keyframes[0].calc('x') ));
+							scope.keyframes[0].offset('y', Math.trimDeg( ( Math.radToDeg(mesh.rotation.y - old_rotation.y)) - scope.keyframes[0].calc('y') ));
 							scope.keyframes[0].offset('z', Math.trimDeg( ( Math.radToDeg(mesh.rotation.z - old_rotation.z)) - scope.keyframes[0].calc('z') ));
 	
 						} else if (Toolbox.selected.id === 'move_tool' && BarItems.transform_space.value === 'global') {
@@ -1984,7 +1990,7 @@ import { TransformerModule } from "./transform_modules";
 							mesh.parent.getWorldQuaternion(rotation);
 							offset_vec.applyQuaternion(rotation.invert());
 				
-							scope.keyframes[0].offset('x', -offset_vec.x);
+							scope.keyframes[0].offset('x', offset_vec.x);
 							scope.keyframes[0].offset('y', offset_vec.y);
 							scope.keyframes[0].offset('z', offset_vec.z);
 	
@@ -1994,7 +2000,7 @@ import { TransformerModule } from "./transform_modules";
 							offset_vec[axis] = difference;
 							offset_vec.applyQuaternion(mesh.quaternion);
 				
-							scope.keyframes[0].offset('x', -offset_vec.x);
+							scope.keyframes[0].offset('x', offset_vec.x);
 							scope.keyframes[0].offset('y', offset_vec.y);
 							scope.keyframes[0].offset('z', offset_vec.z);
 
@@ -2007,15 +2013,16 @@ import { TransformerModule } from "./transform_modules";
 							}
 
 						} else {
-							if (axis == 'x' && Toolbox.selected.id === 'move_tool') {
-								difference *= -1
-							}
 							if (Toolbox.selected.id === 'resize_tool') {
 								scope.keyframes[0].uniform = false;	
 							}
 							scope.keyframes[0].offset(axis, difference);
 						}
-						scope.keyframes[0].select();
+						if (Keyframe.selected[0] != scope.keyframes[0] || Keyframe.selected.length > 1) {
+							scope.keyframes[0].select();
+						} else {
+							Animator.showMotionTrail(null, true);
+						}
 							
 						displayDistance(value - originalValue);
 
@@ -2034,6 +2041,7 @@ import { TransformerModule } from "./transform_modules";
 				//event.preventDefault(); // Prevent MouseEvent on mobile
 				document.removeEventListener( "mouseup", onPointerUp );
 				scope.dragging = false
+				scope.was_clicked = false;
 
 				document.removeEventListener( "mousemove", onPointerMove );
 				document.removeEventListener( "touchmove", onPointerMove );

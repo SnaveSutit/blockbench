@@ -36,7 +36,7 @@ export class UndoSystem {
 		if (!this.current_save) return;
 		aspects = aspects || this.current_save.aspects
 		//After
-		Blockbench.dispatchEvent('finish_edit', {aspects})
+		Blockbench.dispatchEvent('finish_edit', {aspects, message});
 		var entry = {
 			before: this.current_save,
 			post: new UndoSystem.save(aspects),
@@ -55,6 +55,12 @@ export class UndoSystem {
 			}
 		}
 
+		// Just a fail-safe
+		if (entry.before._groups || entry.post._groups) {
+			console.warn('Group undo issue, potentially edited groups without tracking changes correctly in undo. Tracking all selected group changes as a fail-safe.')
+			entry.before.groups = entry.before._groups ?? [];
+			entry.post.groups = entry.post._groups ?? [];
+		}
 
 		if (this.history.length > this.index) {
 			this.history.length = this.index;
@@ -70,7 +76,7 @@ export class UndoSystem {
 		if (!aspects || !aspects.keep_saved) {
 			Project.saved = false;
 		}
-		Blockbench.dispatchEvent('finished_edit', {aspects})
+		Blockbench.dispatchEvent('finished_edit', {aspects, message})
 		if (Project.EditSession && Project.EditSession.active) {
 			Project.EditSession.sendEdit(entry)
 		}
@@ -294,13 +300,20 @@ UndoSystem.save = class {
 		}
 
 		if (aspects.outliner) {
-			this.outliner = Outliner.toJSON(true)
+			this.outliner = Outliner.toJSON()
 		}
 
 		if (aspects.groups) {
 			this.groups = aspects.groups.map(group => group.getChildlessCopy(true));
 		} else if (aspects.group) {
 			this.groups = [aspects.group.getChildlessCopy(true)];
+		} else if (aspects.outliner && (Undo.current_save ? Undo.current_save._groups : Group.first_selected)) {
+			// Just a fail-safe
+			let groups = Undo.current_save
+				? Undo.current_save.aspects._groups.filter(g => Group.all.includes(g))
+				: Group.all.filter(g => g.selected);
+			this._groups = groups.map(group => group.getChildlessCopy(true));
+			aspects._groups = groups;
 		}
 
 		if (aspects.collections) {
@@ -417,66 +430,36 @@ UndoSystem.save = class {
 		}
 
 		if (this.elements) {
-			for (var uuid in this.elements) {
-				if (this.elements.hasOwnProperty(uuid)) {
-					var element = this.elements[uuid]
+			for (let uuid in this.elements) {
+				let element = this.elements[uuid]
 
-					var new_element = OutlinerNode.uuids[uuid]
-					if (new_element) {
-						if (new_element instanceof SplineMesh) {
-							new_element.overwrite(element)
-							new_element.preview_controller.updateAll(new_element);
-						} 
-						else {
-							for (var face in new_element.faces) {
-								new_element.faces[face].reset()
-							}
-							new_element.extend(element)
-							new_element.preview_controller.updateAll(new_element);
+				let new_element = OutlinerNode.uuids[uuid]
+				if (new_element) {
+					if (new_element instanceof SplineMesh) {
+						new_element.overwrite(element)
+						new_element.preview_controller.updateAll(new_element);
+					} 
+					else {
+						for (let face in new_element.faces) {
+							new_element.faces[face].reset()
 						}
-					} else {
-						new_element = OutlinerElement.fromSave(element, true);
+						new_element.extend(element)
+						new_element.preview_controller.updateAll(new_element);
 					}
+				} else {
+					new_element = OutlinerElement.fromSave(element, true);
 				}
 			}
-			for (var uuid in reference.elements) {
+			for (let uuid in reference.elements) {
 				if (reference.elements.hasOwnProperty(uuid) && !this.elements.hasOwnProperty(uuid)) {
-					var obj = OutlinerNode.uuids[uuid]
+					let obj = OutlinerNode.uuids[uuid]
 					if (obj) {
-						obj.remove()
+						if (obj.children instanceof Array) obj.children.empty();
+						obj.remove();
 					}
 				}
 			}
 			Canvas.updateVisibility()
-		}
-
-		if (this.outliner) {
-			Group.multi_selected.empty();
-			Outliner.loadJSON(this.outliner)
-			if (is_session) {
-				function iterate(arr) {
-					arr.forEach((obj) => {
-						delete obj.isOpen;
-						if (obj.children) {
-							iterate(obj.children)
-						}
-					})
-				}
-				iterate(this.outliner)
-			}
-			if (Format.bone_rig) {
-				Canvas.updateAllPositions()
-			}
-		}
-
-		if (this.selected_groups && !is_session) {
-			Group.multi_selected.empty();
-			for (let uuid of this.selected_groups) {
-				let sel_group = OutlinerNode.uuids[uuid];
-				if (sel_group) {
-					Group.multi_selected.push(sel_group)
-				}
-			}
 		}
 
 		/*if (this.selection && !is_session) {
@@ -492,18 +475,63 @@ UndoSystem.save = class {
 		}*/
 
 		if (this.groups) {
+			Group.multi_selected.empty();
 			for (let saved_group of this.groups) {
 				let group = OutlinerNode.uuids[saved_group.uuid];
-				if (!group) continue;
-				if (is_session) {
-					delete saved_group.isOpen;
+				if (group) {
+					if (is_session) {
+						delete saved_group.isOpen;
+					}
+					group.extend(saved_group)
+					if (Format.bone_rig) {
+						group.forEachChild(function(obj) {
+							if (obj.preview_controller) obj.preview_controller.updateTransform(obj);
+						})
+					}
+					group.preview_controller.updateAll(group);
+				} else {
+					group = new Group(saved_group, saved_group.uuid).init();
 				}
-				group.extend(saved_group)
-				if (Format.bone_rig) {
-					group.forEachChild(function(obj) {
-						if (obj.preview_controller) obj.preview_controller.updateTransform(obj);
+				if (saved_group.primary_selected) {
+					group.multiSelect();
+				}
+			}
+			for (let group_data of reference.groups) {
+				if (!this.groups.find(g => g.uuid == group_data.uuid)) {
+					let group = OutlinerNode.uuids[group_data.uuid];
+					if (group) {
+						group.children.empty();
+						group.remove();
+					}
+				}
+			}
+		}
+
+		/*if (this.selected_groups && !is_session) {
+			Group.multi_selected.empty();
+			for (let uuid of this.selected_groups) {
+				let sel_group = OutlinerNode.uuids[uuid];
+				if (sel_group) {
+					Group.multi_selected.push(sel_group)
+				}
+			}
+		}*/
+
+		if (this.outliner) {
+			Outliner.loadJSON(this.outliner)
+			if (is_session) {
+				function iterate(arr) {
+					arr.forEach((obj) => {
+						delete obj.isOpen;
+						if (obj.children) {
+							iterate(obj.children)
+						}
 					})
 				}
+				iterate(this.outliner)
+			}
+			if (Format.bone_rig) {
+				Canvas.updateAllPositions()
 			}
 		}
 

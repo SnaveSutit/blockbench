@@ -1,3 +1,5 @@
+import { fs } from "../../native_apis";
+
 function F(num) {
 	var s = trimFloatNumber(num) + '';
 	if (!s.includes('.')) {
@@ -1085,6 +1087,7 @@ var format = new ModelFormat({
 	rotate_cubes: true,
 	integer_size: true,
 	animation_mode: true,
+	pbr: true,
 })
 Object.defineProperty(format, 'integer_size', {get: _ => Templates.get('integer_size') || settings.modded_entity_integer_size.value});
 codec.format = format;

@@ -1,6 +1,6 @@
 import { Blockbench } from "../api";
 import { translateUI } from "../languages";
-import { ConfigDialog } from "./dialog";
+import { currentwindow } from "../native_apis";
 
 export class ResizeLine {
 	constructor(id, data) {
@@ -90,46 +90,16 @@ export const Interface = {
 		quad_view_x: 50,
 		quad_view_y: 50,
 		timeline_head: Blockbench.isMobile ? 140 : 196,
-		modes: {
-			paint_2d: {
-				left_bar: ['uv', 'color', 'palette', 'display', 'animations', 'keyframe', 'variable_placeholders'],
-				right_bar: ['transform', 'bone', 'color', 'palette', 'skin_pose', 'layers', 'textures', 'outliner', 'chat'],
-				panels: {
-					layers: {
-						slot: 'right_bar',
-						float_position: [300, 0],
-						float_size: [300, 300],
-						height: 300
-					},
-					textures: {
-						slot: 'right_bar',
-						float_position: [300, 0],
-						float_size: [300, 300],
-						height: 300,
-						folded: true
-					}
-				}
-			}
-		},
-		left_bar: ['uv', 'color', 'palette', 'textures', 'display', 'animations', 'keyframe', 'variable_placeholders'],
-		right_bar: ['transform', 'bone', 'color', 'palette', 'skin_pose', 'layers', 'outliner', 'chat'],
-		panels: {
-			paint: {
-				slot: 'left_bar',
-				float_position: [300, 0],
-				float_size: [500, 600],
-				height: window.innerHeight/2-50
-			}
-		}
+		modes: {},
 	},
 	get left_bar_width() {
-		if (Prop.show_left_bar && Interface.getLeftPanels().length) { 
+		if (Prop.show_left_bar && Interface.getLeftPanels(false).length) { 
 			return Interface.getModeData()?.left_bar_width ?? Interface.data.left_bar_width;
 		}
 		return 0;
 	},
 	get right_bar_width() {
-		if (Prop.show_right_bar && Interface.getRightPanels().length) { 
+		if (Prop.show_right_bar && Interface.getRightPanels(false).length) { 
 			return Interface.getModeData()?.right_bar_width ?? Interface.data.right_bar_width;
 		}
 		return 0;
@@ -156,25 +126,29 @@ export const Interface = {
 			}
 		}
 	},
-	getLeftPanels() {
-		let list = [];
-		for (let key of Interface.getModeData().left_bar) {
-			let panel = Panels[key];
-			if (panel && panel.slot == 'left_bar' && Condition(panel.condition)) {
-				list.push(panel);
-			}
-		}
-		return list;
+	getLeftPanels(in_order = true) {
+		return Interface.calculateSidebarOrder('left_bar', in_order).map(p => this.Panels[p]);
 	},
-	getRightPanels() {
-		let list = [];
-		for (let key of Interface.getModeData().right_bar) {
-			let panel = Panels[key];
-			if (panel && panel.slot == 'right_bar' && Condition(panel.condition)) {
-				list.push(panel);
-			}
+	getRightPanels(in_order = true) {
+		return Interface.calculateSidebarOrder('right_bar', in_order).map(p => this.Panels[p]);
+	},
+	calculateSidebarOrder(bar, in_order = true) {
+		let target_order = [];
+		for (let panel_id in Interface.Panels) {
+			let panel = Interface.Panels[panel_id];
+			if (panel.slot != bar) continue;
+			if (!Condition(panel)) continue;
+			if (panel.attached_to) continue;
+			target_order.push(panel.id);
 		}
-		return list;
+		if (in_order) {
+			target_order.sort((a, b) => {
+				let a_i = Panels[a].position_data.sidebar_index;
+				let b_i = Panels[b].position_data.sidebar_index;
+				return (a_i ?? 0) - (b_i ?? 0);
+			})
+		}
+		return target_order;
 	},
 	getUIMode() {
 		let mode_id = Mode.selected && Mode.selected.id;
@@ -184,13 +158,12 @@ export const Interface = {
 	},
 	getModeData(ui_mode = Interface.getUIMode()) {
 		if (ui_mode && ui_mode != 'start') {
-			if (!Interface.data.modes[ui_mode]) {Interface.data.modes[ui_mode] = {};}
+			if (!Interface.data.modes[ui_mode]) {
+				Interface.data.modes[ui_mode] = {};
+			}
 			let mode_data = Interface.data.modes[ui_mode];
 			if (mode_data.left_bar_width == undefined) mode_data.left_bar_width = Interface.data.left_bar_width;
 			if (mode_data.right_bar_width == undefined) mode_data.right_bar_width = Interface.data.right_bar_width;
-			if (mode_data.left_bar == undefined) mode_data.left_bar = Interface.data.left_bar.slice();
-			if (mode_data.right_bar == undefined) mode_data.right_bar = Interface.data.right_bar.slice();
-			if (mode_data.panels == undefined) mode_data.panels = JSON.parse(JSON.stringify(Interface.data.panels));
 			return mode_data;
 		} else {
 			return Interface.data;
@@ -202,8 +175,8 @@ export const Interface = {
 				if (Blockbench.isMobile) return false;
 				if (!Prop.show_left_bar) return false;
 				if (!Mode.selected) return false;
-				for (let p of Interface.getModeData().left_bar) {
-					if (Panels[p] && BARS.condition(Panels[p].condition) && Panels[p].slot == 'left_bar') {
+				for (let p of Interface.getLeftPanels(false)) {
+					if (p && BARS.condition(p.condition) && p.slot == 'left_bar') {
 						return true;
 					}
 				}
@@ -238,8 +211,8 @@ export const Interface = {
 				if (Blockbench.isMobile) return false;
 				if (!Prop.show_right_bar) return false;
 				if (!Mode.selected) return false;
-				for (let p of Interface.getModeData().right_bar) {
-					if (Panels[p] && BARS.condition(Panels[p].condition) && Panels[p].slot == 'right_bar') {
+				for (let p of Interface.getRightPanels(false)) {
+					if (p && BARS.condition(p.condition) && p.slot == 'right_bar') {
 						return true;
 					}
 				}
@@ -279,9 +252,9 @@ export const Interface = {
 			position() {
 				let p = Interface.preview;
 				if (!p) return;
-				let top = 32;
+				let top = Interface.center_screen.offsetTop;
 				let bottom = window.innerHeight - (p.clientHeight + $(p).offset().top);
-				let left = Interface.left_bar_width + p.clientWidth*Interface.data.quad_view_x/100;
+				let left = Interface.left_bar_width + 3 + p.clientWidth*Interface.data.quad_view_x/100;
 				if (Preview.split_screen.mode == 'triple_top') {
 					top = top + p.clientHeight * (Interface.data.quad_view_y/100);
 				} else if (Preview.split_screen.mode == 'triple_bottom') {
@@ -305,7 +278,7 @@ export const Interface = {
 				if (!p) return;
 				let left = Interface.left_bar_width+2;
 				let right = Interface.right_bar_width+2;
-				let top = Interface.preview.offsetTop + 30 + Interface.preview.clientHeight*Interface.data.quad_view_y/100;
+				let top = Interface.center_screen.offsetTop + Interface.preview.clientHeight*Interface.data.quad_view_y/100;
 				if (Preview.split_screen.mode == 'triple_left') {
 					left = left + p.clientWidth * (Interface.data.quad_view_x/100);
 				} else if (Preview.split_screen.mode == 'triple_right') {
@@ -331,7 +304,7 @@ export const Interface = {
 			position() {this.setPosition({
 				left: Interface.left_bar_width+2,
 				right: Interface.right_bar_width+2,
-				top: this.get() + Interface.work_screen.offsetTop - document.getElementById('page_wrapper').offsetTop
+				top: this.get() + Interface.center_screen.offsetTop + 4
 			})}
 		}),
 		bottom: new ResizeLine('bottom', {
@@ -409,13 +382,8 @@ export const Interface = {
 		Prop[`show_${side}_bar`] = !!status;
 		resizeWindow();
 	}
-}
-
-export const Panels = Interface.Panels;
-Interface.panel_definers = []
-Interface.definePanels = function(callback) {
-	Interface.panel_definers.push(callback);
 };
+
 
 (function() {
 	Interface.data = $.extend(true, {}, Interface.default_data)
@@ -423,29 +391,6 @@ Interface.definePanels = function(callback) {
 	if (!interface_data) return;
 	try {
 		interface_data = JSON.parse(interface_data)
-		let original_left_bar, original_right_bar;
-		if (interface_data.left_bar) {
-			original_left_bar = Interface.data.left_bar;
-			Interface.data.left_bar = interface_data.left_bar;
-		}
-		if (interface_data.right_bar) {
-			original_right_bar = Interface.data.right_bar;
-			Interface.data.right_bar = interface_data.right_bar;
-		}
-		if (original_left_bar) {
-			original_left_bar.forEach((panel, i) => {
-				if (Interface.data.left_bar.includes(panel)) return;
-				if (Interface.data.right_bar.includes(panel)) return;
-				Interface.data.left_bar.splice(i, 0, panel);
-			})
-		}
-		if (original_right_bar) {
-			original_right_bar.forEach((panel, i) => {
-				if (Interface.data.right_bar.includes(panel)) return;
-				if (Interface.data.left_bar.includes(panel)) return;
-				Interface.data.right_bar.splice(i, 0, panel);
-			})
-		}
 		$.extend(true, Interface.data, interface_data)
 	} catch (err) {
 		console.error(err);
@@ -636,16 +581,22 @@ export function setupInterface() {
 	})
 
 	//Mousemove
-	document.addEventListener('mousemove', event => {
+	document.addEventListener('pointermove', event => {
 		mouse_pos.x = event.clientX;
 		mouse_pos.y = event.clientY;
 
 		if (Interface.cursor_tooltip?.textContent) {
-			Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
-			Interface.cursor_tooltip.style.top = mouse_pos.y + 'px';
+			updateCursorTooltip(event);
 		}
 	})
 	updateInterface()
+}
+
+function updateCursorTooltip(event) {
+	let is_touch = event ? event.pointerType == 'touch' : Blockbench.isTouch;
+	let offset_y = is_touch ? -72 : 0;
+	Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
+	Interface.cursor_tooltip.style.top = (mouse_pos.y + offset_y) + 'px';
 }
 
 export function updateInterface() {
@@ -654,6 +605,7 @@ export function updateInterface() {
 	updatePanelSelector();
 	resizeWindow()
 	localStorage.setItem('interface_data', JSON.stringify(Interface.data))
+	delete TickUpdates.interface;
 }
 
 export function resizeWindow(event) {
@@ -920,8 +872,7 @@ Blockbench.setCursorTooltip = function(text) {
 		Interface.cursor_tooltip.textContent = text;
 		if (!Interface.cursor_tooltip.parentNode) {
 			document.body.append(Interface.cursor_tooltip);
-			Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
-			Interface.cursor_tooltip.style.top = mouse_pos.y + 'px';
+			updateCursorTooltip();
 		}
 	} else {
 		Interface.cursor_tooltip.textContent = '';
@@ -1066,11 +1017,13 @@ onVueSetup(function() {
 					<span v-if="errors.length" style="color: var(--color-error)">{{ errors.length }}<i class="material-icons">error</i></span>
 				</div>
 
+				<div id="status_bar_tool_controls" v-if="isMobile"></div>
+
 				<div v-if="keyboard_menu_in_status_bar" id="mobile_keyboard_menu" @click="openKeyboardMenu()" ref="mobile_keyboard_menu" :class="{enabled: modifiers.ctrl || modifiers.shift || modifiers.alt}">
 					<i class="material-icons">keyboard</i>
 				</div>
 
-				<div class="f_right">
+				<div class="f_right fps_counter_display" v-if="!isMobile">
 					{{ Prop.fps }} FPS
 				</div>
 
@@ -1108,9 +1061,10 @@ BARS.defineActions(function() {
 			Prop.show_left_bar = true;
 			Prop.show_right_bar = true;
 
+			updateInterfacePanels();
+
 			Blockbench.dispatchEvent('reset_layout', {});
 
-			updateSidebarOrder();
 			resizeWindow();
 		}
 	})
@@ -1120,7 +1074,6 @@ BARS.defineActions(function() {
 Object.assign(window, {
 	ResizeLine,
 	Interface,
-	Panels,
 	unselectInterface,
 	setupInterface,
 	updateInterface,

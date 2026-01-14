@@ -1,7 +1,7 @@
 /**
  * Registry of all toolbar items, such as actions, tools, etc.
  */
-/// <reference path="./blockbench.d.ts"/>
+/// <reference types="./blockbench"/>
 
 import tinycolor from 'tinycolor2'
 
@@ -137,6 +137,10 @@ declare global {
 
 	class MenuSeparator {
 		constructor(id?: string, label?: string)
+		id: string
+		menu_node: HTMLLIElement
+		label?: string
+		menu_node?: HTMLElement
 	}
 	type ActionEventName =
 		| 'delete'
@@ -153,7 +157,7 @@ declare global {
 	interface BarItemOptions extends KeybindItemOptions {
 		name?: string
 		description?: string
-		icon?: string
+		icon?: IconString
 		condition?: ConditionResolvable
 		category?: string
 		keybind?: Keybind
@@ -166,7 +170,7 @@ declare global {
 		id: string
 		name: string
 		description: string
-		icon?: string
+		icon?: IconString
 		category?: string
 
 		node: HTMLElement
@@ -225,6 +229,8 @@ declare global {
 		pushToolbar(bar: any): void
 
 		dispatchEvent<T = EventName>(event: T, ...args: any[]): void
+
+		static constructing?: BarItem
 	}
 
 	interface ActionOptions extends BarItemOptions {
@@ -257,6 +263,7 @@ declare global {
 		constructor(id: string, options: ActionOptions)
 		icon: string
 		nodes: HTMLElement[]
+		menu_node: HTMLElement
 		/**
 		 * Provide a menu that belongs to the action, and gets displayed as a small arrow next to it in toolbars.
 		 */
@@ -267,7 +274,7 @@ declare global {
 		tool_config?: ToolConfig
 		click: ActionOptions['click']
 
-		condition?(): boolean
+		condition?: ConditionResolvable
 		/**
 		 * Trigger to run or select the action. This is the equivalent of clicking or using a keybind to trigger it. Also checks if the condition is met.
 		 */
@@ -479,6 +486,7 @@ declare global {
 			max?: number
 			interval?: number
 			step?: number
+			show_bar?: boolean
 		}
 		/**
 		 * Define a tool setting key under which the value of the slider is saved on the selected tool
@@ -486,6 +494,8 @@ declare global {
 		tool_setting?: string
 		change?(value: (n: number) => number): void
 		get?(): number
+		onBefore?(): void
+		onAfter?(): void
 	}
 	class NumSlider extends Widget {
 		constructor(id: string, options: NumSliderOptions)

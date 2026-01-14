@@ -1,6 +1,9 @@
 import MolangParser from "molangjs";
 import Wintersky from 'wintersky';
 import { Mode } from "../modes";
+import { invertMolang } from "../util/molang";
+import { clipboard, fs } from "../native_apis";
+import { openMolangEditor } from "./molang_editor";
 
 export const Animator = {
 	get possible_channels() {
@@ -39,6 +42,9 @@ export const Animator = {
 
 		Animator.open = true;
 		Canvas.updateAllBones();
+		for (let mesh of Mesh.all) {
+			mesh.sortAllFaceVertices();
+		}
 		Animator.MolangParser.resetVariables();
 		processVariablePlaceholderText(Project.variable_placeholders);
 
@@ -49,10 +55,6 @@ export const Animator = {
 
 		if (!Animator.timeline_node) {
 			Animator.timeline_node = Panels.timeline.node;
-		}
-		updateInterface()
-		if (Panels.transform) {
-			Toolbars.element_origin.toPlace('bone_origin')
 		}
 		if (!Timeline.is_setup) {
 			Timeline.setup()
@@ -70,6 +72,9 @@ export const Animator = {
 			Group.first_selected.select();
 		}
 		BarItems.slider_animation_length.update();
+		if (Panels.transform) {
+			Toolbars.element_origin.toPlace('bone_origin')
+		}
 		Animator.preview();
 	},
 	leave() {
@@ -91,7 +96,7 @@ export const Animator = {
 			if (anchor) anchor.before(Toolbars.element_origin.node);
 		}
 	},
-	showDefaultPose(no_matrix_update) {
+	showDefaultPose(reduced_updates) {
 		[...Group.all, ...Outliner.elements].forEach(node => {
 			if (!node.constructor.animator) return;
 			var mesh = node.mesh;
@@ -103,11 +108,12 @@ export const Animator = {
 		})
 		for (let mesh of Mesh.all) {
 			let armature = mesh.getArmature();
-			if (armature) {
+			if (armature && !reduced_updates) {
 				Mesh.preview_controller.updateGeometry(mesh);
 			}
 		}
-		if (!no_matrix_update) scene.updateMatrixWorld()
+		Blockbench.dispatchEvent('display_default_pose', {reduced_updates});
+		if (!reduced_updates) scene.updateMatrixWorld()
 	},
 	resetParticles(optimized) {
 		for (var path in Animator.particle_effects) {
@@ -121,7 +127,7 @@ export const Animator = {
 			}
 		}
 	},
-	showMotionTrail(target) {
+	showMotionTrail(target, fast = false) {
 		if (!target) {
 			target = Project.motion_trail_lock && OutlinerNode.uuids[Project.motion_trail_lock];
 			if (!target) {
@@ -143,7 +149,7 @@ export const Animator = {
 		let bone_stack = [];
 		let iterate = g => {
 			bone_stack.push(g);
-			if (g.parent instanceof Group) iterate(g.parent);
+			if (g.parent instanceof OutlinerNode && g.parent.constructor.animator) iterate(g.parent);
 		}
 		iterate(target)
 		
@@ -185,7 +191,7 @@ export const Animator = {
 		let i = 0;
 		for (var time = start_time; time <= max_time; time += step) {
 			displayTime(time);
-			let position = target instanceof Group
+			let position = (target instanceof OutlinerNode && target.children)
 						 ? THREE.fastWorldPosition(target.mesh, new THREE.Vector3())
 						 : target.getWorldCenter(true);
 			position = position.toArray();
@@ -203,7 +209,9 @@ export const Animator = {
 		geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(line_positions), 3));
 		
 		Timeline.time = currentTime;
-		Animator.preview();
+		if (!fast) {
+			Animator.preview();
+		}
 
 		var line = new THREE.Line(geometry, Canvas.outlineMaterial);
 		line.no_export = true;
@@ -236,7 +244,7 @@ export const Animator = {
 		});
 		Animator.onion_skin_object.children.empty();
 
-		if (!enabled) return;
+		if (!enabled) return false;
 
 		let times = [];
 
@@ -262,6 +270,7 @@ export const Animator = {
 			Timeline.time = time;
 			Animator.showDefaultPose(true);
 			Animator.stackAnimations(Animation.all.filter(a => a.playing), false);
+			Animator.displayMeshDeformation();
 
 			elements.forEach(obj => {
 				if (!obj.visibility) return;
@@ -288,62 +297,15 @@ export const Animator = {
 		Animator.stackAnimations(Animation.all.filter(a => a.playing), false);
 
 		scene.add(Animator.onion_skin_object);
+
+		return true;
 	},
 	displayMeshDeformation() {
-		const _matrix4 = new THREE.Matrix4();
-		const _matrix_inverse = new THREE.Matrix4();
-		const _basePosition = new THREE.Vector3();
-		const _vector3 = new THREE.Vector3();
-		const target = new THREE.Vector3();
-		
 		for (let mesh of Mesh.all) {
 			let armature = mesh.getArmature();
 			if (armature) {
-				let bones = armature.getAllBones();
-				let vertex_offsets = {};
-				for (let vkey in mesh.vertices) {
-
-					target.fromArray(mesh.vertices[vkey]);
-
-					_basePosition.copy( target )//.applyMatrix4( this.bindMatrix );
-			
-					target.set(0, 0, 0);
-
-					let affecting_bones = bones.filter(bone => bone.vertex_weights[vkey]);
-					if (affecting_bones.length > 4) {
-						affecting_bones.sort((a, b) => a.vertex_weights[vkey] - b.vertex_weights[vkey]).slice(0, 4);
-					}
-					// Normalize weights
-					// The sum of all weights shold be 1, otherwise vertices are not influenced by bones equally and start drifting towards the mesh origin
-					let weights = [];
-					for ( let i = 0; i < 4; i ++ ) {
-						const weight = affecting_bones[i]?.vertex_weights[vkey] ?? 0;
-						weights.push(weight);
-					}
-					let weight_vector = new THREE.Vector4().fromArray(weights);
-					const scale = 1.0 / weight_vector.manhattanLength();
-					if ( scale !== Infinity ) {
-						weight_vector.multiplyScalar( scale );
-						weights = weight_vector.toArray();
-
-						for ( let i = 0; i < 4; i ++ ) {
-							const weight = weights[i];
-							if ( weight !== 0 && affecting_bones[i] ) {
-								_matrix4.multiplyMatrices( affecting_bones[i].mesh.matrixWorld, affecting_bones[i].mesh.inverse_fix_matrix );
-								target.addScaledVector( _vector3.copy( _basePosition ).applyMatrix4( _matrix4 ), weight );
-							}		
-						}
-
-					} else {
-						// fallback
-						//weight_vector.set( 1, 0, 0, 0 ); 
-						target.copy(_basePosition)
-					}
-
-					target//.applyMatrix4( this.bindMatrixInverse );
-					vertex_offsets[vkey] = target.toArray().V3_subtract(mesh.vertices[vkey]);
-				}
-				Mesh.preview_controller.updateGeometry(mesh, vertex_offsets);
+				let vertex_offsets = armature.calculateVertexDeformation(mesh);
+				Mesh.preview_controller.displayDeformation(mesh, vertex_offsets);
 			}
 		}
 	},
@@ -372,10 +334,9 @@ export const Animator = {
 			})
 		})
 
-		Animator.displayMeshDeformation();
+		scene.updateMatrixWorld();
 
 		Animator.resetLastValues();
-		scene.updateMatrixWorld();
 
 		// Effects
 		Animator.resetParticles(true);
@@ -447,10 +408,16 @@ export const Animator = {
 
 		Animator.updateOnionSkin();
 
+		Animator.displayMeshDeformation();
+
+		Billboard.all.forEach(billboard => {
+			Billboard.preview_controller.updateFacingCamera(billboard);
+		})
+
 		if (Interface.Panels.variable_placeholders.inside_vue.text.match(/^\s*preview\.texture\s*=/mi)) {
 			let tex_index = Animator.MolangParser.variableHandler('preview.texture');
 			let texture = Texture.all[tex_index % Texture.all.length];
-			if (texture) texture.select();
+			if (texture && texture != Texture.selected) texture.select();
 		}
 		if (Interface.Panels.variable_placeholders.inside_vue.text.match(/^\s*preview\.texture_frame\s*=/mi)) {
 			let frame = Animator.MolangParser.variableHandler('preview.texture_frame');
@@ -485,7 +452,7 @@ export const Animator = {
 	},
 	particle_effects: {},
 	loadParticleEmitter(path, content) {
-		let json_content = autoParseJSON(content);
+		let json_content = autoParseJSON(content, {file_path: path});
 		if (!json_content || !json_content.particle_effect) return;
 
 		if (Animator.particle_effects[path]) {
@@ -519,7 +486,7 @@ export const Animator = {
 		return Animator.particle_effects[path];
 	},
 	loadFile(file, animation_filter) {
-		var json = file.json || autoParseJSON(file.content);
+		var json = file.json || autoParseJSON(file.content, {file_path: file.path});
 		let path = file.path;
 		let new_animations = [];
 		function multilinify(string) {
@@ -561,7 +528,7 @@ export const Animator = {
 					function processPlaceholderVariables(text) {
 						if (typeof text !== 'string') return;
 						text = text.replace(/v\./, 'variable.').replace(/q\./, 'query.').replace(/t\./, 'temp.').replace(/c\./, 'context.').toLowerCase();
-						let matches = text.match(/(query|variable|context|temp)\.\w+/gi);
+						let matches = text.match(/(query|variable|context|temp)\.\w+(\([^)]*\))?/gi);
 						if (!matches) return;
 						matches.forEach(match => {
 							let panel_vue = Interface.Panels.variable_placeholders.inside_vue;
@@ -570,6 +537,7 @@ export const Animator = {
 
 							let [space, name] = match.split(/\./);
 							if (panel_vue.text != '' && panel_vue.text.substr(-1) !== '\n') panel_vue.text += '\n';
+							name = name.replace(/[')]/g, '').replace('(', ':');
 
 							if (name == 'modified_distance_moved') {
 								panel_vue.text += `${match} = time * 8`;
@@ -589,11 +557,11 @@ export const Animator = {
 								z: source[2],
 							}
 							if (channel == 'position') {
-								vec.x *= -1;
+								vec.x = invertMolang(vec.x);
 							}
 							if (channel == 'rotation') {
-								vec.x *= -1;
-								vec.y *= -1;
+								vec.x = invertMolang(vec.x);
+								vec.y = invertMolang(vec.y);
 							}
 							return [vec];
 						} else if (['number', 'string'].includes(typeof source)) {
@@ -604,10 +572,10 @@ export const Animator = {
 						} else if (typeof source == 'object') {
 							let points = [];
 							if (source.pre) {
-								points.push(getKeyframeDataPoints(source.pre)[0], channel)
+								points.push(getKeyframeDataPoints(source.pre, channel)[0]);
 							}
 							if (source.post && !(source.pre instanceof Array && source.post instanceof Array && source.post.equals(source.pre))) {
-								points.push(getKeyframeDataPoints(source.post)[0], channel)
+								points.push(getKeyframeDataPoints(source.post, channel)[0]);
 							}
 							return points;
 						}
@@ -781,7 +749,7 @@ export const Animator = {
 		if (auto_loaded && file.path) {
 			form['_path'] = {type: 'info', text: file.path};
 		}
-		let json = autoParseJSON(file.content)
+		let json = autoParseJSON(file.content, {file_path: file.path})
 		let keys = [];
 		let is_controller = !!json.animation_controllers;
 		let entries = json.animations || json.animation_controllers;
@@ -858,7 +826,7 @@ export const Animator = {
 			});
 		}
 	},
-	exportAnimationFile(path) {
+	exportAnimationFile(path, save_as) {
 		let filter_path = path || '';
 
 		if (isApp && !path) {
@@ -871,7 +839,7 @@ export const Animator = {
 			path = path.replace(/(\.geo)?\.json$/, '.animation.json')
 		}
 
-		if (isApp && path && fs.existsSync(path)) {
+		if (!save_as && isApp && path && fs.existsSync(path)) {
 			Animator.animations.forEach(function(a) {
 				if (a.path == filter_path && !a.saved) {
 					a.save();
@@ -909,7 +877,7 @@ export const Animator = {
 			})
 		}
 	},
-	exportAnimationControllerFile(path) {
+	exportAnimationControllerFile(path, save_as) {
 		let filter_path = path || '';
 
 		if (isApp && !path) {
@@ -922,7 +890,7 @@ export const Animator = {
 			path = path.replace(/(\.geo)?\.json$/, '.animation_controllers.json')
 		}
 
-		if (isApp && path && fs.existsSync(path)) {
+		if (!save_as && isApp && path && fs.existsSync(path)) {
 			AnimationController.all.forEach(function(a) {
 				if (a.path == filter_path && !a.saved) {
 					a.save();
@@ -1370,7 +1338,7 @@ BARS.defineActions(function() {
 		}
 	})
 	// Onion Skin
-	new Toggle('animation_onion_skin', {
+	let onion_skin_toggle = new Toggle('animation_onion_skin', {
 		category: 'view',
 		condition: {modes: ['animate']},
 		tool_config: new ToolConfig('animation_onion_skin', {
@@ -1387,9 +1355,6 @@ BARS.defineActions(function() {
 				interval: {type: 'number', label: 'menu.animation_onion_skin.interval', value: 1, condition: form => form.frames != 'select'},
 				selective: {type: 'checkbox', label: 'menu.animation_onion_skin_selective', value: true},
 			},
-			onOpen() {
-				this.setFormValues({enabled: BarItems.animation_onion_skin.value}, false);
-			},
 			onFormChange(formResult) {
 				if (BarItems.animation_onion_skin.value != formResult.enabled) {
 					BarItems.animation_onion_skin.trigger();
@@ -1401,7 +1366,45 @@ BARS.defineActions(function() {
 		}),
 		onChange() {
 			Timeline.vue.onion_skin_selectable = this.value && this.tool_config.options.frames == 'select';
+			onion_skin_toggle.tool_config.options.enabled = this.value;
 			Animator.updateOnionSkin();
+		}
+	})
+	new Action('copy_animation_pose', {
+		icon: 'detection_and_zone',
+		category: 'animation',
+		condition: () => Animator.open && Animation.selected,
+		click() {
+			let new_keyframes = [];
+
+			for (let uuid in Animation.selected.animators) {
+				let animator = Animation.selected.animators[uuid];
+				if (!animator || !animator.keyframes.length || !(animator.group || animator.element)) continue;
+
+				for (let channel in animator.channels) {
+					if (!animator[channel] || !animator[channel].length) continue;
+					let kf = animator[channel].find(kf => Math.epsilon(kf.time, Timeline.time, 1e-5));
+					if (!kf) {
+						kf = animator.createKeyframe(null, Timeline.time, channel, false, false);
+						new_keyframes.push(kf)
+					}
+				}
+			}
+
+			Clipbench.keyframes = [];
+			if (new_keyframes.length == 0) return;
+
+			new_keyframes.forEach((kf) => {
+				let copy = kf.getUndoCopy();
+				copy.time_offset = 0;
+				Clipbench.keyframes.push(copy);
+			})
+			for (let kf of new_keyframes) {
+				kf.remove();
+			}
+			if (isApp) {
+				clipboard.writeHTML(JSON.stringify({type: 'keyframes', content: Clipbench.keyframes}));
+			}
 		}
 	})
 })
@@ -1418,7 +1421,8 @@ Interface.definePanels(function() {
 			slot: 'left_bar',
 			float_position: [0, 0],
 			float_size: [300, 400],
-			height: 400
+			height: 400,
+			sidebar_index: 10,
 		},
 		component: {
 			name: 'panel-placeholders',
@@ -1558,8 +1562,8 @@ Interface.definePanels(function() {
 					]).open(event);
 				},
 				autocomplete(text, position) {
-					let test = MolangAutocomplete.VariablePlaceholdersContext.autocomplete(text, position);
-					return test;
+					if (Settings.get('autocomplete_code') == false) return [];
+					return MolangAutocomplete.VariablePlaceholdersContext.autocomplete(text, position);
 				}
 			},
 			watch: {
@@ -1605,23 +1609,20 @@ Interface.definePanels(function() {
 })
 
 function processVariablePlaceholderText(text) {
-	const res = text
-			.replaceAll(/(\s*)(v\.)/g, '$1variable.')
-			.replaceAll(/(\s*)(q\.)/g, '$1query.')
-			.replaceAll(/(\s*)(t\.)/g, '$1temp.')
-			.replaceAll(/(\s*)(c\.)/g, '$1context.')
-
 	Animator.global_variable_lines = {}
-	for (const line of res.split('\n')) {
+	for (const line of text.split('\n')) {
 		let [key, val] = line.split(/=\s*(.+)/)
 		if(val === undefined) {
 			continue
 		}
 		key = key.replace(/[\s;]/g, '')
+		key = key
+			.replace(/^v\./, 'variable.')
+			.replace(/^q\./, 'query.')
+			.replace(/^t\./, 'temp.')
+			.replace(/^c\./, 'context.');
 		Animator.global_variable_lines[key] = val.trim()
 	}
-
-	return res
 }
 
 Object.assign(window, {

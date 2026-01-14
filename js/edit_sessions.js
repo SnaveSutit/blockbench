@@ -1,4 +1,5 @@
 import Peer from "peerjs";
+import { clipboard, getPCUsername } from "./native_apis";
 
 export class EditSession {
 	constructor() {
@@ -448,7 +449,7 @@ BARS.defineActions(function() {
 			} else {
 				username = settings.username.value;
 				if (!username && isApp) {
-					username = process.env.USERNAME
+					username = getPCUsername()
 				}
 				token = EditSession.token;
 				if (!token && isApp) {
@@ -515,7 +516,8 @@ Interface.definePanels(function() {
 			slot: 'right_bar',
 			float_position: [0, 0],
 			float_size: [300, 400],
-			height: 400
+			height: 400,
+			sidebar_index: 10,
 		},
 		component: {
 			data() {return {

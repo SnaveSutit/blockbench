@@ -1,4 +1,18 @@
+import stripJsonComments from 'strip-json-comments';
 import LZUTF8 from '../lib/lzutf8';
+import { shell } from '../native_apis';
+
+export class oneLiner {
+	constructor(data: any) {
+		if (data !== undefined) {
+			for (var key in data) {
+				if (data.hasOwnProperty(key)) {
+					this[key] = data[key]
+				}
+			}
+		}
+	}
+}
 
 interface JSONCompileOptions {
 	/**
@@ -94,7 +108,7 @@ export function compileJSON(object: any, options: JSONCompileOptions = {}): stri
 			out += ']'
 		} else if (type === 'object') {
 			//Object
-			breaks = breaks && o.constructor.name !== 'oneLiner';
+			breaks = breaks && !(o instanceof oneLiner);
 			var has_content = false
 			out += '{'
 			for (var key in o) {
@@ -121,13 +135,16 @@ export function compileJSON(object: any, options: JSONCompileOptions = {}): stri
 	return file;
 }
 
+interface FeedbackOptions {
+	file_path?: string
+}
 /**
  * Parse JSON file, while stripping away comments, and optionally showing potential syntax errors to the user in a popup
  * @param data Input string
  * @param feedback Whether to notify the user of syntax errors. Default is true
  * @returns Parsed data
  */
-export function autoParseJSON(data: string, feedback = true): any {
+export function autoParseJSON(data: string, feedback: boolean | FeedbackOptions = true): any {
 	if (data.substr(0, 4) === '<lz>') {
 		data = LZUTF8.decompress(data.substr(4), {inputEncoding: 'StorageBinaryString'})
 	}
@@ -137,7 +154,7 @@ export function autoParseJSON(data: string, feedback = true): any {
 	try {
 		data = JSON.parse(data)
 	} catch (err1) {
-		data = data.replace(/\/\*[^(\*\/)]*\*\/|\/\/.*/g, '')
+		data = stripJsonComments(data);
 		try {
 			data = JSON.parse(data)
 		} catch (err) {
@@ -178,7 +195,14 @@ export function autoParseJSON(data: string, feedback = true): any {
 			Blockbench.showMessageBox({
 				translateKey: 'invalid_file',
 				icon: 'error',
-				message: tl('message.invalid_file.message', [err]) + (error_part ? `\n\n\`\`\`\n${error_part}\n\`\`\`` : '')
+				message: tl('message.invalid_file.message', [err]) + (error_part ? `\n\n\`\`\`\n${error_part}\n\`\`\`` : ''),
+				commands: {
+					open_file: (isApp && typeof feedback == 'object' && feedback.file_path) ? 'Open File' : undefined
+				}
+			}, (result) => {
+				if (result == 'open_file' && typeof feedback == 'object') {
+					shell.openPath(feedback.file_path);
+				}
 			})
 			return;
 		}
@@ -187,6 +211,7 @@ export function autoParseJSON(data: string, feedback = true): any {
 }
 
 Object.assign(window, {
+	oneLiner,
 	compileJSON,
 	autoParseJSON,
 })
