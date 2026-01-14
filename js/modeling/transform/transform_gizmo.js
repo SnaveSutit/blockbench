@@ -4,6 +4,7 @@
  */
 
 import { getPivotObjects, getRotationObjects } from "../transform";
+import { TransformerModule } from "./transform_modules";
 
  ( function () {
 
@@ -1233,9 +1234,6 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 				this.update()
 				return this;
 			}
-			var display_gui_rotation = new THREE.Object3D();
-			display_gui_rotation.rotation.set(0.2, 0.2, 0);
-			display_gui_rotation.updateMatrixWorld();
 
 			this.getTransformSpace = function() {
 				var rotation_tool = Toolbox.selected.id === 'rotate_tool' || Toolbox.selected.id === 'pivot_tool'
@@ -1310,6 +1308,13 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 			this.center = function() {
 				delete Transformer.rotation_ref;
 				if (!scope.dragging) Transformer.rotation_selection.set(0, 0, 0);
+
+				let module = TransformerModule.active;
+				if (module) {
+					module.updateGizmo({});
+					return;
+				}
+
 				if (Modes.edit || Modes.pose || Toolbox.selected.id == 'pivot_tool') {
 					if (Transformer.visible) {
 						let rotation_tool = false;
@@ -1393,41 +1398,6 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 						Transformer.position.fromArray(center)
 					}
 
-				} else if (Modes.display) {
-
-					Transformer.attach(display_base)
-
-					display_base.getWorldPosition(Transformer.position);
-					Transformer.position.sub(scene.position);
-
-					// todo: Fix positions when both rotation pivot and scale pivot are used
-					if (Toolbox.selected.transformerMode === 'translate') {
-						Transformer.rotation_ref = display_area;
-
-					} else if (Toolbox.selected.transformerMode === 'scale') {
-						if (DisplayMode.slot.scale_pivot) {
-							let pivot_offset = new THREE.Vector3().fromArray(DisplayMode.slot.scale_pivot).multiplyScalar(-16);
-							pivot_offset.x *= DisplayMode.slot.scale[0];
-							pivot_offset.y *= DisplayMode.slot.scale[1];
-							pivot_offset.z *= DisplayMode.slot.scale[2];
-							pivot_offset.applyQuaternion(display_base.getWorldQuaternion(new THREE.Quaternion()));
-							Transformer.position.sub(pivot_offset);
-						}
-
-						Transformer.rotation_ref = display_base;
-
-					} else if (Toolbox.selected.transformerMode === 'rotate') {
-						if (DisplayMode.slot.rotation_pivot) {
-							let pivot_offset = new THREE.Vector3().fromArray(DisplayMode.slot.rotation_pivot).multiplyScalar(-16);
-							pivot_offset.applyQuaternion(display_base.getWorldQuaternion(new THREE.Quaternion()));
-							Transformer.position.sub(pivot_offset);
-						}
-
-						if (DisplayMode.display_slot == 'gui') {
-							Transformer.rotation_ref = display_gui_rotation;
-						}
-					}
-					Transformer.update()
 
 				} else if (Modes.animate && Group.first_selected) {
 
@@ -1463,7 +1433,12 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 			}
 			this.cancelMovement = function(event, keep_changes = false) {
 				onPointerUp(event, keep_changes);
-				Undo.cancelEdit(true);
+				let module = TransformerModule.active;
+				if (module) {
+					module.onCancel({});
+				} else {
+					Undo.cancelEdit(true);
+				}
 			}
 			function displayDistance(number) {
 				Blockbench.setCursorTooltip(trimFloatNumber(number));
@@ -1595,8 +1570,12 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 			}
 			function beforeFirstChange(event, point) {
 				if (scope.hasChanged) return;
+				
+				let module = TransformerModule.active;
+				if (module) {
+					module.onStart({});
 
-				if (Modes.edit || Modes.pose || Toolbox.selected.id == 'pivot_tool') {
+				} else if (Modes.edit || Modes.pose || Toolbox.selected.id == 'pivot_tool') {
 
 					if (Toolbox.selected.id === 'resize_tool' || Toolbox.selected.id === 'stretch_tool') {
 						var axisnr = getAxisNumber(scope.axis.toLowerCase().replace('n', ''));
@@ -1662,8 +1641,6 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 						if (new_keyframe) scope.keyframes.push(new_keyframe)
 					}
 
-				} else if (Modes.id === 'display') {
-					Undo.initEdit({display_slots: [DisplayMode.display_slot]})
 				}
 				scope.firstChangeMade = true
 			}
@@ -1678,10 +1655,12 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 
 				event.stopPropagation();
 
+				let module = TransformerModule.active;
 				var axis = ((scope.direction == false && scope.axis.length == 2) ? scope.axis[1] : scope.axis[0]).toLowerCase();
 				var axisNumber = getAxisNumber(axis)
 				var rotate_normal;
 				var axisB, axisNumberB;
+				var angle;
 
 				if (scope.axis.length == 2 && scope.axis[0] !== 'N') {
 					axisB = scope.axis[1].toLowerCase()
@@ -1704,7 +1683,7 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 					if (scope.axis == 'E') {
 						let matrix = new THREE.Matrix4().copy(_gizmo[ _mode ].activePlane.matrix).invert();
 						point.applyMatrix4(matrix)
-						var angle = Math.radToDeg( Math.atan2( point.y, point.x ) )
+						angle = Math.radToDeg( Math.atan2( point.y, point.x ) )
 						rotate_normal = Preview.selected.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1);
 
 					} else {
@@ -1713,12 +1692,15 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 							Math.atan2( point.x, point.z ),
 							Math.atan2( point.y, point.x )
 						]
-						var angle = Math.radToDeg( rotations[axisNumber] )
+						angle = Math.radToDeg( rotations[axisNumber] )
 					}
 				}
 				let transform_space = Transformer.getTransformSpace()
 
-				if (Modes.edit || Modes.pose || Toolbox.selected.id == 'pivot_tool') {
+				if (module) {
+					module.onMove({point, axis, axis_number: axisNumber, rotate_normal, angle});
+
+				} else if (Modes.edit || Modes.pose || Toolbox.selected.id == 'pivot_tool') {
 
 					if (Toolbox.selected.id === 'move_tool') {
 
@@ -2043,78 +2025,6 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 						scope.hasChanged = true
 					}
 
-				} else if (Modes.display) {
-
-					let {display_slot} = DisplayMode;
-					var rotation = new THREE.Quaternion()
-					scope.getWorldQuaternion(rotation)
-					point.applyQuaternion(rotation.invert())
-
-					var channel = Toolbox.selected.animation_channel
-					if (channel === 'position') channel = 'translation';
-					var value = point[axis]
-					if (axis == 'e') value = point.length() * Math.sign(point.y||point.x);
-					var bf = (Project.display_settings[display_slot][channel][axisNumber] - (previousValue||0)) || 0;
-
-					if (channel === 'rotation') {
-						value = Math.trimDeg(bf + Math.round(angle*4)/4) - bf;
-					} else if (channel === 'translation') {
-						value = limitNumber( bf+Math.round(value*4)/4, -80, 80) - bf;
-					} else /* scale */ {
-						value = limitNumber( bf+Math.round(value*64)/(64*8)*(scope.direction ? 1 : -1), 0, 4) - bf;
-					}
-
-					if (display_slot.includes('lefthand')) {
-						if (channel === 'rotation' && axisNumber) {
-							value *= -1
-						} else if (channel === 'translation' && !axisNumber) {
-							value *= -1
-						}
-					}
-					if (previousValue === undefined) previousValue = value
-					if (originalValue === null) {
-						originalValue = value;
-					}
-
-					if (value !== previousValue) {
-						beforeFirstChange(event)
-
-						var difference = value - (previousValue||0);
-
-						if (channel === 'rotation') {
-							let normal = Reusable.vec1.copy(scope.axis == 'E'
-								? rotate_normal
-								: axisNumber == 0 ? THREE.NormalX : (axisNumber == 1 ? THREE.NormalY : THREE.NormalZ));
-
-							let quaternion = display_base.getWorldQuaternion(new THREE.Quaternion()).invert()
-							normal.applyQuaternion(quaternion)
-							display_base.rotateOnAxis(normal, Math.degToRad(difference))
-
-							Project.display_settings[display_slot][channel][0] = Math.roundTo(Math.radToDeg(display_base.rotation.x), 2);
-							Project.display_settings[display_slot][channel][1] = Math.roundTo(Math.radToDeg(display_base.rotation.y) * (display_slot.includes('lefthand') ? -1 : 1), 2);
-							Project.display_settings[display_slot][channel][2] = Math.roundTo(Math.radToDeg(display_base.rotation.z) * (display_slot.includes('lefthand') ? -1 : 1), 2);
-
-						} else if (axis == 'e') {
-							Project.display_settings[display_slot][channel][0] += difference;
-							Project.display_settings[display_slot][channel][1] += difference;
-							Project.display_settings[display_slot][channel][2] += difference;
-
-						} else {
-							Project.display_settings[display_slot][channel][axisNumber] += difference;
-						}
-
-						if ((event.shiftKey || Pressing.overrides.shift) && channel === 'scale') {
-							var val = Project.display_settings[display_slot][channel][(axisNumber||0)]
-							Project.display_settings[display_slot][channel][((axisNumber||0)+1)%3] = val
-							Project.display_settings[display_slot][channel][((axisNumber||0)+2)%3] = val
-						}
-						DisplayMode.slot.update()
-
-						displayDistance(value - originalValue);
-
-						previousValue = value
-						scope.hasChanged = true
-					}
 				}
 				
 				scope.dispatchEvent( changeEvent );
@@ -2148,8 +2058,13 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 					extendTransformLine(false);
 
 					Blockbench.setCursorTooltip();
+					let module = TransformerModule.active;
+					if (module) {
+						module.onEnd({
+							keep_changes
+						});
 
-					if (Modes.id === 'edit' || Modes.id === 'pose' || Toolbox.selected.id == 'pivot_tool') {
+					} else if (Modes.id === 'edit' || Modes.id === 'pose' || Toolbox.selected.id == 'pivot_tool') {
 						if (Toolbox.selected.id === 'resize_tool' || Toolbox.selected.id === 'stretch_tool') {
 							//Scale and stretch
 							selected.forEach(function(obj) {
@@ -2183,8 +2098,6 @@ import { getPivotObjects, getRotationObjects } from "../transform";
 					} else if (Modes.id === 'animate' && scope.keyframes && scope.keyframes.length && keep_changes) {
 						Undo.finishEdit('Change keyframe', {keyframes: scope.keyframes})
 
-					} else if (Modes.id === 'display' && keep_changes) {
-						Undo.finishEdit('Edit display slot')
 					}
 				}
 				_dragging = false;

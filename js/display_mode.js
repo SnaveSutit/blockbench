@@ -1,4 +1,5 @@
 import { THREE } from "./lib/libs";
+import { TransformerModule } from "./modeling/transform/transform_modules";
 import { Mode } from "./modes";
 
 var ground_timer = 0
@@ -1334,6 +1335,8 @@ window.displayReferenceObjects = {
 	]
 }
 DisplayMode.slots = displayReferenceObjects.slots
+DisplayMode.display_base = display_base;
+DisplayMode.display_area = display_area;
 
 export const display_angle_preset = {
 	projection: 'perspective',
@@ -1869,6 +1872,148 @@ DisplayMode.debugBase = function() {
 		}
 	}).show();
 }
+
+const display_gui_rotation = new THREE.Object3D();
+display_gui_rotation.rotation.set(0.2, 0.2, 0);
+display_gui_rotation.updateMatrixWorld();
+
+let previousValue;
+let originalValue;
+new TransformerModule('display', {
+	priority: 2,
+	condition: () => Modes.display,
+	updateGizmo() {
+
+		let transformer_mode = Toolbox.selected.transformerMode;
+
+		Transformer.attach(display_base)
+
+		display_base.getWorldPosition(Transformer.position);
+		Transformer.position.sub(scene.position);
+
+		// todo: Fix positions when both rotation pivot and scale pivot are used
+		if (transformer_mode === 'translate') {
+			Transformer.rotation_ref = DisplayMode.display_area;
+
+		} else if (transformer_mode === 'scale') {
+			if (DisplayMode.slot.scale_pivot) {
+				let pivot_offset = new THREE.Vector3().fromArray(DisplayMode.slot.scale_pivot).multiplyScalar(-16);
+				pivot_offset.x *= DisplayMode.slot.scale[0];
+				pivot_offset.y *= DisplayMode.slot.scale[1];
+				pivot_offset.z *= DisplayMode.slot.scale[2];
+				pivot_offset.applyQuaternion(display_base.getWorldQuaternion(new THREE.Quaternion()));
+				Transformer.position.sub(pivot_offset);
+			}
+
+			Transformer.rotation_ref = display_base;
+
+		} else if (transformer_mode === 'rotate') {
+			if (DisplayMode.slot.rotation_pivot) {
+				let pivot_offset = new THREE.Vector3().fromArray(DisplayMode.slot.rotation_pivot).multiplyScalar(-16);
+				pivot_offset.applyQuaternion(display_base.getWorldQuaternion(new THREE.Quaternion()));
+				Transformer.position.sub(pivot_offset);
+			}
+
+			if (DisplayMode.display_slot == 'gui') {
+				Transformer.rotation_ref = display_gui_rotation;
+			}
+		}
+		Transformer.update()
+	},
+	onPointerDown() {
+		
+	},
+	onStart() {
+		if (Transformer.hasChanged) return;
+		Undo.initEdit({display_slots: [DisplayMode.display_slot]})
+	},
+	onMove(context) {
+		let {point, axis, axis_number, angle} = context;
+		
+		let {display_slot} = DisplayMode;
+		var rotation = new THREE.Quaternion()
+		Transformer.getWorldQuaternion(rotation)
+		point.applyQuaternion(rotation.invert())
+
+		var channel = Toolbox.selected.animation_channel
+		if (channel === 'position') channel = 'translation';
+		var value = point[axis]
+		if (axis == 'e') value = point.length() * Math.sign(point.y||point.x);
+		var bf = (Project.display_settings[display_slot][channel][axis_number] - (previousValue||0)) || 0;
+
+		if (channel === 'rotation') {
+			value = Math.trimDeg(bf + Math.round(angle*4)/4) - bf;
+		} else if (channel === 'translation') {
+			value = limitNumber( bf+Math.round(value*4)/4, -80, 80) - bf;
+		} else /* scale */ {
+			value = limitNumber( bf+Math.round(value*64)/(64*8)*(Transformer.direction ? 1 : -1), 0, 4) - bf;
+		}
+
+		if (display_slot.includes('lefthand')) {
+			if (channel === 'rotation' && axis_number) {
+				value *= -1
+			} else if (channel === 'translation' && !axis_number) {
+				value *= -1
+			}
+		}
+		if (previousValue === undefined) previousValue = value
+		if (originalValue === null) {
+			originalValue = value;
+		}
+
+		if (value !== previousValue) {
+			
+			this.onStart(context);
+
+			var difference = value - (previousValue||0);
+
+			if (channel === 'rotation') {
+				let normal = Reusable.vec1.copy(Transformer.axis == 'E'
+					? rotate_normal
+					: axis_number == 0 ? THREE.NormalX : (axis_number == 1 ? THREE.NormalY : THREE.NormalZ));
+
+				let quaternion = display_base.getWorldQuaternion(new THREE.Quaternion()).invert()
+				normal.applyQuaternion(quaternion)
+				display_base.rotateOnAxis(normal, Math.degToRad(difference))
+
+				Project.display_settings[display_slot][channel][0] = Math.roundTo(Math.radToDeg(display_base.rotation.x), 2);
+				Project.display_settings[display_slot][channel][1] = Math.roundTo(Math.radToDeg(display_base.rotation.y) * (display_slot.includes('lefthand') ? -1 : 1), 2);
+				Project.display_settings[display_slot][channel][2] = Math.roundTo(Math.radToDeg(display_base.rotation.z) * (display_slot.includes('lefthand') ? -1 : 1), 2);
+
+			} else if (axis == 'e') {
+				Project.display_settings[display_slot][channel][0] += difference;
+				Project.display_settings[display_slot][channel][1] += difference;
+				Project.display_settings[display_slot][channel][2] += difference;
+
+			} else {
+				Project.display_settings[display_slot][channel][axis_number] += difference;
+			}
+
+			if ((event.shiftKey || Pressing.overrides.shift) && channel === 'scale') {
+				var val = Project.display_settings[display_slot][channel][(axis_number||0)]
+				Project.display_settings[display_slot][channel][((axis_number||0)+1)%3] = val
+				Project.display_settings[display_slot][channel][((axis_number||0)+2)%3] = val
+			}
+			DisplayMode.slot.update()
+
+			Blockbench.setCursorTooltip(trimFloatNumber(value - originalValue));
+
+			previousValue = value
+			Transformer.hasChanged = true
+		}
+	},
+	onEnd(context) {
+		originalValue = null;
+		if (context.keep_changes) {
+			Undo.finishEdit('Edit display slot');
+		}
+	},
+	onCancel() {
+		originalValue = null;
+		Undo.cancelEdit(true);
+	},
+});
+
 
 BARS.defineActions(function() {
 	new Mode('display', {
