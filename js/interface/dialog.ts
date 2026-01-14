@@ -96,7 +96,7 @@ function buildToolbars(dialog: Dialog) {
 }
 
 const toggle_sidebar = window.innerWidth < 640;
-interface DialogSidebarOptions {
+export interface DialogSidebarOptions {
 	pages?: {
 		[key: string]: string | { label: string; icon: IconString; color?: string } | MenuSeparator
 	}
@@ -211,7 +211,7 @@ export class DialogSidebar {
 }
 
 
-interface DialogOptions {
+export interface DialogOptions {
 	title: string
 	id?: string
 	icon?: IconString
