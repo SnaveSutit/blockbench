@@ -39,7 +39,7 @@ interface BlockbenchEventMap {
 	installed_plugin: { plugin: BBPlugin }
 	uninstalled_plugin: { plugin: BBPlugin }
 	update_settings: any
-	update_project_settings: any
+	update_project_settings: Record<string, any>
 	save_project: any
 	load_project: any
 	new_project: any
@@ -71,13 +71,13 @@ interface BlockbenchEventMap {
 	init_edit: any
 	finish_edit: any
 	finished_edit: any
-	undo: any
-	redo: any
+	undo: { entry: UndoEntry }
+	redo: { entry: UndoEntry }
 	load_undo_save: any
 	create_undo_save: any
 	change_color: any
-	select_mode: any
-	unselect_mode: any
+	select_mode: { mode: Mode }
+	unselect_mode: { mode: Mode }
 	change_active_panel: any
 	resize_window: any
 	press_key: any
@@ -85,8 +85,8 @@ interface BlockbenchEventMap {
 	convert_format: any
 	construct_format: any
 	delete_format: any
-	select_project: any
-	unselect_project: any
+	select_project: { project: Project }
+	unselect_project: { project: Project }
 	setup_project: any
 	update_project_resolution: any
 	merge_project: any
