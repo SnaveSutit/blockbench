@@ -984,7 +984,7 @@ export class Plugin {
 
 // Alias for typescript
 export const BBPlugin = Plugin;
-
+export type BBPlugin = Plugin;
 
 if (isApp) {
 	Plugins.path = app.getPath('userData')+osfs+'plugins'+osfs
@@ -1913,15 +1913,9 @@ BARS.defineActions(function() {
 	})
 })
 
-declare global {
-}
-const global = {
+Object.assign(window, {
 	Plugins,
 	Plugin,
 	BBPlugin
-};
-declare global {
-	const BBPlugin: typeof Plugin;
-	const Plugins: typeof global.Plugins
-}
+});
 Object.assign(window, global);
