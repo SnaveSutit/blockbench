@@ -1005,14 +1005,14 @@ export class Panel extends EventSystem {
 				this.container.classList.add('topmost_panel');
 			}
 
-			if (this.node.clientHeight == 0 && this.open_attached_panel != this && !this.container.style.getPropertyValue('--main-panel-height')) {
+			if (this.open_attached_panel != this && this.node.clientHeight == 0 && !this.container.style.getPropertyValue('--main-panel-height')) {
 				// If panel acts as container but other panel is open, set main panel height the first time its opened to ensure tabs have the same height
 				this.container.append(this.node);
 				let height = this.node.clientHeight;
 				if (height) this.container.style.setProperty('--main-panel-height', height + 'px');
 				this.node.remove();
 
-			} else if (this.node.clientHeight) {
+			} else if (this.getAttachedPanels().length && this.node.clientHeight) {
 				this.container.style.setProperty('--main-panel-height', this.node.clientHeight + 'px');
 			}
 

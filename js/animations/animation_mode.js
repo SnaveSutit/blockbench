@@ -1626,6 +1626,7 @@ function processVariablePlaceholderText(text) {
 }
 
 Object.assign(window, {
+	MolangParser,
 	Animator,
 	Wintersky,
 	WinterskyScene
