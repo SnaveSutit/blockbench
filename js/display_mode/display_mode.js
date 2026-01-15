@@ -1402,8 +1402,6 @@ const display_gui_rotation = new THREE.Object3D();
 display_gui_rotation.rotation.set(0.2, 0.2, 0);
 display_gui_rotation.updateMatrixWorld();
 
-let previousValue;
-let originalValue;
 new TransformerModule('display', {
 	priority: 2,
 	condition: () => Modes.display,
@@ -1443,16 +1441,8 @@ new TransformerModule('display', {
 				Transformer.rotation_ref = display_gui_rotation;
 			}
 		}
-		Transformer.update()
 	},
-	onPointerDown() {
-		
-	},
-	onStart() {
-		if (Transformer.hasChanged) return;
-		Undo.initEdit({display_slots: [DisplayMode.display_slot]})
-	},
-	onMove(context) {
+	calculateOffset(context) {
 		let {point, axis, axis_number, angle} = context;
 		
 		let {display_slot} = DisplayMode;
@@ -1464,7 +1454,7 @@ new TransformerModule('display', {
 		if (channel === 'position') channel = 'translation';
 		var value = point[axis]
 		if (axis == 'e') value = point.length() * Math.sign(point.y||point.x);
-		var bf = (Project.display_settings[display_slot][channel][axis_number] - (previousValue||0)) || 0;
+		var bf = (Project.display_settings[display_slot][channel][axis_number] - (this.previous_value||0)) || 0;
 
 		if (channel === 'rotation') {
 			value = Math.trimDeg(bf + Math.round(angle*4)/4) - bf;
@@ -1481,60 +1471,56 @@ new TransformerModule('display', {
 				value *= -1
 			}
 		}
-		if (previousValue === undefined) previousValue = value
-		if (originalValue === null) {
-			originalValue = value;
+		return value;
+	},
+	onStart() {
+		Undo.initEdit({display_slots: [DisplayMode.display_slot]})
+	},
+	onMove(context) {
+		let {point, axis, axis_number, value} = context;
+		var channel = Toolbox.selected.animation_channel
+		if (channel === 'position') channel = 'translation';
+
+		var difference = value - (this.previous_value||0);
+
+		if (channel === 'rotation') {
+			let normal = Reusable.vec1.copy(Transformer.axis == 'E'
+				? rotate_normal
+				: axis_number == 0 ? THREE.NormalX : (axis_number == 1 ? THREE.NormalY : THREE.NormalZ));
+
+			let quaternion = display_base.getWorldQuaternion(new THREE.Quaternion()).invert()
+			normal.applyQuaternion(quaternion)
+			display_base.rotateOnAxis(normal, Math.degToRad(difference))
+
+			DisplayMode.slot[channel][0] = Math.roundTo(Math.radToDeg(display_base.rotation.x), 2);
+			DisplayMode.slot[channel][1] = Math.roundTo(Math.radToDeg(display_base.rotation.y) * (DisplayMode.display_slot.includes('lefthand') ? -1 : 1), 2);
+			DisplayMode.slot[channel][2] = Math.roundTo(Math.radToDeg(display_base.rotation.z) * (DisplayMode.display_slot.includes('lefthand') ? -1 : 1), 2);
+
+		} else if (axis == 'e') {
+			DisplayMode.slot[channel][0] += difference;
+			DisplayMode.slot[channel][1] += difference;
+			DisplayMode.slot[channel][2] += difference;
+
+		} else {
+			DisplayMode.slot[channel][axis_number] += difference;
 		}
 
-		if (value !== previousValue) {
-			
-			this.onStart(context);
-
-			var difference = value - (previousValue||0);
-
-			if (channel === 'rotation') {
-				let normal = Reusable.vec1.copy(Transformer.axis == 'E'
-					? rotate_normal
-					: axis_number == 0 ? THREE.NormalX : (axis_number == 1 ? THREE.NormalY : THREE.NormalZ));
-
-				let quaternion = display_base.getWorldQuaternion(new THREE.Quaternion()).invert()
-				normal.applyQuaternion(quaternion)
-				display_base.rotateOnAxis(normal, Math.degToRad(difference))
-
-				Project.display_settings[display_slot][channel][0] = Math.roundTo(Math.radToDeg(display_base.rotation.x), 2);
-				Project.display_settings[display_slot][channel][1] = Math.roundTo(Math.radToDeg(display_base.rotation.y) * (display_slot.includes('lefthand') ? -1 : 1), 2);
-				Project.display_settings[display_slot][channel][2] = Math.roundTo(Math.radToDeg(display_base.rotation.z) * (display_slot.includes('lefthand') ? -1 : 1), 2);
-
-			} else if (axis == 'e') {
-				Project.display_settings[display_slot][channel][0] += difference;
-				Project.display_settings[display_slot][channel][1] += difference;
-				Project.display_settings[display_slot][channel][2] += difference;
-
-			} else {
-				Project.display_settings[display_slot][channel][axis_number] += difference;
-			}
-
-			if ((event.shiftKey || Pressing.overrides.shift) && channel === 'scale') {
-				var val = Project.display_settings[display_slot][channel][(axis_number||0)]
-				Project.display_settings[display_slot][channel][((axis_number||0)+1)%3] = val
-				Project.display_settings[display_slot][channel][((axis_number||0)+2)%3] = val
-			}
-			DisplayMode.slot.update()
-
-			Blockbench.setCursorTooltip(trimFloatNumber(value - originalValue));
-
-			previousValue = value
-			Transformer.hasChanged = true
+		if ((event.shiftKey || Pressing.overrides.shift) && channel === 'scale') {
+			var val = DisplayMode.slot[channel][(axis_number||0)]
+			DisplayMode.slot[channel][((axis_number||0)+1)%3] = val
+			DisplayMode.slot[channel][((axis_number||0)+2)%3] = val
 		}
+		DisplayMode.slot.update()
+
+		Blockbench.setCursorTooltip(trimFloatNumber(value - this.initial_value));
+
 	},
 	onEnd(context) {
-		originalValue = null;
 		if (context.keep_changes) {
 			Undo.finishEdit('Edit display slot');
 		}
 	},
 	onCancel() {
-		originalValue = null;
 		Undo.cancelEdit(true);
 	},
 });
