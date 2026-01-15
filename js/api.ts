@@ -36,9 +36,11 @@ interface ToastNotificationOptions {
 }
 export const LastVersion = localStorage.getItem('last_version') || localStorage.getItem('welcomed_version') || appVersion;
 
+// @ts-ignore
+// const previous_data = window.Blockbench as {};
+
 export const Blockbench = {
-	// @ts-ignore
-	...window.Blockbench,
+	//...previous_data,
 	isWeb: !isApp,
 	isMobile: (window.innerWidth <= 960 || window.innerHeight <= 500) && 'ontouchend' in document,
 	isLandscape: window.innerWidth > window.innerHeight,
