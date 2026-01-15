@@ -1032,5 +1032,9 @@ FormElement.types.file = FormElementFile;
 FormElement.types.folder = FormElementFile;
 FormElement.types.save = FormElementFile;
 
-
-Object.assign(window, {InputForm, FormElement});
+const global = {InputForm, FormElement};
+declare global {
+	const InputForm: typeof global.InputForm
+	const FormElement: typeof global.FormElement
+}
+Object.assign(window, global);

@@ -1914,10 +1914,14 @@ BARS.defineActions(function() {
 })
 
 declare global {
-	const BBPlugin: typeof Plugin;
 }
-Object.assign(window, {
+const global = {
 	Plugins,
 	Plugin,
 	BBPlugin
-});
+};
+declare global {
+	const BBPlugin: typeof Plugin;
+	const Plugins: typeof global.Plugins
+}
+Object.assign(window, global);

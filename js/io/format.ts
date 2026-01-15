@@ -672,7 +672,14 @@ new Property(ModelFormat, 'boolean', 'pbr');
 new Property(ModelFormat, 'enum', 'euler_order', {default: 'ZYX'});
 
 
-Object.assign(window, {
+const global = {
 	ModelFormat,
 	Formats
-});
+};
+declare global {
+	const ModelFormat: typeof global.ModelFormat
+	const Format: ModelFormat
+	const Formats: Record<string, ModelFormat>
+}
+
+Object.assign(window, global);

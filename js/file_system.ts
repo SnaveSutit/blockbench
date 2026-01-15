@@ -507,6 +507,7 @@ export namespace Filesystem {
 			//text or binary
 			let content = options.content;
 			if (content instanceof ArrayBuffer) {
+				// @ts-ignore
 				content = Buffer.from(content);
 			}
 			fs.writeFileSync(file_path, content as string)
@@ -760,6 +761,10 @@ export namespace Filesystem {
 	}
 }
 
-Object.assign(window, {
+const global = {
 	Filesystem
-})
+};
+declare global {
+	const Filesystem: typeof global.Filesystem
+}
+Object.assign(window, global);

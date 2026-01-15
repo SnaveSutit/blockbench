@@ -123,4 +123,10 @@ export class CanvasFrame {
 	}
 }
 
-Object.assign(window, {CanvasFrame});
+const global = {
+	CanvasFrame
+};
+declare global {
+	const CanvasFrame: typeof global.CanvasFrame
+}
+Object.assign(window, global);

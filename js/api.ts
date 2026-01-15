@@ -37,6 +37,7 @@ interface ToastNotificationOptions {
 export const LastVersion = localStorage.getItem('last_version') || localStorage.getItem('welcomed_version') || appVersion;
 
 export const Blockbench = {
+	// @ts-ignore
 	...window.Blockbench,
 	isWeb: !isApp,
 	isMobile: (window.innerWidth <= 960 || window.innerHeight <= 500) && 'ontouchend' in document,
@@ -408,8 +409,13 @@ if (isApp) {
 	if (Blockbench.platform.includes('win32') === true) window.osfs = '\\';
 }
 
-Object.assign(window, {
+const global = {
 	LastVersion,
 	Blockbench,
 	isApp
-});
+}
+declare global {
+	const LastVersion: typeof global.LastVersion
+	const Blockbench: typeof global.Blockbench
+}
+Object.assign(window, global);

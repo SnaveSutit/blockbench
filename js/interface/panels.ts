@@ -1400,8 +1400,7 @@ export function setupMobilePanelSelector() {
 			</div>`
 	})
 }
-
-Object.assign(window, {
+const global = {
 	Panel,
 	Panels,
 	setupPanels,
@@ -1410,4 +1409,15 @@ Object.assign(window, {
 	updatePanelSelector,
 	setActivePanel,
 	setupMobilePanelSelector,
-});
+};
+declare global {
+	const Panel: typeof global.Panel
+	const Panels: typeof global.Panels
+	const setupPanels: typeof global.setupPanels
+	const updateInterfacePanels: typeof global.updateInterfacePanels
+	const updateSidebarOrder: typeof global.updateSidebarOrder
+	const updatePanelSelector: typeof global.updatePanelSelector
+	const setActivePanel: typeof global.setActivePanel
+	const setupMobilePanelSelector: typeof global.setupMobilePanelSelector
+}
+Object.assign(window, global);

@@ -234,6 +234,10 @@ export const AutoBackup = {
 		}
 	}
 }
-Object.assign(window, {
-	AutoBackup,
-})
+const global = {
+	AutoBackup
+};
+declare global {
+	const AutoBackup: typeof global.AutoBackup
+}
+Object.assign(window, global);

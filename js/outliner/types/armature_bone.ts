@@ -596,7 +596,12 @@ BARS.defineActions(function() {
 	})
 })
 
-Object.assign(window, {
+const global = {
 	ArmatureBone,
 	getAllArmatureBones
-})
+};
+declare global {
+	const ArmatureBone: typeof global.ArmatureBone
+	const getAllArmatureBones: typeof global.getAllArmatureBones
+}
+Object.assign(window, global);
