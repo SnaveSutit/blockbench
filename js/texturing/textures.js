@@ -711,6 +711,8 @@ export class Texture {
 		mat.uniforms.EMISSIVE.value = this.render_mode == 'emissive';
 		mat.blending = this.render_mode == 'additive' ? THREE.AdditiveBlending : THREE.NormalBlending;
 		mat.side = this.render_sides == 'auto' ? Canvas.getRenderSide() : (this.render_sides == 'front' ? THREE.FrontSide : THREE.DoubleSide);
+		let wrap = this.wrap_mode == 'repeat' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+		mat.map.wrapS = mat.map.wrapT = wrap;
 
 		// Map
 		mat.map.needsUpdate = true;
@@ -1151,6 +1153,15 @@ export class Texture {
 				}},
 			});
 		}
+		if (Format.per_texture_wrap_mode) {
+			Object.assign(form, {
+				wrap_mode: {label: 'menu.texture.wrap_mode', type: 'select', value: this.wrap_mode, options: {
+					limited: 'menu.texture.wrap_mode.limited',
+					repeat: 'menu.texture.wrap_mode.repeat',
+					clamp: 'menu.texture.wrap_mode.clamp',
+				}},
+			});
+		}
 		if (Format.per_texture_uv_size) {
 			form.uv_size = {type: 'vector', label: 'dialog.texture.uv_size', value: [this.uv_width, this.uv_height], dimensions: 2, step: 1, min: 1, linked_ratio: false};
 		}
@@ -1198,6 +1209,7 @@ export class Texture {
 				if (results.namespace !== undefined) this.namespace = results.namespace;
 				if (results.render_mode !== undefined) this.render_mode = results.render_mode;
 				if (results.render_sides !== undefined) this.render_sides = results.render_sides;
+				if (results.wrap_mode !== undefined) this.wrap_mode = results.wrap_mode;
 				
 				if (Format.per_texture_uv_size) {
 					let changed = this.uv_width != results.uv_size[0] || this.uv_height != results.uv_size[1];
@@ -2144,6 +2156,7 @@ export class Texture {
 	new Property(Texture, 'string', 'sync_to_project')
 	new Property(Texture, 'enum', 'render_mode', {default: 'default'})
 	new Property(Texture, 'enum', 'render_sides', {default: 'auto'})
+	new Property(Texture, 'enum', 'wrap_mode', {default: () => Format.texture_wrap_default ?? 'limited'})
 	new Property(Texture, 'enum', 'pbr_channel', {default: 'color'})
 	
 	new Property(Texture, 'number', 'frame_time', {default: 1})

@@ -789,7 +789,7 @@ export class Cube extends OutlinerElement {
 				let texture = face.getTexture();
 				let uv_width = Project.getUVWidth(texture);
 				let uv_height = Project.getUVHeight(texture);
-				let clamp = UVEditor.uvClampEnabled(texture);
+				let clamp = UVEditor.isUVClamped(texture);
 
 				//Match To Rotation
 				if (rot === 90 || rot === 270) {
