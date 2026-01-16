@@ -21,6 +21,7 @@ new ModelFormat('free', {
 	centered_grid: true,
 	optional_box_uv: true,
 	per_texture_uv_size: true,
+	per_texture_texture_wrap: true,
 	uv_rotation: true,
 	animation_mode: true,
 	per_animator_rotation_interpolation: true,
