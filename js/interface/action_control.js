@@ -70,7 +70,7 @@ export const ActionControl = {
 			}
 
 		} else if (action.type == 'plugin') {
-			let plugin = Plugins.all.find(plugin => plugin.id == action.id);
+			let plugin = Plugins.all.find(plugin => plugin.uuid == action.uuid);
 			if (plugin.installed) {
 				plugin.uninstall();
 			} else {
@@ -337,6 +337,7 @@ BARS.defineActions(function() {
 								description: plugin.description,
 								keybind_label: plugin.author,
 								id: plugin.id,
+								uuid: plugin.uuid,
 								type: 'plugin'
 							})
 							if (list.length > ActionControl.max_length) break;
@@ -385,7 +386,7 @@ BARS.defineActions(function() {
 							return action.value;
 						}
 					} else {
-						action.keybind.label;
+						return action.keybind?.label ?? '';
 					}
 				} else {
 					return action.description;

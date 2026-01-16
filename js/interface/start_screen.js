@@ -25,7 +25,7 @@ export const StartScreen = {
  * @param {number} [data.graphic.aspect_ratio] Section aspect ratio
  * @param {string} [data.graphic.description] Markdown string
  * @param {string} [data.graphic.text_color]
- * @param {Array.<{text: String, type: String, [list]: Array.String, [click]: Function}>} data.text
+ * @param {Array.<{text: String, {type}: [String], [list]: Array.String, {click}: [Function]}>} data.text
  * @param {'vertical'|'horizontal'} data.layout
  * @param {Array} data.features
  * @param {boolean} data.closable
@@ -202,7 +202,7 @@ onVueSetup(async function() {
 				},
 				{
 					source: "./assets/splash_art/4.webp",
-					description: "Splash Art 3rd Place by [Kang_cn](https://contests.blockbench.net/artists/1284502809248796766)",
+					description: "Splash Art 4th Place by [Kang_cn](https://contests.blockbench.net/artists/1284502809248796766)",
 				}
 			],
 			show_splash_screen: (Blockbench.hasFlag('after_update') || settings.always_show_splash_art.value),

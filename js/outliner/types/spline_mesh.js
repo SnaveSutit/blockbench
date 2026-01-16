@@ -1,4 +1,4 @@
-import { Property } from "../util/property";
+import { Property } from "../../util/property";
 // import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 // Add dummy Mesh with vertex keys
@@ -488,7 +488,7 @@ export class SplineMesh extends OutlinerElement {
         // console.log(this, copy);
         return copy;
     }
-    getSaveCopy(project) {
+    getSaveCopy() {
         var copy = {}
         for (var key in SplineMesh.properties) {
             SplineMesh.properties[key].copy(this, copy)

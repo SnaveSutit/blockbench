@@ -1,8 +1,8 @@
 import { Blockbench } from "../../api";
 import { Filesystem } from "../../file_system";
-import { Armature } from "../../outliner/armature";
-import { ArmatureBone } from "../../outliner/armature_bone";
-import { adjustFromAndToForInflateAndStretch } from "../../outliner/cube";
+import { Armature } from "../../outliner/types/armature";
+import { ArmatureBone } from "../../outliner/types/armature_bone";
+import { adjustFromAndToForInflateAndStretch } from "../../outliner/types/cube";
 import { patchedAtob } from "../../util/util";
 import { JSZip, THREE } from './../../lib/libs'
 
@@ -635,10 +635,10 @@ var codec = new Codec('fbx', {
 					let bone_name = getUniqueName('bone', bone.uuid, bone.name);
 					let indices = [];
 					let weights = [];
-					for (let vkey in bone.vertex_weights) {
-						if (bone.vertex_weights[vkey] > 0.001) {
+					for (let vkey of vertex_keys) {
+						if (bone.getVertexWeight(mesh, vkey) > 0.001) {
 							indices.push(vertex_keys.indexOf(vkey));
-							weights.push(Math.clamp(bone.vertex_weights[vkey], 0, 1));
+							weights.push(Math.clamp(bone.getVertexWeight(mesh, vkey), 0, 1));
 						}
 					}
 					let bind_matrix = bind_matrix_list[bone_list.indexOf(bone)];
@@ -1447,7 +1447,7 @@ BARS.defineActions(function() {
 	codec.export_action = new Action('export_fbx', {
 		icon: 'icon-fbx',
 		category: 'file',
-		condition: () => Project,
+		condition: () => !!Project,
 		click: function () {
 			codec.export()
 		}
@@ -1475,6 +1475,7 @@ class BinaryWriter {
 			var oldArray = this.array;
 			// Expand by at least 160 bytes at a time to improve performance. Only works for FBX since 176+ arbitrary bytes are added to the file end.
 			this.array = new Uint8Array(this.cursor + Math.max(n, 176));
+			// @ts-ignore
 			this.buffer = this.array.buffer;
 			this.array.set(oldArray);
 			this.view = new DataView(this.buffer)

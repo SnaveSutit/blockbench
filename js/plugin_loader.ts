@@ -155,6 +155,7 @@ interface PluginOptions {
 	contributes?: {
 		formats: string[]
 	}
+	creation_date?: string
 	has_changelog?: boolean
 	/**
 	 * In combination with a "Deprecated" tag, this can be used to provide context on why a plugin is deprecated
@@ -231,6 +232,7 @@ export class Plugin {
 	cache_version: number
 	menu: Menu
 	details: null|PluginDetails
+	uuid: UUID
 
 	onload?: () => void
 	onunload?: () => void
@@ -238,6 +240,7 @@ export class Plugin {
 	onuninstall?: () => void
 
 	constructor(id: string = 'unknown', data?: PluginOptions | PluginSetupOptions) {
+		this.uuid = guid();
 		this.id = id;
 		this.installed = false;
 		this.path = '';
@@ -342,10 +345,11 @@ export class Plugin {
 			}
 			this.#runPluginFile(path).then((content) => {
 				if (cb) cb.bind(scope)()
-				if (first && scope.oninstall) {
-					scope.oninstall()
+				if (first) {
+					scope.oninstall?.()
+					Blockbench.dispatchEvent('installed_plugin', {plugin: scope});
+					Blockbench.showQuickMessage(tl('message.installed_plugin', [this.title]));
 				}
-				if (first) Blockbench.showQuickMessage(tl('message.installed_plugin', [this.title]));
 				resolve()
 			}).catch((error) => {
 				if (isApp) {
@@ -578,9 +582,8 @@ export class Plugin {
 	uninstall() {
 		try {
 			this.unload();
-			if (this.onuninstall) {
-				this.onuninstall();
-			}
+			this.onuninstall?.();
+			Blockbench.dispatchEvent('uninstalled_plugin', {plugin: this});
 		} catch (err) {
 			console.error(`Error in unload or uninstall method of "${this.id}": `, err);
 		}
@@ -831,8 +834,8 @@ export class Plugin {
 			}
 		}
 
-		let trackDate = (input_date, key) => {
-			let date = getDateDisplay(input_date);
+		let trackDate = (input_date: number | string, key: string, display_time: boolean) => {
+			let date = getDateDisplay(input_date, display_time);
 			this.details[key] = date.short;
 			this.details[key + '_full'] = date.full;
 		}
@@ -852,16 +855,16 @@ export class Plugin {
 				if (!response) return;
 				let commits = await response.json().catch(err => console.error(err));
 				if (!commits || !commits.length) return;
-				trackDate(Date.parse(commits[0].commit.committer.date), 'last_modified');
+				trackDate(Date.parse(commits[0].commit.committer.date), 'last_modified', true);
 
 				if (!this.creation_date) {
-					trackDate(Date.parse(commits.last().commit.committer.date), 'creation_date');
+					trackDate(Date.parse(commits.last().commit.committer.date), 'creation_date', false);
 				}
 			});
 
 		}
 		if (this.creation_date) {
-			trackDate(this.creation_date, 'creation_date');
+			trackDate(this.creation_date, 'creation_date', false);
 		}
 		return this.details;
 	}
@@ -1066,14 +1069,17 @@ export async function loadInstalledPlugins() {
 		}
 		for (let installation of Plugins.installed.slice()) {
 			if (installation.dependencies?.length) {
-				resolveDependencies(installation, 0);
+				try {
+					resolveDependencies(installation, 0);
+				} catch (err) {
+					console.error('Error resolving plugin dependencies', installation.id, err);
+				}
 			}
 		}
 
 		// Install plugins
 		var load_counter = 0;
-		Plugins.installed.slice().forEach(function loadPlugin(installation) {
-
+		function loadPlugin(installation: PluginInstallation) {
 			if (installation.source == 'file') {
 				// Dev Plugins
 				if (isApp && fs.existsSync(installation.path)) {
@@ -1105,7 +1111,7 @@ export async function loadInstalledPlugins() {
 					
 					if (isApp && (
 						(installation.version && plugin.version && VersionUtil.compare(plugin.version, '<=', installation.version)) ||
-						Blockbench.isOlderThan(plugin.min_version)
+						(plugin.min_version && Blockbench.isOlderThan(plugin.min_version))
 					)) {
 						// Get from file
 						let promise = plugin.load(false);
@@ -1132,7 +1138,15 @@ export async function loadInstalledPlugins() {
 			} else {
 				Plugins.installed.remove(installation);
 			}
-		})
+		}
+
+		for (let installation of Plugins.installed.slice()) {
+			try {
+				loadPlugin(installation);
+			} catch (err) {
+				console.error('Error loading installed plugin', installation.id, err);
+			}
+		}
 		console.log(`Loaded ${load_counter} plugin${pluralS(load_counter)}`)
 	}
 	StateMemory.save('installed_plugins')
@@ -1171,6 +1185,7 @@ BARS.defineActions(function() {
 				settings: settings,
 				isMobile: Blockbench.isMobile,
 				isApp,
+				online: navigator.onLine
 			},
 			computed: {
 				plugin_search() {
@@ -1297,6 +1312,8 @@ BARS.defineActions(function() {
 						return 'plugin_tag_source'
 					} else if (tag.match(/^minecraft/i)) {
 						return 'plugin_tag_mc'
+					} else if (tag.match(/^hytale/i)) {
+						return 'plugin_tag_hytale'
 					} else if (tag.match(/^deprecated/i)) {
 						return 'plugin_tag_deprecated'
 					}
@@ -1316,7 +1333,7 @@ BARS.defineActions(function() {
 					return getDateDisplay(input_date).short;
 				},
 				printDateFull(input_date: number) {
-					return getDateDisplay(input_date).full;
+					return getDateDisplay(input_date, false).full;
 				},
 				formatChangelogLine(line) {
 					let content = [];
@@ -1573,7 +1590,7 @@ BARS.defineActions(function() {
 								</ul>
 							</li>
 							<div class="no_plugin_message tl" v-if="plugin_search.length < 1 && tab === 'installed'">${tl('dialog.plugins.none_installed')}</div>
-							<div class="no_plugin_message tl" v-if="plugin_search.length < 1 && tab === 'available'" id="plugin_available_empty">{{ tl(navigator.onLine ? 'dialog.plugins.none_available' : 'dialog.plugins.offline') }}</div>
+							<div class="no_plugin_message tl" v-if="plugin_search.length < 1 && tab === 'available'" id="plugin_available_empty">{{ tl(online ? 'dialog.plugins.none_available' : 'dialog.plugins.offline') }}</div>
 						</ul>
 						<ol class="pagination_numbers" v-if="pages.length > 1">
 							<li v-for="number in pages" :class="{selected: page == number}" @click="setPage(number)">{{ number+1 }}</li>
@@ -1636,6 +1653,10 @@ BARS.defineActions(function() {
 							<div class="tiny plugin_compatibility_issue" v-if="selected_plugin.isInstallable() != true">
 								<i class="material-icons icon">error</i>
 								{{ selected_plugin.isInstallable() }}
+							</div>
+							<div class="tiny plugin_deprecation_note" v-if="selected_plugin.deprecation_note">
+								<i class="material-icons icon">warning</i>
+								{{ selected_plugin.deprecation_note }}
 							</div>
 						</div>
 
@@ -1892,9 +1913,15 @@ BARS.defineActions(function() {
 	})
 })
 
-
-Object.assign(window, {
+declare global {
+}
+const global = {
 	Plugins,
 	Plugin,
 	BBPlugin
-});
+};
+declare global {
+	const BBPlugin: typeof Plugin;
+	const Plugins: typeof global.Plugins
+}
+Object.assign(window, global);

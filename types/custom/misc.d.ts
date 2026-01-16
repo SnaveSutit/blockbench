@@ -24,6 +24,8 @@ declare const VuePrismEditor: Vue.Component
 type EventName =
 	| 'remove_animation'
 	| 'display_animation_frame'
+	| 'display_default_pose'
+	| 'interpolate_keyframes'
 	| 'before_closing'
 	| 'create_session'
 	| 'join_session'
@@ -35,6 +37,8 @@ type EventName =
 	| 'process_chat_message'
 	| 'loaded_plugin'
 	| 'unloaded_plugin'
+	| 'installed_plugin'
+	| 'uninstalled_plugin'
 	| 'update_settings'
 	| 'update_project_settings'
 	| 'save_project'
@@ -63,6 +67,7 @@ type EventName =
 	| 'canvas_click'
 	| 'change_texture_path'
 	| 'add_texture'
+	| 'generate_texture_template'
 	| 'update_texture_selection'
 	| 'init_edit'
 	| 'finish_edit'
@@ -86,6 +91,7 @@ type EventName =
 	| 'setup_project'
 	| 'update_project_resolution'
 	| 'merge_project'
+	| 'display_model_stats'
 	| 'update_view'
 	| 'update_camera_position'
 	| 'render_frame'
@@ -133,7 +139,7 @@ declare function updateSelection(): void
 
 declare var LZUTF8: any
 
-declare function unselectAllElements(): void
+declare function unselectAllElements(exceptions?: OutlinerNode[]): void
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number
 

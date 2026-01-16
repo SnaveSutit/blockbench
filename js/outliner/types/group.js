@@ -117,7 +117,7 @@ export class Group extends OutlinerNode {
 				selected.safePush(previous_first_selected);
 			}
 			this.children.forEach(function(s) {
-				s.markAsSelected()
+				s.markAsSelected(true)
 			})
 		}
 		if (Animator.open && Animation.selected) {
@@ -145,15 +145,15 @@ export class Group extends OutlinerNode {
 	selectChildren(event) {
 		console.warn('Group#selectChildren is deprecated');
 	}
-	markAsSelected() {
+	markAsSelected(descendants) {
 		this.selected = true
 		this.children.forEach(function(s) {
-			s.markAsSelected()
+			s.markAsSelected(descendants)
 		})
 		TickUpdates.selection = true;
 		return this;
 	}
-	unselect() {
+	unselect(unselect_parent) {
 		if (Animator.open && Animation.selected) {
 			var ba = Animation.selected.animators[this.uuid];
 			if (ba) {
@@ -162,6 +162,9 @@ export class Group extends OutlinerNode {
 		}
 		Group.multi_selected.remove(this);
 		this.selected = false;
+		if (unselect_parent && this.parent.selected) {
+			this.parent.unselect(unselect_parent);
+		}
 		TickUpdates.selection = true;
 		return this;
 	}
@@ -355,10 +358,10 @@ export class Group extends OutlinerNode {
 	duplicate() {
 		var copy = this.getChildlessCopy(false)
 		delete copy.parent;
-		if (Format.bone_rig) copy._original_name = this.name;
+		if (this.getTypeBehavior('unique_name')) copy.old_name = this.name;
 		Property.resetUniqueValues(Group, copy);
 		copy.sortInBefore(this, 1).init()
-		if (Format.bone_rig) {
+		if (this.getTypeBehavior('unique_name')) {
 			copy.createUniqueName()
 		}
 		for (var child of this.children) {
@@ -394,6 +397,9 @@ export class Group extends OutlinerNode {
 		base_group.export = this.export;
 		base_group.autouv = this.autouv;
 		base_group.isOpen = this.isOpen;
+		if (keep_uuid) {
+			base_group.primary_selected = Group.selected.includes(this);
+		}
 		return base_group;
 	}
 	compile(undo) {
@@ -513,6 +519,7 @@ Group.addBehaviorOverride({
 		}},
 		{icon: 'sort_by_alpha', name: 'menu.group.sort', condition: {modes: ['edit']}, click: function(group) {group.sortContent()}},
 		'apply_animation_preset',
+		'add_all_to_timeline',
 		'add_locator',
 		new MenuSeparator('manage'),
 		'resolve_group',
@@ -667,7 +674,7 @@ BARS.defineActions(function() {
 				origin: add_group ? add_group.origin : undefined
 			})
 			base_group.isOpen = true
-			if (Format.bone_rig) {
+			if (base_group.getTypeBehavior('unique_name')) {
 				base_group.createUniqueName()
 			}
 			if (add_group?.getTypeBehavior('child_types')?.includes('group') == false) add_group = undefined;
@@ -713,7 +720,7 @@ BARS.defineActions(function() {
 			base_group.isOpen = true
 			base_group.init();
 		
-			if (Format.bone_rig) {
+			if (base_group.getTypeBehavior('unique_name')) {
 				base_group.createUniqueName()
 			}
 			Outliner.selected.concat(Group.multi_selected).forEach((s) => {
@@ -762,6 +769,7 @@ BARS.defineActions(function() {
 			let dialog = new Dialog({
 				id: 'edit_bedrock_binding',
 				title: 'action.edit_bedrock_binding',
+				resizable: 'x',
 				component: {
 					components: {VuePrismEditor},
 					data: {

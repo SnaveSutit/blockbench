@@ -1,4 +1,4 @@
-import { THREE } from "../lib/libs";
+import { THREE } from "../../lib/libs";
 
 export class BillboardFace extends CubeFace {
 	constructor(data, billboard) {
@@ -140,7 +140,7 @@ export class Billboard extends OutlinerElement {
 		delete copy.parent;
 		return copy;
 	}
-	getSaveCopy(project) {
+	getSaveCopy() {
 		let el = {}
 		
 		for (var key in Billboard.properties) {
@@ -156,13 +156,14 @@ export class Billboard extends OutlinerElement {
 		if (!this.shade) el.shade = false;
 		el.origin = this.origin;
 		el.faces = {
-			front: this.faces.front.getSaveCopy(project)
+			front: this.faces.front.getSaveCopy()
 		}
 		el.type = this.type;
 		el.uuid = this.uuid;
 		return el;
 	}
 	flip(axis) {
+		let center = Format.centered_grid ? 0 : 8;
 		var offset = this.position[axis] - center
 		this.position[axis] = center - offset;
 		// Name

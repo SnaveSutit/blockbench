@@ -24,13 +24,16 @@ export const TextureGenerator = {
 		let resolution = Texture.getDefault() ? (Texture.getDefault().width/Texture.getDefault().getUVWidth())*16 : 16;
 
 		let resolution_presets = {
-			16: '16x',
-			32: '32x',
-			64: '64x',
-			128: '128x',
-			256: '256x',
-			512: '512x',
+			16: null,
+			32: null,
+			64: null,
+			128: null,
+			256: null,
+			512: null,
 		};
+		for (let key in resolution_presets) {
+			resolution_presets[key] = (Format.block_size * (key / 16)) + 'x';
+		}
 		var dialog = new Dialog({
 			id: 'add_bitmap',
 			title: tl('action.create_texture'),
@@ -1420,6 +1423,21 @@ export const TextureGenerator = {
 				ctx.clip();
 				ctx.imageSmoothingEnabled = false;
 
+				let source_dimensions = [
+					min[0] / texture.getUVWidth() * texture.img.naturalWidth,
+					min[1] / texture.getUVHeight() * texture.img.naturalHeight,
+					Math.ceil((max[0] - min[0]) / texture.getUVWidth() * texture.img.naturalWidth),
+					Math.ceil((max[1] - min[1]) / texture.getUVHeight() * texture.img.naturalHeight),
+				];
+				let target_pos = [
+					coords.x*R + target_min[0] * R,
+					coords.y*R + target_min[1] * R,
+				];
+				let target_size = [
+					Math.ceil((target_max[0] - target_min[0]) * R),
+					Math.ceil((target_max[1] - target_min[1]) * R),
+				];
+
 				let rotate = Math.round((((rotation_difference + 540) % 360) - 180) / 90) * 90;
 				if (rotate) {
 					let offset = [
@@ -1431,39 +1449,17 @@ export const TextureGenerator = {
 					ctx.translate(-offset[0], -offset[1]);
 					
 					if (Math.abs(rotate) == 90) {
-						let target_size = [
-							Math.ceil((target_max[1] - target_min[1]) * R),
-							Math.ceil((target_max[0] - target_min[0]) * R),
-						]
-						let target_pos = [
-							coords.x*R + target_min[0] * R,
-							coords.y*R + target_min[1] * R,
-						];
+						target_size = target_size.reverse();
 						target_pos[0] = target_pos[0] - target_size[0]/2 + target_size[1]/2;
 						target_pos[1] = target_pos[1] - target_size[1]/2 + target_size[0]/2;
-						ctx.drawImage(
-							texture.img,
-							min[0] / texture.getUVWidth() * texture.img.naturalWidth,
-							min[1] / texture.getUVHeight() * texture.img.naturalHeight,
-							Math.ceil((max[0] - min[0]) / texture.getUVWidth() * texture.img.naturalWidth),
-							Math.ceil((max[1] - min[1]) / texture.getUVHeight() * texture.img.naturalHeight),
-							...target_pos,
-							...target_size
-						)
 					}
-				} else {
-					ctx.drawImage(
-						texture.img,
-						min[0] / texture.getUVWidth() * texture.img.naturalWidth,
-						min[1] / texture.getUVHeight() * texture.img.naturalHeight,
-						Math.ceil((max[0] - min[0]) / texture.getUVWidth() * texture.img.naturalWidth),
-						Math.ceil((max[1] - min[1]) / texture.getUVHeight() * texture.img.naturalHeight),
-						coords.x*R + target_min[0] * R,
-						coords.y*R + target_min[1] * R,
-						Math.ceil((target_max[0] - target_min[0]) * R),
-						Math.ceil((target_max[1] - target_min[1]) * R),
-					)
 				}
+				ctx.drawImage(
+					texture.img,
+					...source_dimensions,
+					...target_pos,
+					...target_size
+				)
 				ctx.restore()
 				i++;
 			}
@@ -1618,7 +1614,14 @@ export const TextureGenerator = {
 		}
 
 
-		updateSelection()
+		updateSelection();
+		Blockbench.dispatchEvent('generate_texture_template', {
+			options,
+			elements: element_list,
+			texture,
+			resolution_multiplier: res_multiple,
+			data: {face_list, box_uv_templates}
+		})
 		setTimeout(Canvas.updatePixelGrid, 1);
 		Undo.finishEdit(makeTexture instanceof Texture ? 'Append to template' : 'Create template', {
 			textures: [texture],

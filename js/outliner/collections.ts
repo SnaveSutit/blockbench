@@ -3,9 +3,8 @@ import { SharedActions } from "../interface/shared_actions";
 import { Prop } from "../misc";
 import { guid } from "../util/math_util";
 import { Property } from "../util/property";
-import { OutlinerElement, OutlinerNode } from "./outliner";
 import { Toolbar } from '../interface/toolbars'
-import { Group } from "./group";
+import { Group } from "./types/group";
 import { Interface } from "../interface/interface";
 import { Menu } from "../interface/menu";
 import { Blockbench } from "../api";
@@ -17,6 +16,11 @@ import { tl } from "../languages";
 import { Panel } from "../interface/panels";
 import { Codecs } from "../io/codec";
 import { FormElementOptions } from "../interface/form";
+import { fs } from "../native_apis";
+import { Filesystem } from "../file_system";
+import { loadModelFile } from "../io/io";
+import { OutlinerElement } from "./abstract/outliner_element";
+import { OutlinerNode } from "./abstract/outliner_node";
 
 export interface CollectionOptions {
 	children?: string[]
@@ -38,7 +42,6 @@ export class Collection {
 	 */
 	children: string[]
 	export_path: string
-	codec: string
 	export_codec: string
 	visibility: boolean
 
@@ -102,7 +105,7 @@ export class Collection {
 		updateSelection();
 		return this;
 	}
-	clickSelect(event) {
+	clickSelect(event: MouseEvent) {
 		Undo.initSelection({collections: true, timeline: Modes.animate});
 		this.select(event);
 		Undo.finishSelection('Select collection');
@@ -127,7 +130,7 @@ export class Collection {
 			}
 		}
 		for (let element of Outliner.selected) {
-			if (!(element instanceof OutlinerNode && element.parent.selected)) {
+			if (!(element instanceof OutlinerNode && element.parent instanceof OutlinerNode && element.parent.selected)) {
 				this.children.safePush(element.uuid);
 			}
 		}
@@ -162,11 +165,12 @@ export class Collection {
 	 * @returns {true} if the collection contains the node
 	 */
 	contains(node: OutlinerNode): boolean {
-		while (node instanceof OutlinerNode) {
-			if (this.children.includes(node.uuid)) {
+		let node_match: OutlinerNode | typeof Outliner.ROOT = node;
+		while (node_match instanceof OutlinerNode) {
+			if (this.children.includes(node_match.uuid)) {
 				return true;
 			}
-			node = node.parent;
+			node_match = node_match.parent;
 		}
 		return false;
 	}
@@ -389,8 +393,19 @@ export class Collection {
 		'duplicate',
 		'delete',
 		new MenuSeparator('export'),
+		{
+			id: 'open',
+			name: 'menu.collection.open_file',
+			icon: 'file_open',
+			condition: (collection: Collection) => (isApp && collection.export_path && fs.existsSync(collection.export_path)),
+			click(collection: Collection) {
+				Filesystem.readFile([collection.export_path], {readtype: 'text'}, files => {
+					loadModelFile(files[0]);
+				})
+			}
+		},
 		(collection: Collection) => {
-			let codec = Codecs[collection.codec];
+			let codec = Codecs[collection.export_codec];
 			if (codec?.export_action && collection.export_path && Condition(codec.export_action.condition)) {
 				let export_action = codec.export_action;
 				return {
@@ -468,7 +483,7 @@ new Property(Collection, 'string', 'model_identifier', {
 });
 new Property(Collection, 'string', 'export_codec');
 new Property(Collection, 'string', 'export_path', {
-	condition: (collection: Collection) => (isApp && collection.codec),
+	condition: (collection: Collection) => (isApp && !!collection.export_codec),
 	inputs: {
 		dialog: {
 			input: {
@@ -826,7 +841,10 @@ Interface.definePanels(function() {
 		])
 	})
 })
-
-Object.assign(window, {
+const global = {
 	Collection
-});
+};
+declare global {
+	const Collection: typeof global.Collection
+}
+Object.assign(window, global);

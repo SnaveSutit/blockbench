@@ -172,8 +172,8 @@ export const Clipbench = {
 		if (copy_type == 'outliner' || (copy_type == 'face' && Prop.active_panel == 'preview')) {
 			Clipbench.setElements();
 			Clipbench.setGroups();
-			if (Group.multi_selected.length) {
-				Clipbench.setGroups(Group.multi_selected);
+			if (Group.selected.length) {
+				Clipbench.setGroups(Group.selected);
 			} else {
 				Clipbench.setElements(selected);
 			}
@@ -335,7 +335,7 @@ export const Clipbench = {
 				if (obj.children) {
 					let copy = new Group(obj).addTo(parent).init();
 					new_groups.push(copy);
-					copy._original_name = copy.name;
+					copy.old_name = copy.name;
 					copy.createUniqueName();
 					Property.resetUniqueValues(Group, copy);
 
@@ -362,8 +362,12 @@ export const Clipbench = {
 			let elements = [];
 			let new_elements_by_old_id = {};
 			for (let save of Clipbench.elements) {
-				if (!OutlinerElement.isTypePermitted(save.type)) return;
-				let copy = OutlinerElement.fromSave(save).addTo(target).markAsSelected();
+				if (!OutlinerElement.isTypePermitted(save.type)) continue;
+				let copy = new OutlinerElement.types[save.type](save);
+				let target_parent = (target instanceof OutlinerNode && target.children) ? target : target.parent;
+				if (!canAddOutlinerNodesTo([copy], target_parent ?? Outliner.ROOT)) continue;
+				copy.init();
+				copy.addTo(target).markAsSelected();
 				copy.createUniqueName();
 				Property.resetUniqueValues(copy.constructor, copy);
 				if (typeof save.isOpen == 'boolean') copy.isOpen = save.isOpen;

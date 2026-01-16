@@ -71,6 +71,7 @@ declare class _Animation extends AnimationItem {
 	 * Returns (if necessary creates) the animator of a specific outliner node of this animation
 	 */
 	getBoneAnimator(node?: OutlinerNode): BoneAnimator
+	removeAnimator(id: string): void
 	/**
 	 * Adds the animation to the current project and to the interface
 	 * @param undo If true, the addition of the animation will be registered as an edit
@@ -162,6 +163,8 @@ interface AddChannelOptions {
 	transform?: boolean
 	mutable?: boolean
 	max_data_points?: number
+	condition?: ConditionResolvable
+	displayFrame?: (animator: GeneralAnimator, multiplier: number) => void
 }
 interface Channel {
 	name: string
@@ -222,6 +225,7 @@ declare class NullObjectAnimator extends GeneralAnimator {
 	displayFrame(): void
 }
 declare class EffectAnimator extends GeneralAnimator {
+	constructor(animation: _Animation)
 	name: string
 	uuid: string
 	rotations: _Keyframe[]

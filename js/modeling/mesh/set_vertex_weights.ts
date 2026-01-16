@@ -1,10 +1,10 @@
-import { Armature } from "../../outliner/armature";
-import { ArmatureBone } from "../../outliner/armature_bone";
+import { Armature } from "../../outliner/types/armature";
+import { ArmatureBone } from "../../outliner/types/armature_bone";
 
 
 new Action('set_vertex_weights', {
 	icon: 'weight',
-	condition: {modes: ['edit'], method: () => (Mesh.selected[0]?.getArmature() && Mesh.selected[0].getSelectedVertices().length)},
+	condition: {modes: ['edit'], method: () => !!(Mesh.selected[0]?.getArmature() && Mesh.selected[0].getSelectedVertices().length)},
 	click() {
 		let mesh = Mesh.selected[0];
 		let selected_vertices = mesh.getSelectedVertices();
@@ -15,7 +15,7 @@ new Action('set_vertex_weights', {
 			bone_options[bone.uuid] = bone.name;
 		}
 		let affected_bones = available_bones.filter(bone => {
-			return selected_vertices.find(vkey => bone.vertex_weights[vkey]);
+			return selected_vertices.find(vkey => bone.getVertexWeight(mesh, vkey));
 		});
 
 		// Todo: translations. Add way to configure multiple bones
@@ -34,12 +34,12 @@ new Action('set_vertex_weights', {
 					for (let bone of affected_bones) {
 						if (bone.uuid == result.bone) continue;
 						for (let vkey of selected_vertices) {
-							delete bone.vertex_weights[vkey];
+							bone.setVertexWeight(mesh, vkey);
 						}
 					}
 				}
 				for (let vkey of selected_vertices) {
-					target_bone.vertex_weights[vkey] = result.weight;
+					target_bone.setVertexWeight(mesh, vkey, result.weight);
 				}
 				Undo.finishEdit('Set vertex weights');
 				updateSelection();

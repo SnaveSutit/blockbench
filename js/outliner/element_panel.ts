@@ -7,8 +7,12 @@ import { Property } from "../util/property";
 Interface.definePanels(function() {
 	new Panel('transform', {
 		icon: 'arrows_output',
-		condition: {modes: ['edit', 'pose']},
-		display_condition: () => Outliner.selected.length || Group.first_selected,
+		condition: {
+			modes: ['edit', 'pose'],
+			method: () => !(Blockbench.isMobile && Settings.get('status_bar_transform_sliders'))
+		},
+		display_condition: () => !!(Outliner.selected.length || Group.first_selected),
+		min_height: 90,
 		default_position: {
 			slot: 'right_bar',
 			float_position: [0, 0],
@@ -27,7 +31,7 @@ Interface.definePanels(function() {
 	let element_properties_panel = new Panel('element', {
 		icon: 'fas.fa-cube',
 		condition: {modes: ['edit']},
-		display_condition: () => Outliner.selected.length || Group.first_selected,
+		display_condition: () => !!(Outliner.selected.length || Group.first_selected),
 		default_position: {
 			slot: 'right_bar',
 			float_position: [0, 0],
@@ -68,6 +72,7 @@ Interface.definePanels(function() {
 				registerInput('group', prop_id, Group.properties[prop_id]);
 			}
 		}
+		element_properties_panel.form.events?.input?.empty();
 		element_properties_panel.form.on('input', ({result, changed_keys}) => {
 			// Only one key should be changed at a time
 			if (changed_keys[0]?.startsWith('group_')) {
@@ -140,7 +145,7 @@ Interface.definePanels(function() {
 			for (let prop_id in Group.properties) {
 				let property = Group.properties[prop_id];
 				if (property?.inputs?.element_panel) {
-					let input_id = 'group_' + prop_id;
+					let input_id = 'group__' + prop_id;
 					values[input_id] = Group.first_selected[prop_id];
 				}
 			}

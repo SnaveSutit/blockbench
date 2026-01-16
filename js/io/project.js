@@ -1,3 +1,4 @@
+import { AutoBackup } from "../auto_backup";
 import { setProjectTitle } from "../interface/interface";
 import { currentwindow, ipcRenderer, shell } from "../native_apis";
 
@@ -18,8 +19,8 @@ export class ModelProject {
 		})
 
 		this.box_uv = options.format ? options.format.box_uv : false;
-		this._texture_width = 16;
-		this._texture_height = 16;
+		this._texture_width = options.format?.block_size || 16;
+		this._texture_height = options.format?.block_size || 16;
 
 		this._name = '';
 		this._saved = true;
@@ -371,7 +372,7 @@ export class ModelProject {
 
 		async function saveWarning() {
 			return await new Promise((resolve) => {
-				if (isApp) {
+				if (isApp && Blockbench.platform == 'win32') {
 					shell.beep();
 				}
 				Blockbench.showMessageBox({
@@ -483,11 +484,12 @@ new Property(ModelProject, 'string', 'modded_entity_version', {
 });
 new Property(ModelProject, 'string', 'java_block_version', {
 	label: 'dialog.project.java_block_version',
-	default: '1.21.6',
+	default: () => settings.default_java_block_version.value == 'latest' ? '1.21.11' : settings.default_java_block_version.value,
 	condition: {formats: ['java_block']},
 	options: {
 		'1.9.0': '1.9 - 1.21.5',
-		'1.21.6': '1.21.6+',
+		'1.21.6': '1.21.6 - 1.21.10',
+		'1.21.11': '1.21.11+',
 	}
 });
 new Property(ModelProject, 'string', 'credit', {
@@ -581,6 +583,7 @@ export function setupProject(format, uuid) {
 	if (typeof format == 'string' && Formats[format]) format = Formats[format];
 	if (uuid && ModelProject.all.find(project => project.uuid == uuid)) uuid = null;
 	new ModelProject({format}, uuid).select();
+	Preview.selected.loadAnglePreset(DefaultCameraPresets[0]);
 
 	if (format.edit_mode) {
 		if (Mode.selected != Modes.options.edit) Modes.options.edit.select();
@@ -599,6 +602,7 @@ export function setupProject(format, uuid) {
 export function newProject(format) {
 	if (typeof format == 'string' && Formats[format]) format = Formats[format];
 	new ModelProject({format}).select();
+	Preview.selected.loadAnglePreset(DefaultCameraPresets[0]);
 
 	if (format.edit_mode) {
 		if (Mode.selected != Modes.options.edit) Modes.options.edit.select();

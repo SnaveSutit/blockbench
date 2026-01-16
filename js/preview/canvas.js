@@ -245,13 +245,12 @@ export const Canvas = {
 		var side_grid = new THREE.Object3D()
 
 		if (settings.full_grid.value === true) {
-			//Grid
 			let size = settings.large_grid_size.value*block_size;
 			var grid = new THREE.GridHelper(size, size/canvasGridSize(), Canvas.gridMaterial);
 			if (Format.centered_grid) {
 				grid.position.set(0,0,0)
 			} else { 
-				grid.position.set(8,0,8)
+				grid.position.set(block_size/2,0,block_size/2)
 			}
 			grid.name = 'grid'
 			three_grid.add(grid)
@@ -264,7 +263,7 @@ export const Canvas = {
 			if (Format.centered_grid) {
 				north_mark.position.set(0,0, -3 - size/2)
 			} else {
-				north_mark.position.set(8, 0, 5 - size/2)
+				north_mark.position.set(block_size/2, 0, 5 - size/2)
 			}
 			north_mark.rotation.x = Math.PI / -2
 			three_grid.add(north_mark)
@@ -277,7 +276,7 @@ export const Canvas = {
 				if (Format.centered_grid) {
 					grid.position.set(0,0,0)
 				} else { 
-					grid.position.set(8,0,8)
+					grid.position.set(block_size/2,0,block_size/2)
 				}
 				grid.name = 'grid'
 				three_grid.add(grid)
@@ -291,7 +290,7 @@ export const Canvas = {
 				if (Format.centered_grid) {
 					grid.position.set(0,0,0)
 				} else { 
-					grid.position.set(8,0,8)
+					grid.position.set(block_size/2,0,block_size/2)
 				}
 				grid.name = 'grid'
 				three_grid.add(grid)
@@ -304,7 +303,7 @@ export const Canvas = {
 				if (Format.centered_grid) {
 					north_mark.position.set(0,0,-0.6*north_size - block_size/2);
 				} else {
-					north_mark.position.set(8,0,-0.6*north_size);
+					north_mark.position.set(block_size/2,0,-0.6*north_size);
 				}
 				north_mark.rotation.x = Math.PI / -2
 				three_grid.add(north_mark)
@@ -336,7 +335,7 @@ export const Canvas = {
 		Canvas.side_grids.x.name = 'side_grid_x'
 		Canvas.side_grids.x.visible = !Modes.display;
 		Canvas.side_grids.x.rotation.z = Math.PI/2;
-		Canvas.side_grids.x.position.y = Format.centered_grid ? 8 : 0;
+		Canvas.side_grids.x.position.y = Format.centered_grid ? block_size/2 : 0;
 		Canvas.side_grids.z.position.z = 0
 		Canvas.side_grids.x.children.forEach(el => {
 			el.layers.set(1)
@@ -347,7 +346,7 @@ export const Canvas = {
 		Canvas.side_grids.z.visible = !Modes.display;
 		Canvas.side_grids.z.rotation.z = Math.PI/2;
 		Canvas.side_grids.z.rotation.y = Math.PI/2
-		Canvas.side_grids.z.position.y = Format.centered_grid ? 8 : 0;
+		Canvas.side_grids.z.position.y = Format.centered_grid ? block_size/2 : 0;
 		Canvas.side_grids.z.position.z = 0
 		Canvas.side_grids.z.children.forEach(el => {
 			el.layers.set(3)
@@ -777,7 +776,7 @@ export const Canvas = {
 		if (Canvas.pivot_marker.parent) {
 			Canvas.pivot_marker.parent.remove(Canvas.pivot_marker)
 		}
-		if (settings.origin_size.value > 0 && Canvas.show_gizmos) {
+		if (settings.origin_size.value > 0 && Canvas.show_gizmos && !Modes.paint) {
 			if (Group.first_selected && Format.bone_rig) {
 				if (Group.first_selected.visibility) {
 					Group.first_selected.mesh.add(Canvas.pivot_marker)
@@ -865,11 +864,11 @@ export const Canvas = {
 		})
 
 		var material_shh = new THREE.ShaderMaterial({
-		  uniforms: uniforms,
-		  vertexShader: prepareShader(LayeredVertShader),
-		  fragmentShader: prepareShader(LayeredFragShader),
-		  side: Canvas.getRenderSide(),
-		  transparent: true
+			uniforms: uniforms,
+			vertexShader: prepareShader(LayeredVertShader),
+			fragmentShader: prepareShader(LayeredFragShader),
+			side: Canvas.getRenderSide(),
+			transparent: true
 		});
 		Canvas.layered_material = material_shh;
 		return material_shh;

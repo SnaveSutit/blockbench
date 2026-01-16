@@ -146,8 +146,14 @@ export const UVEditor = {
 			if (texture.img.naturalWidth + texture.img.naturalHeight == 0) return;
 
 			let interval = Toolbox.selected.brush?.interval || 1;
-			if (Math.sqrt(Math.pow(x - Painter.current.x, 2) + Math.pow(y - Painter.current.y, 2)) < interval) {
+			let delta = [x - Painter.current.x, y - Painter.current.y];
+			let distance = Math.sqrt(Math.pow(delta[0], 2) + Math.pow(delta[1], 2));
+			if (distance < interval) {
 				return;
+			} else if (distance > interval && !(!Toolbox.selected.brush || Condition(Toolbox.selected.brush.floor_coordinates))) {
+				let rounded_distance = Math.floor(distance/interval)*interval;
+				x = Painter.current.x + (delta[0] / distance) * rounded_distance;
+				y = Painter.current.y + (delta[1] / distance) * rounded_distance;
 			}
 			if (Painter.current.face !== UVEditor.getSelectedFaces(null)[0]) {
 				Painter.current.x = x
@@ -783,6 +789,7 @@ export const UVEditor = {
 	},
 	getUVNavigatorStyle() {
 		let vue = UVEditor.vue;
+		if (UVEditor.zoom < 1.3) return;
 		let mappable_element = vue.mappable_elements.find(el => (el.box_uv || (UVEditor.getSelectedFaces(el)?.length)));
 		if (!mappable_element) return;
 		let box = vue.getSelectedUVBoundingBox();
@@ -2551,12 +2558,8 @@ Interface.definePanels(function() {
 					this.width = size;
 					if (Format.image_editor) {
 						this.height = Interface.preview.clientHeight - 38;
-						if (Blockbench.isMobile) {
-							let panel = Interface.getBottomPanel();
-							if (panel) this.height -= panel.height;
-						}
 
-					} else if (Panels.uv.slot.includes('_bar') && !UVEditor.panel.fixed_height) {
+					} else if (Panels.uv.getContainerPanel().slot.includes('_bar') && !UVEditor.panel.fixed_height) {
 						this.height = size;
 
 					} else {
@@ -2659,6 +2662,14 @@ Interface.definePanels(function() {
 					let grab = Toolbox.selected.id == 'move_layer_tool' ||
 							  (Toolbox.selected.id == 'selection_tool' && settings.move_with_selection_tool.value && this.texture && this.texture.selection.get(this.mouse_coords.x, this.mouse_coords.y) && BarItems.selection_tool_operation_mode.value == 'create');
 					this.$refs.frame.style.cursor = grab ? 'move' : '';
+
+					if (this.mouse_coords.line_preview) {
+						let angle = this.getLinePreviewAngle();
+						angle = (angle + 180) % 90;
+						let length = Math.sqrt(Math.pow(this.mouse_coords.x - this.last_brush_position[0], 2) + Math.pow(this.mouse_coords.y - this.last_brush_position[1], 2));
+
+						Blockbench.setStatusBarText(`${trimFloatNumber(length+1, 1)} - ${trimFloatNumber(angle, 1)}°`);
+					}
 				},
 				onScroll() {
 					UVEditor.updateUVNavigator();
@@ -2785,7 +2796,8 @@ Interface.definePanels(function() {
 						return false;
 
 					} else if (this.mode == 'paint' && Toolbox.selected.paintTool && (event.which === 1 || Keybinds.extra.paint_secondary_color.keybind.isTriggered(event) || (event.touches && event.touches.length == 1))) {
-						if (event.target.id != 'uv_viewport') {
+						let is_scrollbar_click = event.target.id == 'uv_viewport' && (event.offsetX > event.target.clientWidth || event.offsetY > event.target.heightWidth);
+						if (!is_scrollbar_click) {
 							// Paint
 							UVEditor.startPaintTool(event);
 						}
@@ -2811,7 +2823,8 @@ Interface.definePanels(function() {
 
 
 						let old_elements;
-						if (UVEditor.isBoxUV()) {
+						let is_box_uv = UVEditor.isBoxUV();
+						if (is_box_uv) {
 							old_elements = UVEditor.getMappableElements().slice();
 						}
 
@@ -2841,9 +2854,9 @@ Interface.definePanels(function() {
 							}
 
 							let elements;
-							if (UVEditor.isBoxUV()) {
+							if (is_box_uv) {
 								elements = Cube.all.filter(cube => !cube.locked);
-								elements.safePush(UVEditor.getMappableElements());
+								elements.safePush(...UVEditor.getMappableElements());
 							} else {
 								elements = UVEditor.getMappableElements();
 							}
@@ -2923,6 +2936,10 @@ Interface.definePanels(function() {
 				onMouseLeave(event) {
 					if (this.mode == 'paint') {
 						this.mouse_coords.active = false;
+					}
+					if (this.mouse_coords.line_preview) {
+						Blockbench.setStatusBarText();
+						this.mouse_coords.line_preview = false;
 					}
 				},
 				contextMenu(event) {
@@ -4199,21 +4216,16 @@ Interface.definePanels(function() {
 				getLinePreviewStyle() {
 					let tex = this.texture;
 					let pixel_size = this.inner_width / (tex ? tex.width : Project.texture_width);
-					let width = Math.sqrt(Math.pow(this.mouse_coords.x - this.last_brush_position[0], 2) + Math.pow(this.mouse_coords.y - this.last_brush_position[1], 2));
+					let length = Math.sqrt(Math.pow(this.mouse_coords.x - this.last_brush_position[0], 2) + Math.pow(this.mouse_coords.y - this.last_brush_position[1], 2));
 					let angle = this.getLinePreviewAngle();
 					return {
-						width: width * pixel_size + 'px',
+						width: length * pixel_size + 'px',
 						rotate: angle + 'deg'
 					};
 				},
 				getBrushPositionText() {
 					if (!this.mouse_coords.active) return '';
 					let string = trimFloatNumber(this.mouse_coords.x, 1) + ', ' + trimFloatNumber(this.mouse_coords.y, 1);
-					if (this.mouse_coords.line_preview) {
-						let angle = this.getLinePreviewAngle();
-						angle = (angle + 180) % 90;
-						string += `, ${trimFloatNumber(Math.roundTo(angle, 1))}°`;
-					}
 					return string;
 				},
 
@@ -4650,6 +4662,9 @@ Interface.definePanels(function() {
 		if (before.shift != now.shift && document.querySelector('#uv_viewport:hover')) {
 			let active = now.shift;
 			if (Painter.current.x == undefined) active = false;
+			if (UVEditor.vue.mouse_coords.line_preview && !active) {
+				Blockbench.setStatusBarText();
+			}
 			UVEditor.vue.mouse_coords.line_preview = active;
 		}
 	});

@@ -1188,12 +1188,20 @@ export class ToolConfig extends ConfigDialog {
 	}
 }
 
-
-Object.assign(window, {
+const global = {
 	DialogSidebar,
 	Dialog,
 	ShapelessDialog,
 	MessageBox,
 	ConfigDialog,
 	ToolConfig,
-});
+};
+declare global {
+	const Dialog: typeof global.Dialog
+	const ConfigDialog: typeof global.ConfigDialog
+	const DialogSidebar: typeof global.DialogSidebar
+	const MessageBox: typeof global.MessageBox
+	const ShapelessDialog: typeof global.ShapelessDialog
+	const ToolConfig: typeof global.ToolConfig
+}
+Object.assign(window, global);

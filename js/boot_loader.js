@@ -6,6 +6,7 @@ import { loadInstalledPlugins } from "./plugin_loader";
 import { animate } from "./preview/preview";
 import { ipcRenderer, process, SystemInfo } from "./native_apis";
 import { initializeDesktopApp, loadOpenWithBlockbenchFile } from "./desktop";
+import { AutoBackup } from "./auto_backup";
 
 Interface.page_wrapper = document.getElementById('page_wrapper');
 Interface.work_screen = document.getElementById('work_screen');
@@ -169,6 +170,12 @@ localStorage.setItem('last_version', Blockbench.version);
 })()
 
 setStartScreen(true);
+
+if (Blockbench.isMobile) {
+	// Reselect tool to update transform toolbar in status bar on mobile
+	Toolbox.selected = null;
+	BarItems.move_tool.select();
+}
 
 document.getElementById('page_wrapper').classList.remove('invisible');
 

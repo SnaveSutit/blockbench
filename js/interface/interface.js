@@ -93,13 +93,13 @@ export const Interface = {
 		modes: {},
 	},
 	get left_bar_width() {
-		if (Prop.show_left_bar && Interface.getLeftPanels().length) { 
+		if (Prop.show_left_bar && Interface.getLeftPanels(false).length) { 
 			return Interface.getModeData()?.left_bar_width ?? Interface.data.left_bar_width;
 		}
 		return 0;
 	},
 	get right_bar_width() {
-		if (Prop.show_right_bar && Interface.getRightPanels().length) { 
+		if (Prop.show_right_bar && Interface.getRightPanels(false).length) { 
 			return Interface.getModeData()?.right_bar_width ?? Interface.data.right_bar_width;
 		}
 		return 0;
@@ -126,13 +126,13 @@ export const Interface = {
 			}
 		}
 	},
-	getLeftPanels() {
-		return Interface.calculateSidebarOrder('left_bar').map(p => this.Panels[p]);
+	getLeftPanels(in_order = true) {
+		return Interface.calculateSidebarOrder('left_bar', in_order).map(p => this.Panels[p]);
 	},
-	getRightPanels() {
-		return Interface.calculateSidebarOrder('right_bar').map(p => this.Panels[p]);
+	getRightPanels(in_order = true) {
+		return Interface.calculateSidebarOrder('right_bar', in_order).map(p => this.Panels[p]);
 	},
-	calculateSidebarOrder(bar) {
+	calculateSidebarOrder(bar, in_order = true) {
 		let target_order = [];
 		for (let panel_id in Interface.Panels) {
 			let panel = Interface.Panels[panel_id];
@@ -141,11 +141,13 @@ export const Interface = {
 			if (panel.attached_to) continue;
 			target_order.push(panel.id);
 		}
-		target_order.sort((a, b) => {
-			let a_i = Panels[a].position_data.sidebar_index;
-			let b_i = Panels[b].position_data.sidebar_index;
-			return (a_i ?? 0) - (b_i ?? 0);
-		})
+		if (in_order) {
+			target_order.sort((a, b) => {
+				let a_i = Panels[a].position_data.sidebar_index;
+				let b_i = Panels[b].position_data.sidebar_index;
+				return (a_i ?? 0) - (b_i ?? 0);
+			})
+		}
 		return target_order;
 	},
 	getUIMode() {
@@ -173,7 +175,7 @@ export const Interface = {
 				if (Blockbench.isMobile) return false;
 				if (!Prop.show_left_bar) return false;
 				if (!Mode.selected) return false;
-				for (let p of Interface.getLeftPanels()) {
+				for (let p of Interface.getLeftPanels(false)) {
 					if (p && BARS.condition(p.condition) && p.slot == 'left_bar') {
 						return true;
 					}
@@ -209,7 +211,7 @@ export const Interface = {
 				if (Blockbench.isMobile) return false;
 				if (!Prop.show_right_bar) return false;
 				if (!Mode.selected) return false;
-				for (let p of Interface.getRightPanels()) {
+				for (let p of Interface.getRightPanels(false)) {
 					if (p && BARS.condition(p.condition) && p.slot == 'right_bar') {
 						return true;
 					}
@@ -579,16 +581,22 @@ export function setupInterface() {
 	})
 
 	//Mousemove
-	document.addEventListener('mousemove', event => {
+	document.addEventListener('pointermove', event => {
 		mouse_pos.x = event.clientX;
 		mouse_pos.y = event.clientY;
 
 		if (Interface.cursor_tooltip?.textContent) {
-			Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
-			Interface.cursor_tooltip.style.top = mouse_pos.y + 'px';
+			updateCursorTooltip(event);
 		}
 	})
 	updateInterface()
+}
+
+function updateCursorTooltip(event) {
+	let is_touch = event ? event.pointerType == 'touch' : Blockbench.isTouch;
+	let offset_y = is_touch ? -72 : 0;
+	Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
+	Interface.cursor_tooltip.style.top = (mouse_pos.y + offset_y) + 'px';
 }
 
 export function updateInterface() {
@@ -864,8 +872,7 @@ Blockbench.setCursorTooltip = function(text) {
 		Interface.cursor_tooltip.textContent = text;
 		if (!Interface.cursor_tooltip.parentNode) {
 			document.body.append(Interface.cursor_tooltip);
-			Interface.cursor_tooltip.style.left = mouse_pos.x + 'px';
-			Interface.cursor_tooltip.style.top = mouse_pos.y + 'px';
+			updateCursorTooltip();
 		}
 	} else {
 		Interface.cursor_tooltip.textContent = '';
@@ -1010,11 +1017,13 @@ onVueSetup(function() {
 					<span v-if="errors.length" style="color: var(--color-error)">{{ errors.length }}<i class="material-icons">error</i></span>
 				</div>
 
+				<div id="status_bar_tool_controls" v-if="isMobile"></div>
+
 				<div v-if="keyboard_menu_in_status_bar" id="mobile_keyboard_menu" @click="openKeyboardMenu()" ref="mobile_keyboard_menu" :class="{enabled: modifiers.ctrl || modifiers.shift || modifiers.alt}">
 					<i class="material-icons">keyboard</i>
 				</div>
 
-				<div class="f_right">
+				<div class="f_right fps_counter_display" v-if="!isMobile">
 					{{ Prop.fps }} FPS
 				</div>
 

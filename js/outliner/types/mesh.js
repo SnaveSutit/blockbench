@@ -1,4 +1,5 @@
-import { Property } from "../util/property";
+import { Property } from "../../util/property";
+import { Face } from "../abstract/face";
 
 export class MeshFace extends Face {
 	constructor(mesh, data) {
@@ -33,8 +34,8 @@ export class MeshFace extends Face {
 		}
 		return this;
 	}
-	getSaveCopy(project) {
-		let copy = super.getSaveCopy(project);
+	getSaveCopy(nested) {
+		let copy = super.getSaveCopy(nested);
 		copy.vertices = this.getSortedVertices();
 		return copy;
 	}
@@ -273,8 +274,9 @@ export class MeshFace extends Face {
 			vertices[side_index],
 			vertices[side_index+1] || vertices[0]
 		]
-		for (let fkey in this.mesh.faces) {
-			let face = this.mesh.faces[fkey];
+		let faces = this.mesh.faces;
+		for (let fkey in faces) {
+			let face = faces[fkey];
 			if (face === this) continue;
 			if (face.vertices.includes(side_vertices[0]) && face.vertices.includes(side_vertices[1])) {
 				let f_vertices = face.getSortedVertices();
@@ -293,8 +295,9 @@ export class MeshFace extends Face {
 		return null;
 	}
 	getFaceKey() {
-		for (let fkey in this.mesh.faces) {
-			if (this.mesh.faces[fkey] == this) return fkey;
+		let faces = this.mesh.faces;
+		for (let fkey in faces) {
+			if (faces[fkey] == this) return fkey;
 		}
 	}
 	texelToLocalMatrix(uv, truncate_factor = [1, 1], truncated_uv, vertices = this.getSortedVertices()) {
@@ -601,7 +604,7 @@ export class Mesh extends OutlinerElement {
 		el.uuid = this.uuid
 		return el;
 	}
-	getSaveCopy(project) {
+	getSaveCopy() {
 		var el = {}
 		for (var key in Mesh.properties) {
 			Mesh.properties[key].copy(this, el)
@@ -620,7 +623,7 @@ export class Mesh extends OutlinerElement {
 
 		el.faces = {};
 		for (let key in this.faces) {
-			el.faces[key] = this.faces[key].getSaveCopy(project);
+			el.faces[key] = this.faces[key].getSaveCopy();
 		}
 
 		el.type = 'mesh';
@@ -690,7 +693,7 @@ export class Mesh extends OutlinerElement {
 	getSize(axis, selection_only) {
 		if (selection_only) {
 			let selected_vertices = Project.mesh_selection[this.uuid]?.vertices || Object.keys(this.vertices);
-			if (!selected_vertices.length) return 0;
+			if (!selected_vertices.length) selected_vertices = Object.keys(this.vertices);
 			let range = [Infinity, -Infinity];
 			let {vec1, vec2} = Reusable;
 			let rotation_inverted = new THREE.Euler().copy(Transformer.rotation_selection).invert();
@@ -715,28 +718,32 @@ export class Mesh extends OutlinerElement {
 			// Calculate smooth normals
 			let face_normals = {};
 			let used_vertices = new Set();
-			for (let key in this.faces) {
-				let face = this.faces[key];
+			let {faces, vertices} = this;
+			let faces_by_vertex = {};
+
+			for (let key in faces) {
+				let face = faces[key];
 				if (face.vertices.length <= 2) continue;
 				face_normals[key] = face.getNormal(true);
-				face.vertices.forEach(vkey => used_vertices.add(vkey));
+				face.vertices.forEach(vkey => {
+					used_vertices.add(vkey);
+					if (!faces_by_vertex[vkey]) faces_by_vertex[vkey] = [];
+					faces_by_vertex[vkey].push(key);
+				});
 			}
-			for (let vkey in this.vertices) {
+			for (let vkey in vertices) {
 				if (used_vertices.has(vkey) == false) continue;
 
 				let average_normal = Reusable.vec8.set(0, 0, 0);
 				let normal_count = 0;
-				for (let fkey in this.faces) {
-					let face = this.faces[fkey];
-					if (face.vertices.length > 2 && face.vertices.includes(vkey)) {
-						let face_normal = face_normals[fkey];
-						if (!face_normals[fkey]) face_normals[fkey] = face_normal;
-						// if (face.getAngleTo(face) > 50) continue;
-						average_normal.x += face_normal[0];
-						average_normal.y += face_normal[1];
-						average_normal.z += face_normal[2];
-						normal_count++;
-					}
+				for (let fkey of faces_by_vertex[vkey]) {
+					let face_normal = face_normals[fkey];
+					if (!face_normals[fkey]) face_normals[fkey] = face_normal;
+					// if (face.getAngleTo(face) > 50) continue;
+					average_normal.x += face_normal[0];
+					average_normal.y += face_normal[1];
+					average_normal.z += face_normal[2];
+					normal_count++;
 				}
 				average_normal.divideScalar(normal_count);
 
@@ -749,6 +756,7 @@ export class Mesh extends OutlinerElement {
 		for (let fkey in this.faces) {
 			this.faces[fkey].vertices.replace(this.faces[fkey].getSortedVertices());
 		}
+		this.preview_controller.updateGeometry(this);
 		this.preview_controller.updateUV(this);
 	}
 	forAllFaces(cb) {
@@ -1105,6 +1113,7 @@ new NodePreviewController(Mesh, {
 		points.element_uuid = element.uuid;
 		points.geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Array(24).fill(1), 3));
 		mesh.vertex_points = points;
+		points.no_export = true;
 		mesh.add(points);
 
 		// Update
@@ -1158,6 +1167,7 @@ new NodePreviewController(Mesh, {
 		let outline_positions = [];
 		mesh.outline.vertex_order.empty();
 		let {vertices, faces} = element;
+		let cached_face_vertices = {};
 		
 		let armature_bone;
 		let all_armature_bones = [];
@@ -1168,19 +1178,22 @@ new NodePreviewController(Mesh, {
 			bone_marker_colors = markerColors.map(c => new THREE.Color().set(c.standard));
 		}
 
+		const PLAIN_VERTEX_COLOR = [0, 0.03, 0.08];
+
 		function addVertexPosition(vkey, normal) {
-			position_array.push(...vertices[vkey]);
-			normal_array.push(...normal);
+			let vertex = vertices[vkey];
+			position_array.push(vertex[0], vertex[1], vertex[2]);
+			normal_array.push(normal[0], normal[1], normal[2]);
 			if (armature_bone) {
-				let weight = armature_bone.vertex_weights[vkey] ?? 0;
+				let weight = armature_bone.getVertexWeight(element, vkey) ?? 0;
 				let weight_sum = 0;
-				all_armature_bones.forEach((bone) => weight_sum += (bone.vertex_weights[vkey] ?? 0));
+				all_armature_bones.forEach((bone) => weight_sum += (bone.getVertexWeight(element, vkey) ?? 0));
 
 
 				if (Project.view_mode === 'weighted_bone_colors') {
 					let color = [0, 0, 0];
 					for (let bone of all_armature_bones) {
-						let bone_weight = bone.vertex_weights[vkey];
+						let bone_weight = bone.getVertexWeight(element, vkey);
 						let bone_color = bone_marker_colors[bone.color%markerColors.length];
 						if (bone_weight > 0.02) {
 							let amount = bone_weight / weight_sum;
@@ -1192,7 +1205,9 @@ new NodePreviewController(Mesh, {
 					color_array.push(...color);
 				} else {
 					if (weight_sum > weight) weight = weight / weight_sum;
-					if (weight < 0.25) {
+					if (!weight) {
+						color_array.push(PLAIN_VERTEX_COLOR[0], PLAIN_VERTEX_COLOR[1], PLAIN_VERTEX_COLOR[2]);
+					} else if (weight < 0.25) {
 						color_array.push(0, 0, weight * 4);
 					} else if (weight < 0.5) {
 						let fade = (weight-0.25) * 4;
@@ -1206,14 +1221,15 @@ new NodePreviewController(Mesh, {
 					}
 				}
 			} else {
-				color_array.push(0, 0, 0);
+				color_array.push(PLAIN_VERTEX_COLOR[0], PLAIN_VERTEX_COLOR[1], PLAIN_VERTEX_COLOR[2]);
 			}
 		}
 
 		if (vertex_offsets) {
 			vertices = {};
-			for (let vkey in element.vertices) {
-				vertices[vkey] = element.vertices[vkey].slice();
+			let el_vertices = element.vertices;
+			for (let vkey in el_vertices) {
+				vertices[vkey] = el_vertices[vkey].slice();
 				if (vertex_offsets[vkey] instanceof Array) {
 					vertices[vkey].V3_add(vertex_offsets[vkey])
 				}
@@ -1245,6 +1261,7 @@ new NodePreviewController(Mesh, {
 				// Quad
 				let index_offset = position_array.length / 3;
 				let sorted_vertices = Modes.animate ? face.vertices : face.getSortedVertices();
+				cached_face_vertices[key] = sorted_vertices;
 				let face_indices = {};
 				face.vertices.forEach((vkey, i) => {
 					if (!vertices[vkey]) {
@@ -1344,7 +1361,7 @@ new NodePreviewController(Mesh, {
 				mesh.outline.vertex_order.push(face.vertices[0]);
 
 			} else if (face.vertices.length == 4) {
-				let sorted_vertices = Modes.animate ? face.vertices : face.getSortedVertices();
+				let sorted_vertices = cached_face_vertices[key] || face.vertices;
 				sorted_vertices.forEach((key, i) => {
 					mesh.outline.vertex_order.push(key);
 					if (i != 0) mesh.outline.vertex_order.push(key);
@@ -1559,22 +1576,35 @@ new NodePreviewController(Mesh, {
 			})
 		}
 		let line_colors = [];
+		let is_seam_tool = Toolbox.selected.id === 'seam_tool';
+		let selection_mode = BarItems.selection_mode.value;
+		if (!Modes.edit) selection_mode = 'object';
 		mesh.outline.vertex_order.forEach((key, i) => {
 			let key_b = Modes.edit && mesh.outline.vertex_order[i + ((i%2) ? -1 : 1) ];
-			let color;
+			let color = gizmo_colors.grid;
 			let selected;
-			if (!Modes.edit || BarItems.selection_mode.value == 'object') {
-				color = gizmo_colors.outline;
-			} else if (BarItems.selection_mode.value == 'edge' && selected_edges.find(edge => sameMeshEdge([key, key_b], edge))) {
-				color = white;
-				selected = true;
-			} else if ((BarItems.selection_mode.value == 'face' || BarItems.selection_mode.value == 'cluster') && face_outlines[key] && face_outlines[key].has(key_b)) {
-				color = white;
-				selected = true;
-			} else {
-				color = gizmo_colors.grid;
+			switch (selection_mode) {
+				case 'object': {
+					color = gizmo_colors.outline;
+					break;
+				}
+				case 'edge': {
+					if (selected_edges.find(edge => sameMeshEdge([key, key_b], edge))) {
+						color = white;
+						selected = true;
+					}
+					break;
+				}
+				case 'face':
+				case 'cluster': {
+					if (face_outlines[key] && face_outlines[key].has(key_b)) {
+						color = white;
+						selected = true;
+					}
+					break;
+				}
 			}
-			if (Toolbox.selected.id === 'seam_tool') {
+			if (is_seam_tool) {
 				let seam = element.getSeam([key, key_b]);
 				if (selected) {
 					if (seam == 'join') color = join_selected;

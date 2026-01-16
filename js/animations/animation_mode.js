@@ -2,7 +2,7 @@ import MolangParser from "molangjs";
 import Wintersky from 'wintersky';
 import { Mode } from "../modes";
 import { invertMolang } from "../util/molang";
-import { fs } from "../native_apis";
+import { clipboard, fs } from "../native_apis";
 import { openMolangEditor } from "./molang_editor";
 
 export const Animator = {
@@ -112,6 +112,7 @@ export const Animator = {
 				Mesh.preview_controller.updateGeometry(mesh);
 			}
 		}
+		Blockbench.dispatchEvent('display_default_pose', {reduced_updates});
 		if (!reduced_updates) scene.updateMatrixWorld()
 	},
 	resetParticles(optimized) {
@@ -126,7 +127,7 @@ export const Animator = {
 			}
 		}
 	},
-	showMotionTrail(target) {
+	showMotionTrail(target, fast = false) {
 		if (!target) {
 			target = Project.motion_trail_lock && OutlinerNode.uuids[Project.motion_trail_lock];
 			if (!target) {
@@ -148,7 +149,7 @@ export const Animator = {
 		let bone_stack = [];
 		let iterate = g => {
 			bone_stack.push(g);
-			if (g.parent instanceof OutlinerElement && g.parent.constructor.animator) iterate(g.parent);
+			if (g.parent instanceof OutlinerNode && g.parent.constructor.animator) iterate(g.parent);
 		}
 		iterate(target)
 		
@@ -208,7 +209,9 @@ export const Animator = {
 		geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(line_positions), 3));
 		
 		Timeline.time = currentTime;
-		Animator.preview();
+		if (!fast) {
+			Animator.preview();
+		}
 
 		var line = new THREE.Line(geometry, Canvas.outlineMaterial);
 		line.no_export = true;
@@ -241,7 +244,7 @@ export const Animator = {
 		});
 		Animator.onion_skin_object.children.empty();
 
-		if (!enabled) return;
+		if (!enabled) return false;
 
 		let times = [];
 
@@ -267,6 +270,7 @@ export const Animator = {
 			Timeline.time = time;
 			Animator.showDefaultPose(true);
 			Animator.stackAnimations(Animation.all.filter(a => a.playing), false);
+			Animator.displayMeshDeformation();
 
 			elements.forEach(obj => {
 				if (!obj.visibility) return;
@@ -293,6 +297,8 @@ export const Animator = {
 		Animator.stackAnimations(Animation.all.filter(a => a.playing), false);
 
 		scene.add(Animator.onion_skin_object);
+
+		return true;
 	},
 	displayMeshDeformation() {
 		for (let mesh of Mesh.all) {
@@ -329,8 +335,6 @@ export const Animator = {
 		})
 
 		scene.updateMatrixWorld();
-
-		Animator.displayMeshDeformation();
 
 		Animator.resetLastValues();
 
@@ -404,10 +408,16 @@ export const Animator = {
 
 		Animator.updateOnionSkin();
 
+		Animator.displayMeshDeformation();
+
+		Billboard.all.forEach(billboard => {
+			Billboard.preview_controller.updateFacingCamera(billboard);
+		})
+
 		if (Interface.Panels.variable_placeholders.inside_vue.text.match(/^\s*preview\.texture\s*=/mi)) {
 			let tex_index = Animator.MolangParser.variableHandler('preview.texture');
 			let texture = Texture.all[tex_index % Texture.all.length];
-			if (texture) texture.select();
+			if (texture && texture != Texture.selected) texture.select();
 		}
 		if (Interface.Panels.variable_placeholders.inside_vue.text.match(/^\s*preview\.texture_frame\s*=/mi)) {
 			let frame = Animator.MolangParser.variableHandler('preview.texture_frame');
@@ -1360,6 +1370,43 @@ BARS.defineActions(function() {
 			Animator.updateOnionSkin();
 		}
 	})
+	new Action('copy_animation_pose', {
+		icon: 'detection_and_zone',
+		category: 'animation',
+		condition: () => Animator.open && Animation.selected,
+		click() {
+			let new_keyframes = [];
+
+			for (let uuid in Animation.selected.animators) {
+				let animator = Animation.selected.animators[uuid];
+				if (!animator || !animator.keyframes.length || !(animator.group || animator.element)) continue;
+
+				for (let channel in animator.channels) {
+					if (!animator[channel] || !animator[channel].length) continue;
+					let kf = animator[channel].find(kf => Math.epsilon(kf.time, Timeline.time, 1e-5));
+					if (!kf) {
+						kf = animator.createKeyframe(null, Timeline.time, channel, false, false);
+						new_keyframes.push(kf)
+					}
+				}
+			}
+
+			Clipbench.keyframes = [];
+			if (new_keyframes.length == 0) return;
+
+			new_keyframes.forEach((kf) => {
+				let copy = kf.getUndoCopy();
+				copy.time_offset = 0;
+				Clipbench.keyframes.push(copy);
+			})
+			for (let kf of new_keyframes) {
+				kf.remove();
+			}
+			if (isApp) {
+				clipboard.writeHTML(JSON.stringify({type: 'keyframes', content: Clipbench.keyframes}));
+			}
+		}
+	})
 })
 
 
@@ -1579,6 +1626,7 @@ function processVariablePlaceholderText(text) {
 }
 
 Object.assign(window, {
+	MolangParser,
 	Animator,
 	Wintersky,
 	WinterskyScene

@@ -3,6 +3,8 @@ import { currentwindow } from "./native_apis";
 window.osfs = '/'
 window.open_dialog = false;
 window.open_interface = false;
+window.Format = 0;
+window.Project = 0;
 
 export const Pressing = {
 	shift: false,
@@ -233,7 +235,7 @@ export function updateSelection(options = {}) {
 	Blockbench.dispatchEvent('update_selection');
 }
 export function unselectAllElements(exceptions) {
-	Project.selected_elements.forEachReverse(obj => {
+	Project.selected_elements.slice().forEach(obj => {
 		if (exceptions instanceof Array && exceptions.includes(obj)) return;
 		obj.unselect()
 	})
@@ -259,168 +261,6 @@ export function selectAll() {
 }
 export function unselectAll() {
 	SharedActions.run('unselect_all');
-}
-
-//Backup
-export const AutoBackup = {
-	/**
-	 * IndexedDB Database
-	 * @type {IDBDatabase}
-	 */
-	db: null,
-	initialize() {
-		let request = indexedDB.open('auto_backups', 1);
-		request.onerror = function(e) {
-			console.error('Failed to load backup database', e);
-		}
-		request.onblocked = function(e) {
-			console.error('Another instance of Blockbench is opened, the backup database cannot be upgraded at the moment');
-		}
-		request.onupgradeneeded = function() {
-			let db = request.result;
-			let store = db.createObjectStore('projects', {keyPath: 'uuid'});
-
-			// Legacy system
-			let backup_models = localStorage.getItem('backup_model')
-			if (backup_models) {
-				let parsed_backup_models = JSON.parse(backup_models);
-				for (let uuid in parsed_backup_models) {
-					let model = JSON.stringify(parsed_backup_models[uuid]);
-					store.put({uuid, data: model});
-				}
-				console.log(`Upgraded ${Object.keys(parsed_backup_models).length} project back-ups to indexedDB`);
-			}
-		}
-		request.onsuccess = async function() {
-			AutoBackup.db = request.result;
-			
-			// Start Screen Message
-			let has_backups = await AutoBackup.hasBackups();
-			if (has_backups && (!isApp || !currentwindow.webContents.second_instance)) {
-
-				let section = addStartScreenSection('recover_backup', {
-					graphic: {type: 'icon', icon: 'fa-archive'},
-					insert_before: 'start_files',
-					text: [
-						{type: 'h3', text: tl('message.recover_backup.title')},
-						{text: tl('message.recover_backup.message')},
-						{type: 'button', text: tl('message.recover_backup.recover'), click: (e) => {
-							AutoBackup.recoverAllBackups().then(() => {
-								section.delete();
-							});
-						}},
-						{type: 'button', text: tl('dialog.discard'), click: (e) => {
-							AutoBackup.removeAllBackups();
-							section.delete();
-						}}
-					]
-				})
-			}
-
-			AutoBackup.backupProjectLoop(false);
-		}
-	},
-	async backupOpenProject() {
-		if (!Project) return;
-		let transaction = AutoBackup.db.transaction('projects', 'readwrite');
-		let store = transaction.objectStore('projects');
-
-		let model = Codecs.project.compile({compressed: false, backup: true, raw: true});
-		let model_json = JSON.stringify(model)
-		store.put({uuid: Project.uuid, data: model_json});
-		
-		await new Promise((resolve) => {
-			transaction.oncomplete = resolve;
-		})
-	},
-	async hasBackups() {
-		let transaction = AutoBackup.db.transaction('projects', 'readonly');
-		let store = transaction.objectStore('projects');
-		return await new Promise(resolve => {
-			let request = store.count();
-			request.onsuccess = function() {
-				resolve(!!request.result);
-			}
-			request.onerror = function(e) {
-				console.error(e);
-				resolve(false);
-			}
-		})
-	},
-	recoverAllBackups() {
-		return new Promise((resolve, reject) => {
-			let transaction = AutoBackup.db.transaction('projects', 'readonly');
-			let store = transaction.objectStore('projects');
-			let request = store.getAll();
-			request.onsuccess = async function() {
-				let projects = request.result;
-				for (let project of projects) {
-					try {
-						let parsed_content = JSON.parse(project.data);
-						setupProject(Formats[parsed_content.meta.model_format] || Formats.free, project.uuid);
-						Codecs.project.parse(parsed_content, 'backup.bbmodel');
-						await new Promise(r => setTimeout(r, 40));
-					} catch(err) {
-						console.error(err);
-					}
-				}
-				resolve();
-			}
-			request.onerror = function(e) {
-				console.error(e);
-				reject(e);
-			}
-		})
-		/*var backup_models = localStorage.getItem('backup_model')
-		let parsed_backup_models = JSON.parse(backup_models);
-		for (let uuid in parsed_backup_models) {
-			AutoBackupModels[uuid] = parsed_backup_models[uuid];
-
-			let model = parsed_backup_models[uuid];
-			setupProject(Formats[model.meta.model_format] || Formats.free, uuid);
-			Codecs.project.parse(model, 'backup.bbmodel')
-		}*/
-	},
-	async removeBackup(uuid) {
-		let transaction = AutoBackup.db.transaction('projects', 'readwrite');
-		let store = transaction.objectStore('projects');
-		let request = store.delete(uuid);
-		
-		return await new Promise((resolve, reject) => {
-			request.onsuccess = resolve;
-			request.onerror = function(e) {
-				reject();
-			}
-		});
-	},
-	async removeAllBackups() {
-		let transaction = AutoBackup.db.transaction('projects', 'readwrite');
-		let store = transaction.objectStore('projects');
-		let request = store.clear();
-		
-		return await new Promise((resolve, reject) => {
-			request.onsuccess = resolve;
-			request.onerror = function(e) {
-				console.error(e);
-				reject();
-			}
-		});
-	},
-	loop_timeout: null,
-	backupProjectLoop(run_save = true) {
-		if (run_save && Project && (Outliner.root.length || Project.textures.length)) {
-			try {
-				AutoBackup.backupOpenProject();
-			} catch (err) {
-				console.error('Unable to create backup. ', err)
-			}
-		}
-		let interval = settings.recovery_save_interval.value;
-		if (interval != 0) {
-			interval = Math.max(interval, 5);
-			AutoBackup.loop_timeout = setTimeout(() => AutoBackup.backupProjectLoop(true), interval * 1000);
-		}
-	}
 }
 
 
@@ -459,17 +299,6 @@ export const TickUpdates = {
 	}
 }
 
-export function factoryResetAndReload() {
-	let lang_key = 'menu.help.developer.reset_storage.confirm';
-	let result = window.confirm((window.tl && tl(lang_key) != lang_key) ? tl(lang_key) : 'Are you sure you want to reset Blockbench to factory settings? This will delete all custom settings, keybindings and installed plugins.');
-	if (result) {
-		localStorage.clear();
-		Blockbench.addFlag('no_localstorage_saving');
-		console.log('Cleared Local Storage');
-		window.location.reload(true);
-	}
-}
-
 export function benchmarkCode(id, iterations, code) {
 	if (!iterations) iterations = 1000;
 	console.time(id);
@@ -497,8 +326,6 @@ Object.assign(window, {
 	unselectAllElements,
 	selectAll,
 	unselectAll,
-	AutoBackup,
 	TickUpdates,
-	factoryResetAndReload,
 	benchmarkCode
 })

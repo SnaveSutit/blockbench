@@ -591,10 +591,17 @@ export const Settings = {
 	old: {}
 }
 
-
-Object.assign(window, {
+const globals = {
 	settings,
 	Setting,
 	SettingsProfile,
 	Settings,
-});
+}
+declare global {
+	const settings: typeof globals.settings
+	const Setting: typeof globals.Setting
+	const SettingsProfile: typeof globals.SettingsProfile
+	const Settings: typeof globals.Settings
+}
+
+Object.assign(window, globals);

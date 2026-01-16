@@ -183,6 +183,7 @@ var codec = new Codec('project', {
 	},
 	compile(options) {
 		if (!options) options = 0;
+		Blockbench.addFlag('compiling_bbmodel');
 		let model = {
 			meta: {
 				format_version: FORMATV,
@@ -305,7 +306,6 @@ var codec = new Codec('project', {
 		let collections = [];
 		for (let collection of Collection.all) {
 			let copy = collection.getSaveCopy();
-			if (copy.export_path)
 			collections.push(copy);
 		}
 		if (collections.length) model.collections = collections;
@@ -382,6 +382,7 @@ var codec = new Codec('project', {
 
 		Blockbench.dispatchEvent('save_project', {model, options});
 		this.dispatchEvent('compile', {model, options})
+		Blockbench.removeFlag('compiling_bbmodel');
 
 		if (options.raw) {
 			return model;

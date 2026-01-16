@@ -4,6 +4,7 @@ import { prepareShader } from '../shaders/shader';
 import { Blockbench } from '../api';
 import { clipboard, fs, ipcRenderer, nativeImage, openFileInEditor } from '../native_apis';
 import { Filesystem } from '../file_system';
+import { isImageEditorValid } from '../desktop';
 
 let tex_version = 1;
 
@@ -99,11 +100,12 @@ export class Texture {
 				tex.name = this.name;
 				mat.map = tex;
 				mat.uniforms.map.value = tex;
+				if (Canvas.layered_material) Canvas.updateLayeredTextures();
 			}
 			tex.needsUpdate = true;
 
 			scope.width = tex.width = img.naturalWidth;
-			scope.height = tex.width = img.naturalHeight;
+			scope.height = tex.height = img.naturalHeight;
 			if (scope.selection) scope.selection.changeSize(scope.width, scope.height);
 			if (img.naturalWidth > 16384 || img.naturalHeight > 16384) {
 				scope.error = 2;
@@ -581,6 +583,7 @@ export class Texture {
 					}
 					this.extend({
 						frame_time: mcmeta.animation.frametime,
+						frame_interpolate: mcmeta.animation.interpolate,
 						frame_order_type,
 						frame_order: frame_string
 					})
@@ -766,7 +769,6 @@ export class Texture {
 		this.load();
 		this.updateMaterial()
 		TickUpdates.UVEditor = true;
-		TickUpdates.texture_list = true;
 	}
 	reloadTexture() {
 		this.refresh(true)
@@ -927,7 +929,7 @@ export class Texture {
 		}
 		Panels.layers.inside_vue.layers = this.layers;
 		updateInterfacePanels();
-		Blockbench.dispatchEvent('select_texture', {texture: this});
+		Blockbench.dispatchEvent('select_texture', {texture: this, event});
 		Blockbench.dispatchEvent('update_texture_selection');
 		return this;
 	}
@@ -1089,7 +1091,7 @@ export class Texture {
 			changeImageEditor(scope)
 
 		} else {
-			if (fs.existsSync(settings.image_editor.value)) {
+			if (isImageEditorValid(settings.image_editor.value)) {
 				ipcRenderer.invoke('get-launch-setting', {key: 'image_editor'}).then(editor => {
 					openFileInEditor(this.path, editor);
 				})
@@ -1915,6 +1917,7 @@ export class Texture {
 						Undo.initEdit({textures: [texture]});
 						if (is_animated) {
 							texture.uv_height = texture.height * (texture.uv_width / texture.width);
+							texture.currentFrame = 0;
 						} else {
 							texture.uv_height = texture.uv_width;
 						}
@@ -1924,6 +1927,7 @@ export class Texture {
 						Undo.initEdit({uv_mode: true});
 						if (is_animated) {
 							Project.texture_height = Project.texture_width * (texture.height / texture.width);
+							texture.currentFrame = 0;
 						} else {
 							Project.texture_height = Project.texture_width;
 						}
@@ -2440,7 +2444,7 @@ Interface.definePanels(function() {
 				} else {
 					let message = texture.width + ' x ' + texture.height + 'px';
 					if (!Format.image_editor) {
-						let uv_size = texture.width / texture.getUVWidth() * 16;
+						let uv_size = texture.width / texture.getUVWidth() * Format.block_size;
 						message += ` (${trimFloatNumber(uv_size, 2)}x)`;
 					}
 					if (texture.frameCount > 1) {
@@ -3074,7 +3078,7 @@ Interface.definePanels(function() {
 						<div class="tool_wrapper"></div>
 						<div id="texture_animation_timeline" ref="timeline" @mousedown="slideTimelinePointer" @wheel="scrollTimeline($event)">
 							<div class="texture_animation_frame" v-for="i in maxFrameCount()"></div>
-							<div id="animated_texture_playhead" :style="{left: getPlayheadPos() + 'px'}"></div>
+							<div id="animated_texture_playhead" v-if="maxFrameCount()" :style="{left: getPlayheadPos() + 'px'}"></div>
 						</div>
 						<div class="tool_wrapper_2"></div>
 					</div>

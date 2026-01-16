@@ -1,7 +1,7 @@
 import { CanvasFrame } from "../../lib/CanvasFrame"
 import StateMemory from "../../util/state_memory";
 import { setProjectTitle } from "../../interface/interface"
-import { getAllGroups } from "../../outliner/group"
+import { getAllGroups } from "../../outliner/types/group"
 import { DefaultCameraPresets } from "../../preview/preview"
 import { MinecraftEULA } from "../../preview/preview_scenes"
 import { TextureGenerator } from "../../texturing/texture_generator"
@@ -27,6 +27,7 @@ export const skin_presets: Record<string, SkinPreset> = {};
 type SkinPoseData = Record<string, ArrayVector3 | {rotation: ArrayVector3, offset: ArrayVector3}>
 const DefaultPoses: Record<string, SkinPoseData> = {
 	none: {
+		Waist: [0, 0, 0],
 		Head: [0, 0, 0],
 		Body: [0, 0, 0],
 		RightArm: [0, 0, 0],
@@ -35,6 +36,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: [0, 0, 0],
 	},
 	natural: {
+		Waist: [0, 0, 0],
 		Head: [6, -5, 0],
 		Body: [0, 0, 0],
 		RightArm: [10, 0, 0],
@@ -43,6 +45,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: [10, 0, -2],
 	},
 	walking: {
+		Waist: [0, 0, 0],
 		Head: [-2, 0, 0],
 		Body: [0, 0, 0],
 		RightArm: [-35, 0, 0],
@@ -51,6 +54,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: [-42, 0, -2]
 	},
 	crouching: {
+		Waist: [0, 0, 0],
 		Head: {rotation: [-5, 0, 0], offset: [0, -1, 0]},
 		Body: {rotation: [-28, 0, 0], offset: [0, 0, -1]},
 		RightArm: [-15, 0, 0],
@@ -59,6 +63,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: {rotation: [14, 0, 0], offset: [0, 3, 4]}
 	},
 	sitting: {
+		Waist: [0, 0, 0],
 		Head: [5.5, 0, 0],
 		Body: [0, 0, 0],
 		RightArm: [36, 0, 0],
@@ -67,6 +72,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: [72, 18, 0]
 	},
 	jumping: {
+		Waist: [0, 0, 0],
 		Head: [20, 0, 0],
 		Body: [0, 0, 0],
 		RightArm: {rotation: [-175, 0, -20], offset: [0, 2, 0]},
@@ -75,6 +81,7 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: {rotation: [2.5, 0, -10], offset: [0, 6, -3.75]}
 	},
 	aiming: {
+		Waist: [0, 0, 0],
 		Head: [8, -35, 0],
 		Body: [-2, 0, 0],
 		RightArm: {rotation: [97, -17, -2], offset: [-1, 1, -1]},
@@ -412,7 +419,7 @@ export const skin_dialog = new Dialog({
 				bedrock_edition: 'Bedrock Edition',
 			},
 			condition(form: Record<string, FormResultValue>) {
-				return skin_presets[form.model as string].model_bedrock;
+				return !!skin_presets[form.model as string].model_bedrock;
 			}
 		},
 		variant: {
@@ -422,7 +429,7 @@ export const skin_dialog = new Dialog({
 				return (selected_model && skin_presets[selected_model].variants) || {}
 			},
 			condition(form) {
-				return skin_presets[form.model].variants;
+				return !!skin_presets[form.model].variants;
 			}
 		},
 		resolution: {label: 'dialog.create_texture.resolution', type: 'select', value: 1, options: {
@@ -520,9 +527,9 @@ export const skin_dialog = new Dialog({
 						if (!model.external_textures) return;
 						for (let path of model.external_textures) {
 							let frame = new CanvasFrame();
-							let resource_path = `https://github.com/Mojang/bedrock-samples/blob/main/resource_pack/textures/${path}?raw=true`;
+							let resource_path = `https://raw.githubusercontent.com/Mojang/bedrock-samples/main/resource_pack/textures/${path}?raw=true`;
 							frame.loadFromURL(resource_path).then(() => {
-								let dataUrl = (frame.canvas as HTMLCanvasElement).toDataURL();
+								let dataUrl = frame.canvas.toDataURL();
 								let texture = new Texture({
 									internal: true,
 									name: pathToName(path, true)
@@ -581,7 +588,7 @@ BARS.defineActions(function() {
 	new Action('convert_minecraft_skin_variant', {
 		icon: 'compare_arrows',
 		category: 'edit',
-		condition: {formats: ['skin'], method: () => Group.all.find(g => g.name == 'Right Arm')},
+		condition: {formats: ['skin'], method: () => !!Group.all.find(g => g.name == 'Right Arm')},
 		click() {
 			let is_slim = Cube.all.find(c => c.name.match(/arm/i)).size(0) == 3;
 			new Dialog('convert_minecraft_skin_variant', {
@@ -682,7 +689,7 @@ BARS.defineActions(function() {
 	new Action('export_minecraft_skin', {
 		icon: 'icon-player',
 		category: 'file',
-		condition: () => Format == format && Texture.all[0],
+		condition: () => Format == format && !!Texture.all[0],
 		click: function () {
 			Texture.all[0].save(true);
 		}
@@ -5432,6 +5439,88 @@ skin_presets.minecart = {
 				"mirror": true,
 				"cubes": [
 					{"name": "left", "origin": [-8, 2, 6], "size": [16, 8, 2], "uv": [0, 0]}
+				]
+			}
+		]
+	}`
+};
+skin_presets.nautilus = {
+	display_name: 'Nautilus',
+	model: `{
+		"name": "nautilus",
+		"external_textures": ["entity/nautilus/nautilus.png"],
+		"texturewidth": 128,
+		"textureheight": 128,
+		"eyes": [
+			[7, 70, 2, 1],
+			[29, 70, 2, 1]
+		],
+		"bones": [
+			{
+				"name": "nautilus",
+				"pivot": [0, -5, -6]
+			},
+			{
+				"name": "head",
+				"parent": "nautilus",
+				"pivot": [0, 8, -1],
+				"cubes": [
+					{"origin": [-7, 8, -8], "size": [14, 10, 16], "uv": [0, 0]},
+					{"name": "head_bottom", "origin": [-7, 0, -8], "size": [14, 8, 20], "uv": [0, 26]},
+					{"name": "head_back", "origin": [-7, 0, 5], "size": [14, 8, 0], "uv": [48, 26]}
+				]
+			},
+			{
+				"name": "body",
+				"parent": "nautilus",
+				"pivot": [0, 3.5, 6.3],
+				"cubes": [
+					{"origin": [-5, 0.01, 3.3], "size": [10, 8, 14], "uv": [0, 54]},
+					{"name": "body_back", "origin": [-5, 0.01, 13.3], "size": [10, 8, 0], "uv": [0, 76]},
+					{"name": "mouth_top", "origin": [-5, 4.01, 13.3], "size": [10, 4, 4], "inflate": -0.002, "uv": [54, 54]},
+					{"name": "inner_mouth", "origin": [-3, 2.01, 13.3], "size": [6, 4, 4], "uv": [54, 70]},
+					{"name": "mouth_bottom", "origin": [-5, -0.01, 13.3], "size": [10, 4, 4], "inflate": -0.002, "uv": [54, 62]}
+				]
+			}
+		]
+	}`
+};
+skin_presets.nautilus_baby = {
+	display_name: 'Nautilus Baby',
+	model: `{
+		"name": "nautilus_baby",
+		"external_textures": ["entity/nautilus/nautilus_baby.png"],
+		"texturewidth": 64,
+		"textureheight": 64,
+		"eyes": [
+			[3, 32, 1, 1],
+			[15, 32, 1, 1]
+		],
+		"bones": [
+			{
+				"name": "nautilus_baby",
+				"pivot": [0, -4, 0]
+			},
+			{
+				"name": "head",
+				"parent": "nautilus_baby",
+				"pivot": [-2.5, 4, -2.5],
+				"cubes": [
+					{"origin": [-3.5, 4, -3.5], "size": [7, 4, 7], "uv": [0, 0]},
+					{"name": "head_bottom", "origin": [-3.5, 0, -3.5], "size": [7, 4, 9], "uv": [0, 11]},
+					{"name": "head_back", "origin": [-3.5, 0, 2.5], "size": [7, 4, 0], "uv": [23, 11]}
+				]
+			},
+			{
+				"name": "body",
+				"parent": "nautilus_baby",
+				"pivot": [0, 1, 2.5],
+				"cubes": [
+					{"origin": [-2.5, 0.01, 1.5], "size": [5, 4, 7], "uv": [0, 24]},
+					{"name": "body_back", "origin": [-2.5, 0.01, 6.6], "size": [5, 4, 0], "uv": [0, 35]},
+					{"name": "mouth_top", "origin": [-2.5, 2.01, 6.4], "size": [5, 2, 2], "inflate": -0.002, "uv": [24, 24]},
+					{"name": "inner_mouth", "origin": [-1.5, 1.01, 6.4], "size": [3, 2, 2], "uv": [24, 32]},
+					{"name": "mouth_bottom", "origin": [-2.5, 0.01, 6.4], "size": [5, 2, 2], "inflate": -0.002, "uv": [24, 28]}
 				]
 			}
 		]

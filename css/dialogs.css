@@ -201,7 +201,7 @@
 		flex-wrap: wrap;
 	}
 	.dialog_bar.form_bar.full_width_dialog_bar > label {
-		width: 100% !important;
+		min-width: 95%;
 	}
 	.dialog_bar.form_bar .half {
 		flex-grow: 1;
@@ -732,10 +732,10 @@
 	.settings_list li:hover .setting_icon i {
 		color: var(--color-light);
 	}
-	.password_toggle {
+	.bar div.password_toggle {
 		display: inline-block;
 		margin-left: 4px;
-		margin-top: 4px;
+		padding-top: 2px;
 		width: 24px;
 		text-align: center;
 		vertical-align: text-bottom;
@@ -1453,7 +1453,11 @@
 	.plugin_compatibility_issue {
 		color: var(--color-error);
 	}
-	.plugin_compatibility_issue > .icon {
+	.plugin_deprecation_note {
+		color: var(--color-warning);
+	}
+	.plugin_compatibility_issue > .icon,
+	.plugin_deprecation_note > .icon {
 		vertical-align: text-bottom;
 	}
 	#plugin_list > li button {
@@ -1550,6 +1554,10 @@
 	.plugin_tag_list li.plugin_tag_mc {
 		background-color: #73e473;
 		color: #111625;
+	}
+	.plugin_tag_list li.plugin_tag_hytale {
+		background-color: #4a4297;
+		color: white;
 	}
 	.plugin_tag_list li.plugin_tag_deprecated {
 		background-color: #ff3467;
@@ -1690,6 +1698,7 @@
 	}
 	#plugin_browser_changelog > li {
 		padding: 7px 8px;
+		user-select: text;
 	}
 	#plugin_browser_changelog h3 {
 		margin-bottom: 2px;
@@ -1941,6 +1950,7 @@
 		width: 340px;
 		margin-left: 45px;
 		box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+		border-radius: 5px;
 	}
 	#action_selector ul {
 		background-color: var(--color-bright_ui);
@@ -1950,6 +1960,7 @@
 		max-height: 400px;
 		overflow-y: auto;
 		overflow-x: hidden;
+		border-radius: 5px;
 	}
 	#action_selector > #action_selector_list > div {
 		background-color: var(--color-ui);
@@ -2003,6 +2014,8 @@
 		opacity: 0.32;
 		top: 4px;
 		left: 49px;
+		padding-left: 8px;
+		padding-top: 6px;
 	}
 
 /* Quit */
@@ -2328,6 +2341,11 @@
 	}
 	dialog .slider_input_combo {
 		clear: both;
+	}
+	.form_label_compact {
+		display: block;
+		margin-bottom: -3px;
+		font-size: 0.94em;
 	}
 	.bar.button_bar_checkbox {
 		position: absolute;

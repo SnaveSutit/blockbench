@@ -2,7 +2,7 @@ import { Vue } from "./lib/libs"
 import { Blockbench } from "./api"
 import { Interface } from "./interface/interface"
 import { MenuBar } from "./interface/menu_bar"
-import { Panels, updatePanelSelector, updateSidebarOrder } from "./interface/panels"
+import { Panels, updateInterfacePanels, updatePanelSelector, updateSidebarOrder } from "./interface/panels"
 import { Prop } from "./misc"
 import { Outliner } from "./outliner/outliner"
 import { ReferenceImage } from "./preview/reference_images"
@@ -218,7 +218,13 @@ onVueSetup(function() {
 	}
 });
 
-Object.assign(window, {
+const global = {
 	Mode,
 	Modes
-});
+};
+declare global {
+	const Modes: typeof global.Modes
+	const Mode: typeof global.Mode
+}
+
+Object.assign(window, global);

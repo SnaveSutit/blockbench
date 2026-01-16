@@ -1,9 +1,11 @@
-import { Animation } from "../animations/animation";
-import { Blockbench } from "../api";
-import { THREE } from "../lib/libs";
-import { flipNameOnAxis } from "../modeling/transform";
+import { Animation } from "../../animations/animation";
+import { Blockbench } from "../../api";
+import { THREE } from "../../lib/libs";
+import { flipNameOnAxis } from "../../modeling/transform";
 import { Armature } from "./armature";
-import { Vue } from '../lib/libs'
+import { Vue } from '../../lib/libs'
+import { OutlinerElement } from "../abstract/outliner_element";
+import { OutlinerNode } from "../abstract/outliner_node";
 
 interface ArmatureBoneOptions {
 	name?: string
@@ -21,7 +23,7 @@ interface ArmatureBoneOptions {
 
 
 export class ArmatureBone extends OutlinerElement {
-	children: ArmatureBone[]
+	declare children: ArmatureBone[]
 	isOpen: boolean
 	visibility: boolean
 	origin: ArrayVector3
@@ -81,6 +83,19 @@ export class ArmatureBone extends OutlinerElement {
 		}
 		return parent as Armature;
 	}
+	getVertexWeight(mesh: Mesh, vkey: string): number {
+		let weightkey = mesh.uuid.substring(0, 6) + ':' + vkey;
+		return this.vertex_weights[weightkey] ?? this.vertex_weights[vkey] ?? 0;
+	}
+	setVertexWeight(mesh: Mesh, vkey: string, weight?: number) {
+		let weightkey = mesh.uuid.substring(0, 6) + ':' + vkey;
+		if (this.vertex_weights[vkey]) delete this.vertex_weights[vkey];
+		if (!weight || weight < 0) {
+			delete this.vertex_weights[weightkey];
+		} else {
+			this.vertex_weights[weightkey] = weight;
+		}
+	}
 	init(): this {
 		super.init();
 		if (!this.mesh || !this.mesh.parent) {
@@ -89,8 +104,9 @@ export class ArmatureBone extends OutlinerElement {
 		Canvas.updateAllBones([this]);
 		return this;
 	}
-	select(event?: Event, isOutlinerClick?: boolean): this {
-		super.select(event, isOutlinerClick);
+	select(event?: Event, isOutlinerClick?: boolean): false | this {
+		let result = super.select(event, isOutlinerClick);
+		if (result == false) return false;
 		if (Animator.open && Animation.selected) {
 			Animation.selected.getBoneAnimator(this).select(true);
 		}
@@ -211,7 +227,7 @@ export class ArmatureBone extends OutlinerElement {
 		});
 		return this;
 	}
-	getSaveCopy(project) {
+	getSaveCopy() {
 		let copy = {
 			isOpen: this.isOpen,
 			uuid: this.uuid,
@@ -224,7 +240,7 @@ export class ArmatureBone extends OutlinerElement {
 		}
 		return copy;
 	}
-	getUndoCopy() {
+	getUndoCopy(): any {
 		let copy = {
 			isOpen: this.isOpen,
 			uuid: this.uuid,
@@ -297,6 +313,7 @@ export class ArmatureBone extends OutlinerElement {
 		'set_element_marker_color',
 		"randomize_marker_colors",
 		'apply_animation_preset',
+		'add_all_to_timeline',
 		new MenuSeparator('manage'),
 		'rename',
 		'delete'
@@ -509,12 +526,23 @@ new NodePreviewController(ArmatureBone, {
 
 		this.dispatchEvent('update_transform', {element});
 	},
+	updateVisibility(element: ArmatureBone) {
+		element.mesh.visible = Modes.paint ? false : element.visibility;
+
+		this.dispatchEvent('update_visibility', {element});
+	},
 	updateSelection(element: ArmatureBone) {
 		let material = element.selected ? this.material_selected : this.material;
 		let preview_mesh = element.scene_object.children[0] as THREE.Mesh;
 		preview_mesh.material = material;
 		let outline = preview_mesh.children[0] as THREE.Line;
 		(outline.material as THREE.LineBasicMaterial).color.set(element.selected ? 0xffffff : 0x111111);
+	}
+})
+
+Blockbench.on('select_mode', (args) => {
+	for (let bone of ArmatureBone.all) {
+		ArmatureBone.preview_controller.updateVisibility(bone);
 	}
 })
 
@@ -568,7 +596,12 @@ BARS.defineActions(function() {
 	})
 })
 
-Object.assign(window, {
+const global = {
 	ArmatureBone,
 	getAllArmatureBones
-})
+};
+declare global {
+	const ArmatureBone: typeof global.ArmatureBone
+	const getAllArmatureBones: typeof global.getAllArmatureBones
+}
+Object.assign(window, global);

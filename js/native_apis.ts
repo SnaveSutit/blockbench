@@ -52,6 +52,8 @@ const REQUESTABLE_APIS = [
 	'util',
 	'os',
 	'v8',
+	'dialog',
+	'clipboard',
 ];
 const API_DESCRIPTIONS = {
 	fs: 'access and change files on your computer',
@@ -61,6 +63,7 @@ const API_DESCRIPTIONS = {
 	os: 'see information about your computer',
 	https: 'create servers and talk to other servers',
 	dialog: 'open native dialogs',
+	clipboard: 'read and write to the clipboard',
 };
 type PluginPermissions = {
 	allowed: Record<string, boolean|any>
@@ -101,7 +104,7 @@ function getModule(module_name: string, plugin_id: string, plugin: PluginOrDevTo
 	let has_permission = false;
 	if (permission === true) {
 		has_permission = true;
-	} else if (no_namespace_name == 'fs' && permission?.directories) {
+	} else if (no_namespace_name == 'fs' && permission?.directories && options2.scope) {
 		for (let directory of permission?.directories) {
 			if (options2.scope.startsWith(directory)) {
 				has_permission = true;
@@ -164,7 +167,7 @@ function getModule(module_name: string, plugin_id: string, plugin: PluginOrDevTo
 			}, 20);
 		} else if (result == Result.Deny && options.optional === false && "toggleDisabled" in plugin) {
 			setTimeout(() => {
-				plugin.toggleDisabled();
+				if (!plugin.disabled) plugin.toggleDisabled();
 			}, 20);
 		}
 		if (!(result == Result.Once || result == Result.Always)) {
@@ -179,6 +182,8 @@ function getModule(module_name: string, plugin_id: string, plugin: PluginOrDevTo
 		return createScopedFS(options2.scope);
 	} else if (no_namespace_name == 'process') {
 		return process;
+	} else if (no_namespace_name == 'clipboard') {
+		return clipboard;
 	} else if (no_namespace_name == 'dialog') {
 		let api = {};
 		for (let key in dialog) {
@@ -262,13 +267,21 @@ export function openFileInEditor(file_path: string, editor: string) {
 	}
 }
 
-Object.assign(window, {
+/**
+ * @internal
+ */
+export function openDevTools() {
+	currentwindow.webContents.openDevTools();
+}
+
+
+const global = {
+	openDevTools,
 	SystemInfo,
 	Buffer,
-});
-
-/**
- * TODO:
- * - Ensure it still works in the web app
- */
-
+};
+declare global {
+	const openDevTools: typeof global.openDevTools
+	const SystemInfo: typeof global.SystemInfo
+}
+Object.assign(window, global);

@@ -418,6 +418,7 @@ FormElement.types.range = class FormElementRange extends FormElement {
 	}
 	setValue(value: number): void {
 		this.input.value = value.toString();
+		if (this.numeric_input) this.numeric_input.value = value;
 	}
 	getDefault(): number {
 		return Math.clamp(0, this.options.min, this.options.max);
@@ -479,17 +480,18 @@ FormElement.types.text = class FormElementText extends FormElement {
 		}
 		if (this.options.type == 'password') {
 
-			bar.append(`<div class="password_toggle form_input_tool tool">
-					<i class="fas fa-eye-slash"></i>
-				</div>`)
+			let password_toggle = Interface.createElement(
+				'div',
+				{class: 'password_toggle form_input_tool tool'},
+				Blockbench.getIconNode('fas.fa-eye-slash')
+			) as HTMLDivElement;
+			bar.append(password_toggle);
 			input_element.type = 'password';
 			let hidden = true;
-			let this_bar = $(bar);
-			let this_input_element = input_element;
-			this_bar.find('.password_toggle').on('click', e => {
+			password_toggle.addEventListener('click', e => {
 				hidden = !hidden;
-				this_input_element.setAttribute('type', hidden ? 'password' : 'text');
-				this_bar.find('.password_toggle i')[0].className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+				input_element.setAttribute('type', hidden ? 'password' : 'text');
+				password_toggle.firstElementChild.className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
 			})
 		}
 		if (this.options.share_text && this.options.value) {
@@ -1030,5 +1032,9 @@ FormElement.types.file = FormElementFile;
 FormElement.types.folder = FormElementFile;
 FormElement.types.save = FormElementFile;
 
-
-Object.assign(window, {InputForm, FormElement});
+const global = {InputForm, FormElement};
+declare global {
+	const InputForm: typeof global.InputForm
+	const FormElement: typeof global.FormElement
+}
+Object.assign(window, global);

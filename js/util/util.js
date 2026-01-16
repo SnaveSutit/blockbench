@@ -1,4 +1,5 @@
 import './molang'
+import './state_memory'
 
 //Blockbench
 
@@ -596,7 +597,15 @@ export function labColorDistance(labA, labB){
 	var deltaCkcsc = deltaC / (sc);
 	var deltaHkhsh = deltaH / (sh);
 	var i = deltaLKlsl * deltaLKlsl + deltaCkcsc * deltaCkcsc + deltaHkhsh * deltaHkhsh;
-	return i < 0 ? 0 : Math.sqrt(i);}
+	return i < 0 ? 0 : Math.sqrt(i);
+}
+export function colorDistance(color1, color2) {
+	return Math.sqrt(
+		Math.pow(color2._r - color1._r, 2) +
+		Math.pow(color2._g - color1._g, 2) +
+		Math.pow(color2._b - color1._b, 2)
+	);
+}
 
 export function stringifyLargeInt(int) {
 	let string = int.toString();
@@ -677,7 +686,16 @@ export function cameraRotationToTarget(position, rotation) {
 	return vec.toArray().V3_add(position);
 }
 
-export function getDateDisplay(input_date) {
+const date_formatter = new Intl.DateTimeFormat();
+const date_time_formatter = new Intl.DateTimeFormat(undefined, {
+	year: 'numeric',
+	month: 'numeric',
+	day: 'numeric',
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit"
+});
+export function getDateDisplay(input_date, print_time = true) {
 	let date = new Date(input_date);
 	var diff = Math.floor(Blockbench.openTime / (60_000*60*24)) - Math.floor(date / (60_000*60*24));
 	let label;
@@ -690,11 +708,11 @@ export function getDateDisplay(input_date) {
 	} else if (diff <= 60) {
 		label = tl('dates.weeks_ago', [Math.ceil(diff/7)]);
 	} else {
-		label = date.toLocaleDateString();
+		label = date_formatter.format(date);
 	}
 	return {
 		short: label,
-		full: date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+		full: print_time ? date_time_formatter.format(date) : date_formatter.format(date)
 	}
 }
 

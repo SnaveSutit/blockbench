@@ -66,7 +66,7 @@ declare class Group extends OutlinerNode {
 	cem_attach?: boolean
 	cem_model?: string
 	cem_scale?: number
-	mesh: THREE.Mesh
+	mesh: THREE.Object3D
 
 	[key: string]: any
 
@@ -74,7 +74,10 @@ declare class Group extends OutlinerNode {
 
 	extend(options: Partial<GroupOptions>): this
 	selectChildren(event: Event): this
-	selectLow(highlight: boolean): this
+	/**
+	 * Mark the group as selected
+	 */
+	markAsSelected(descendants?: boolean): void
 	select(event?: any, isOutlinerClick?: boolean): this
 	unselect(): this
 	matchesSelection(): boolean

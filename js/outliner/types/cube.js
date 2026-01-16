@@ -1,4 +1,5 @@
-import { Property } from "../util/property";
+import { Property } from "../../util/property";
+import { Face } from "../abstract/face";
 
 export class CubeFace extends Face {
 	constructor(direction, data, cube) {
@@ -217,24 +218,7 @@ export class Cube extends OutlinerElement {
 			Merge.number(this.stretch, object.stretch, 1)
 			Merge.number(this.stretch, object.stretch, 2)
 		}
-		if (typeof object.rotation === 'object' && object.rotation.constructor.name === 'Object') {
-			if (object.rotation.angle && object.rotation.axis) {
-				var axis = getAxisNumber(object.rotation.axis)
-				if (axis >= 0) {
-					this.rotation.V3_set(0)
-					this.rotation[axis] = object.rotation.angle
-				}
-			}
-			if (object.rotation.origin) {
-				Merge.number(this.origin, object.rotation.origin, 0)
-				Merge.number(this.origin, object.rotation.origin, 1)
-				Merge.number(this.origin, object.rotation.origin, 2)
-			}
-			Merge.boolean(this, object.rotation, 'rescale')
-			if (typeof object.rotation.axis === 'string') {
-				this.rotation_axis = object.rotation.axis
-			}
-		} else if (object.rotation) {
+		if (object.rotation instanceof Array) {
 			Merge.number(this.rotation, object.rotation, 0)
 			Merge.number(this.rotation, object.rotation, 1)
 			Merge.number(this.rotation, object.rotation, 2)
@@ -354,7 +338,7 @@ export class Cube extends OutlinerElement {
 		copy.type = this.type;
 		return copy;
 	}
-	getSaveCopy(project) {
+	getSaveCopy() {
 		var el = {}
 		
 		for (var key in Cube.properties) {
@@ -377,7 +361,7 @@ export class Cube extends OutlinerElement {
 		if (!this.uv_offset.allEqual(0)) el.uv_offset = this.uv_offset;
 		el.faces = {}
 		for (var face in this.faces) {
-			el.faces[face] = this.faces[face].getSaveCopy(project)
+			el.faces[face] = this.faces[face].getSaveCopy()
 		}
 		el.type = this.type;
 		el.uuid = this.uuid;
@@ -703,48 +687,50 @@ export class Cube extends OutlinerElement {
 		this.preview_controller.updateFaces(this);
 		this.preview_controller.updateUV(this);
 	}
-	mapAutoUV() {
+	mapAutoUV(options = {}) {
 		if (this.box_uv) return;
 		var scope = this;
-		var pw = Project.texture_width;
-		var ph = Project.texture_height;
 		if (scope.autouv === 2) {
 			//Relative UV
 			var all_faces = ['north', 'south', 'west', 'east', 'up', 'down']
 			let offset = Format.centered_grid ? 8 : 0;
 			all_faces.forEach(function(side) {
 				var uv = scope.faces[side].uv.slice()
+				let texture = scope.faces[side].getTexture();
+				let uv_width = Project.getUVWidth(texture);
+				let uv_height = Project.getUVHeight(texture);
+
 				switch (side) {
 					case 'north':
 					uv = [
-						pw - (scope.to[0]+offset),
-						ph - scope.to[1],
-						pw - (scope.from[0]+offset),
-						ph - scope.from[1],
+						uv_width - (scope.to[0]+offset),
+						uv_height - scope.to[1],
+						uv_width - (scope.from[0]+offset),
+						uv_height - scope.from[1],
 					];
 					break;
 					case 'south':
 					uv = [
 						(scope.from[0]+offset),
-						ph - scope.to[1],
+						uv_height - scope.to[1],
 						(scope.to[0]+offset),
-						ph - scope.from[1],
+						uv_height - scope.from[1],
 					];
 					break;
 					case 'west':
 					uv = [
 						(scope.from[2]+offset),
-						ph - scope.to[1],
+						uv_height - scope.to[1],
 						(scope.to[2]+offset),
-						ph - scope.from[1],
+						uv_height - scope.from[1],
 					];
 					break;
 					case 'east':
 					uv = [
-						pw - (scope.to[2]+offset),
-						ph - scope.to[1],
-						pw - (scope.from[2]+offset),
-						ph - scope.from[1],
+						uv_width - (scope.to[2]+offset),
+						uv_height - scope.to[1],
+						uv_width - (scope.from[2]+offset),
+						uv_height - scope.from[1],
 					];
 					break;
 					case 'up':
@@ -758,80 +744,99 @@ export class Cube extends OutlinerElement {
 					case 'down':
 					uv = [
 						(scope.from[0]+offset),
-						ph - (scope.to[2]+offset),
+						uv_height - (scope.to[2]+offset),
 						(scope.to[0]+offset),
-						ph - (scope.from[2]+offset),
+						uv_height - (scope.from[2]+offset),
 					];
 					break;
 				}
 				// Clamp to UV map boundaries
-				if (Math.max(uv[0], uv[2]) > Project.texture_width) {
-					let offset = Math.max(uv[0], uv[2]) - Project.texture_width;
+				if (Math.max(uv[0], uv[2]) > uv_width) {
+					let offset = Math.max(uv[0], uv[2]) - uv_width;
 					uv[0] -= offset;
 					uv[2] -= offset;
 				}
 				if (Math.min(uv[0], uv[2]) < 0) {
 					let offset = Math.min(uv[0], uv[2]);
-					uv[0] = Math.clamp(uv[0] - offset, 0, Project.texture_width);
-					uv[2] = Math.clamp(uv[2] - offset, 0, Project.texture_width);
+					uv[0] = Math.clamp(uv[0] - offset, 0, uv_width);
+					uv[2] = Math.clamp(uv[2] - offset, 0, uv_width);
 				}
-				if (Math.max(uv[1], uv[3]) > Project.texture_height) {
-					let offset = Math.max(uv[1], uv[3]) - Project.texture_height;
+				if (Math.max(uv[1], uv[3]) > uv_height) {
+					let offset = Math.max(uv[1], uv[3]) - uv_height;
 					uv[1] -= offset;
 					uv[3] -= offset;
 				}
 				if (Math.min(uv[1], uv[3]) < 0) {
 					let offset = Math.min(uv[1], uv[3]);
-					uv[1] = Math.clamp(uv[1] - offset, 0, Project.texture_height);
-					uv[3] = Math.clamp(uv[3] - offset, 0, Project.texture_height);
+					uv[1] = Math.clamp(uv[1] - offset, 0, uv_height);
+					uv[3] = Math.clamp(uv[3] - offset, 0, uv_height);
 				}
 				scope.faces[side].uv = uv;
 			})
 			scope.preview_controller.updateUV(scope)
 		} else if (scope.autouv === 1) {
 
-			function calcAutoUV(face, size) {
+			function calcAutoUV(fkey, dimension_axes, world_directions) {
+				let size = dimension_axes.map(axis => scope.size(axis));
+				let face = scope.faces[fkey];
 				size[0] = Math.abs(size[0]);
 				size[1] = Math.abs(size[1]);
-				var sx = scope.faces[face].uv[0];
-				var sy = scope.faces[face].uv[1];
-				var rot = scope.faces[face].rotation;
+				let sx = face.uv[0];
+				let sy = face.uv[1];
+				let previous_size = face.uv_size;
+				let rot = face.rotation;
+
+				let texture = face.getTexture();
+				let uv_width = Project.getUVWidth(texture);
+				let uv_height = Project.getUVHeight(texture);
 
 				//Match To Rotation
 				if (rot === 90 || rot === 270) {
 					size.reverse()
+					dimension_axes.reverse()
+					world_directions.reverse()
+				}
+				if (rot == 180) {
+					world_directions[0] *= -1;
+					world_directions[1] *= -1;
 				}
 				//Limit Input to 16
-				size[0] = Math.clamp(size[0], -Project.texture_width, Project.texture_width)
-				size[1] = Math.clamp(size[1], -Project.texture_height, Project.texture_height)
+				size[0] = Math.clamp(size[0], -uv_width, uv_width) * (Math.sign(previous_size[0]) || 1);
+				size[1] = Math.clamp(size[1], -uv_height, uv_height) * (Math.sign(previous_size[1]) || 1);
 
-				//Calculate End Points
-				var x = sx + size[0]
-				var y = sy + size[1]
-				//Prevent Over 16
-				if (x > Project.texture_width) {
-					sx = Project.texture_width - (x - sx)
-					x = Project.texture_width
+				if (options && typeof options.axis == 'number') {
+					if (options.axis == dimension_axes[0] && options.direction == world_directions[0]) {
+						sx += previous_size[0] - size[0];
+					}
+					if (options.axis == dimension_axes[1] && options.direction == world_directions[1]) {
+						sy += previous_size[1] - size[1];
+					}
 				}
-				if (y > Project.texture_height) {
-					sy = Project.texture_height - (y - sy)
-					y = Project.texture_height
-				}
+
 				//Prevent Negative
 				if (sx < 0) sx = 0
 				if (sy < 0) sy = 0
-				//Prevent Mirroring
-				if (x < sx) x = sx
-				if (y < sy) y = sy
+				//Calculate End Points
+				let endx = sx + size[0];
+				let endy = sy + size[1];
+				//Prevent overflow
+				if (endx > uv_width) {
+					sx = uv_width - (endx - sx)
+					endx = uv_width
+				}
+				if (endy > uv_height) {
+					sy = uv_height - (endy - sy)
+					endy = uv_height
+				}
 				//Return
-				return [sx, sy, x, y]
+				return [sx, sy, endx, endy]
 			}
-			scope.faces.north.uv = calcAutoUV('north', [scope.size(0), scope.size(1)])
-			scope.faces.east.uv =  calcAutoUV('east',  [scope.size(2), scope.size(1)])
-			scope.faces.south.uv = calcAutoUV('south', [scope.size(0), scope.size(1)])
-			scope.faces.west.uv =  calcAutoUV('west',  [scope.size(2), scope.size(1)])
-			scope.faces.up.uv =	   calcAutoUV('up',	   [scope.size(0), scope.size(2)])
-			scope.faces.down.uv =  calcAutoUV('down',  [scope.size(0), scope.size(2)])
+			scope.faces.north.uv = calcAutoUV('north', [0, 1], [1, 1]);
+			scope.faces.east.uv =  calcAutoUV('east',  [2, 1], [1, 1]);
+			scope.faces.south.uv = calcAutoUV('south', [0, 1], [-1, 1]);
+			scope.faces.west.uv =  calcAutoUV('west',  [2, 1], [-1, 1]);
+			scope.faces.up.uv =	   calcAutoUV('up',	   [0, 2], [-1, -1]);
+			scope.faces.down.uv =  calcAutoUV('down',  [0, 2], [-1, 1]);
 
 			scope.preview_controller.updateUV(scope)
 		}
@@ -919,7 +924,7 @@ export class Cube extends OutlinerElement {
 		if (Format.cube_size_limiter && !settings.deactivate_size_limit.value) {
 			Format.cube_size_limiter.clamp(this, {}, axis, bidirectional ? null : !!negative);
 		}
-		this.mapAutoUV();
+		this.mapAutoUV({axis, direction: bidirectional ? 0 : (negative ? -1 : 1)});
 		if (this.box_uv) {
 			if (axis == 2) {
 				let difference = before - this.size(axis);
@@ -1007,6 +1012,7 @@ export class Cube extends OutlinerElement {
 			return arr;
 		}},
 		'edit_material_instances',
+		'element_render_order',
 		new MenuSeparator('manage'),
 		'rename',
 		'toggle_visibility',
@@ -1042,7 +1048,7 @@ new Property(Cube, 'enum', 'render_order', {
 	}
 });
 new Property(Cube, 'boolean', 'rescale', {
-	condition: () => Format.rotation_limit,
+	condition: {features: ['java_cube_shading_properties']},
 	inputs: {
 		element_panel: {
 			input: {label: 'cube.rescale', description: 'cube.rescale.desc', type: 'checkbox'},
@@ -1134,10 +1140,12 @@ new NodePreviewController(Cube, {
 		let mesh = element.mesh;
 
 		if (Format.rotate_cubes && element.rescale === true) {
-			let axis = element.rotationAxis()||'y';
-			let rescale = getRescalingFactor(element.rotation[getAxisNumber(axis)]);
-			mesh.scale.set(rescale, rescale, rescale);
-			mesh.scale[axis] = 1;
+			let rescale = element.rotation.map(angle => getRescalingFactor(angle));
+			mesh.scale.set(
+				rescale[1] * rescale[2],
+				rescale[0] * rescale[2],
+				rescale[0] * rescale[1],
+			)
 		} else {
 			mesh.scale.set(1, 1, 1);
 		}

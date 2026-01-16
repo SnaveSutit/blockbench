@@ -15,6 +15,7 @@ export function getSelectionCenter(all = false) {
 		elements = elements.concat(Group.multi_selected);
 	}
 	elements.forEach(element => {
+		if (element instanceof Group && !Format.bone_rig) return;
 		if (element.getWorldCenter) {
 			var pos = element.getWorldCenter();
 			min[0] = Math.min(pos.x, min[0]);	max[0] = Math.max(pos.x, max[0]);
@@ -224,7 +225,12 @@ export function mirrorSelected(axis) {
 		Animator.preview();
 
 	} else if (Modes.edit && (Outliner.selected.length || Group.first_selected)) {
-		Undo.initEdit({elements: selected, outliner: Format.bone_rig || Group.first_selected, selection: true})
+		Undo.initEdit({
+			elements: Outliner.selected,
+			groups: Format.bone_rig ? Group.all.filter(g => g.selected) : undefined,
+			outliner: Format.bone_rig || Group.first_selected,
+			selection: true
+		});
 		let center = Format.centered_grid ? 0 : 8;
 		if (Format.bone_rig) {
 			for (let group of Group.multi_selected) {
@@ -236,14 +242,14 @@ export function mirrorSelected(axis) {
 							group.rotation[i] *= -1
 						}
 					}
-					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group._original_name);
+					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group.old_name);
 					Canvas.updateAllBones([group]);
 				}
 				flipGroup(group);
 				group.forEachChild(flipGroup, Group);
 			}
 		}
-		selected.forEach(function(obj) {
+		Outliner.selected.forEach(function(obj) {
 			if (obj instanceof Mesh) {
 				obj.flipSelection(axis, center, false);
 			} else {
@@ -272,6 +278,7 @@ export function centerElements(axis, update) {
 	})
 	Group.all.forEach(group => {
 		if (!group.selected) return;
+		if (!Format.bone_rig && Outliner.selected.length) return;
 		group.origin[axis] += difference;
 	})
 	Canvas.updateView({
@@ -323,14 +330,14 @@ export function moveElementsInSpace(difference, axis) {
 					g.origin[axis] += difference
 				}, Group, true)
 			}
+			Group.preview_controller.updateTransform(group);
 		}
-		Canvas.updateAllBones(Group.multi_selected);
 	}
 
 	Outliner.selected.forEach(el => {
 
 		if (el.getTypeBehavior('movable') == false) return;
-		if (!el.getTypeBehavior('use_absolute_position') && el.parent?.selected && el.parent.getTypeBehavior('movable')) {
+		if (!el.getTypeBehavior('use_absolute_position') && el.parent?.selected && el.parent.getTypeBehavior('movable') && !el.parent.getTypeBehavior('use_absolute_position')) {
 			return;
 		}
 
@@ -476,7 +483,7 @@ export function moveElementsInSpace(difference, axis) {
 				}
 			}
 		}
-		if (el instanceof Cube) {
+		if (el instanceof Cube && el.autouv == 2) {
 			el.mapAutoUV()
 		}
 		if (el instanceof SplineMesh && BarItems.spline_selection_mode.value == "handles") {
@@ -519,9 +526,12 @@ export function getRotationInterval(event) {
 	}
 }
 export function getRotationObjects() {
-	if (Format.bone_rig && Group.first_selected) return Group.multi_selected;
+	if (Format.bone_rig && Group.first_selected) return Group.multi_selected.filter(g => !g.parent?.selected);
 	let elements = Outliner.selected.filter(element => {
-		return element.getTypeBehavior('rotatable') && (element instanceof Cube == false || Format.rotate_cubes);
+		if (!element.getTypeBehavior('rotatable')) return false;
+		if (!(element instanceof Cube == false || Format.rotate_cubes)) return false;
+		if (element.parent instanceof OutlinerElement && element.parent.selected) return false;
+		return true;
 	})
 	if (elements.length) return elements;
 }
@@ -545,10 +555,11 @@ export function rotateOnAxis(modify, axis, slider) {
 			) {
 				i = Infinity
 
+				let format_version_message = 'You can also switch to a newer format version in your project settings if you are targeting Minecraft 1.21.11 or newer.';
 				Blockbench.showMessageBox({
 					title: tl('message.rotation_limit.title'),
 					icon: 'rotate_right',
-					message: tl('message.rotation_limit.message'),
+					message: tl('message.rotation_limit.message') + '\n\n' + format_version_message,
 					checkboxes: {
 						dont_show_again: {value: false, text: 'dialog.dontshowagain'}
 					}
@@ -722,7 +733,7 @@ BARS.defineActions(function() {
 		condition: {
 			modes: ['edit', 'animate'],
 			tools: ['move_tool', 'resize_tool'],
-			method: () => !(Toolbox && Toolbox.selected.id === 'resize_tool' && (Mesh.all.length === 0 || SplineMesh.all.length === 0))
+			method: () => !(Toolbox && Toolbox.selected.id === 'resize_tool' && (Mesh.all.length === 0 && SplineMesh.all.length === 0))
 		},
 		category: 'transform',
 		value: 'parent',
@@ -960,7 +971,7 @@ BARS.defineActions(function() {
 		description: tl('action.slider_size.desc', ['Z']),
 		color: 'z',
 		category: 'transform',
-		condition: () => (Outliner.selected[0] && (Outliner.selected[0].getTypeBehavior('resizable') || Outliner.selected[0].getTypeBehavior('scalable')) && Modes.edit),
+		condition: () => (Outliner.selected[0] && (Outliner.selected[0].getTypeBehavior('resizable') || Outliner.selected[0].getTypeBehavior('scalable')) && !(Outliner.selected[0] instanceof Billboard) && Modes.edit),
 		getInterval: getSpatialInterval,
 		get: function() {
 			if (Outliner.selected[0].getTypeBehavior('scalable')) {
@@ -1041,9 +1052,10 @@ BARS.defineActions(function() {
 		name: tl('action.slider_stretch', ['X']),
 		description: tl('action.slider_stretch.desc', ['X']),
 		color: 'x',
+		settings: {default: 1},
 		category: 'transform',
 		condition: function() {return Format.stretch_cubes && Cube.selected.length && Modes.edit},
-		getInterval: getSpatialInterval,
+		getInterval: event => getSpatialInterval(event) / 8,
 		get: function() {
 			return Cube.selected[0].stretch[0]
 		},
@@ -1074,9 +1086,10 @@ BARS.defineActions(function() {
 		name: tl('action.slider_stretch', ['Y']),
 		description: tl('action.slider_stretch.desc', ['Y']),
 		color: 'y',
+		settings: {default: 1},
 		category: 'transform',
 		condition: function() {return Format.stretch_cubes && Cube.selected.length && Modes.edit},
-		getInterval: getSpatialInterval,
+		getInterval: event => getSpatialInterval(event) / 8,
 		get: function() {
 			return Cube.selected[0].stretch[1]
 		},
@@ -1107,9 +1120,10 @@ BARS.defineActions(function() {
 		name: tl('action.slider_stretch', ['Z']),
 		description: tl('action.slider_stretch.desc', ['Z']),
 		color: 'z',
+		settings: {default: 1},
 		category: 'transform',
 		condition: function() {return Format.stretch_cubes && Cube.selected.length && Modes.edit},
-		getInterval: getSpatialInterval,
+		getInterval: event => getSpatialInterval(event) / 8,
 		get: function() {
 			return Cube.selected[0].stretch[2]
 		},

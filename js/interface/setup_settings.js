@@ -1,3 +1,4 @@
+import { AutoBackup } from "../auto_backup";
 import { changeImageEditor } from "../desktop";
 import { currentwindow } from "../native_apis";
 import { Setting, Settings, SettingsProfile } from "./settings";
@@ -46,6 +47,9 @@ function setupSettings() {
 	}});
 	new Setting('status_bar_modifier_keys', {category: 'interface', value: true, condition: !Blockbench.isTouch, onChange(value) {
 		Interface.status_bar.vue.show_modifier_keys = value;
+	}});
+	new Setting('status_bar_transform_sliders', {category: 'interface', value: true, condition: Blockbench.isTouch, onChange(value) {
+		updateInterface();
 	}});
 	new Setting('always_show_splash_art',{category: 'interface', value: true});
 	new Setting('origin_size',  		{category: 'interface', value: 10, type: 'number', min: 2, max: 40});
@@ -176,18 +180,19 @@ function setupSettings() {
 			Interface.Panels.color.vue.picker_type = value;
 		}
 	});
-	new Setting('brush_cursor_2d',			{category: 'paint', value: true});
-	new Setting('brush_cursor_3d',			{category: 'paint', value: true, onChange(value) {
+	new Setting('brush_cursor_2d',					{category: 'paint', value: true});
+	new Setting('brush_cursor_3d',					{category: 'paint', value: true, onChange(value) {
 		if (!value) scene.remove(Canvas.brush_outline);
 	}});
-	new Setting('outlines_in_paint_mode',		{category: 'paint', value: true});
-	new Setting('move_with_selection_tool',		{category: 'paint', value: true});
-	new Setting('pick_color_opacity',			{category: 'paint', value: false});
-	new Setting('pick_combined_color',			{category: 'paint', value: false});
-	new Setting('paint_through_transparency',	{category: 'paint', value: true});
-	new Setting('paint_side_restrict',			{category: 'paint', value: true});
-	new Setting('paint_with_stylus_only',		{category: 'paint', value: false});
-	new Setting('brush_opacity_modifier',		{category: 'paint', value: 'none', type: 'select', options: {
+	new Setting('outlines_in_paint_mode',			{category: 'paint', value: true});
+	new Setting('move_with_selection_tool',			{category: 'paint', value: true});
+	new Setting('pick_color_opacity',				{category: 'paint', value: false});
+	new Setting('pick_combined_color',				{category: 'paint', value: false});
+	new Setting('paint_through_transparency',		{category: 'paint', value: true});
+	new Setting('paint_side_restrict',				{category: 'paint', value: true});
+	new Setting('limit_brush_opacity_per_stroke',	{category: 'paint', value: true});
+	new Setting('paint_with_stylus_only',			{category: 'paint', value: false});
+	new Setting('brush_opacity_modifier',			{category: 'paint', value: 'none', type: 'select', options: {
 		'pressure': tl('settings.brush_modifier.pressure'),
 		'tilt': tl('settings.brush_modifier.tilt'),
 		'none': tl('settings.brush_modifier.none'),
@@ -247,6 +252,15 @@ function setupSettings() {
 	new Setting('create_rename', 					{category: 'defaults', value: false});
 	new Setting('show_only_selected_uv', 			{category: 'defaults', value: false});
 	new Setting('default_path', 					{category: 'defaults', value: false, type: 'click', condition: isApp, icon: 'burst_mode', click: function() { openDefaultTexturePath() }});
+	new Setting('default_bedrock_format',			{category: 'defaults', type: 'select', value: 'entity', options: {
+		entity: 'format.bedrock',
+		block: 'format.bedrock_block',
+	}});
+	new Setting('default_java_block_version',		{category: 'defaults', type: 'select', value: 'latest', options: {
+		latest: 'Latest',
+		'1.21.6': '1.21.6 - 1.21.10',
+		'1.9.0': '1.9 - 1.21.5',
+	}});
 	new Setting('animation_snap',					{category: 'defaults', value: 24, type: 'number'});
 	new Setting('default_keyframe_interpolation',	{category: 'defaults', value: 'linear', type: 'select', options: {
 		linear: 'action.keyframe_interpolation.linear',

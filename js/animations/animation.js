@@ -2,6 +2,7 @@ import { Blockbench } from "../api";
 import { Filesystem } from "../file_system";
 import { openMolangEditor } from "./molang_editor";
 import { clipboard, currentwindow, dialog, fs, ipcRenderer } from "../native_apis";
+import { invertMolang } from "../util/molang";
 
 export class AnimationItem {
 	constructor() {}
@@ -215,6 +216,8 @@ export class Animation extends AnimationItem {
 								let value = [0, 1, 2].map(axis => {
 									return kf.getBezierLerp(kf, next_keyframe, getAxisLetter(axis), lerp);
 								})
+								if (channel == 'position' || channel == 'rotation') value[0] = -value[0];
+								if (channel == 'rotation') value[1] = -value[1];
 								interpolated_values[itimecode] = value;
 							}
 							// Optimize data
@@ -268,6 +271,8 @@ export class Animation extends AnimationItem {
 				if (!timecode.includes('.')) {
 					timecode += '.0';
 				}
+				rotation.array[0] = invertMolang(rotation.array[0]);
+				rotation.array[1] = invertMolang(rotation.array[1]);
 				bone_tag.rotation[timecode] = rotation.array;
 			})
 		}
@@ -572,7 +577,8 @@ export class Animation extends AnimationItem {
 		} else if (!group) {
 			return;
 		}
-		var uuid = group.uuid
+		if (!group.constructor.animator) return;
+		var uuid = group.uuid;
 		if (!this.animators[uuid]) {
 			let match;
 			for (let uuid2 in this.animators) {
@@ -898,16 +904,20 @@ export class Animation extends AnimationItem {
 			id: 'reload',
 			name: 'menu.animation.reload',
 			icon: 'refresh',
-			condition: (animation) => (Format.animation_files && isApp && animation.saved),
+			condition: (animation) => (Format.animation_files && Format.id.includes('bedrock') && isApp && animation.saved),
 			click(animation) {
 				Blockbench.read([animation.path], {}, ([file]) => {
 					Undo.initEdit({animations: [animation]})
 					let anim_index = Animation.all.indexOf(animation);
 					animation.remove(false, false);
 					let [new_animation] = Animator.loadFile(file, [animation.name]);
-					Animation.all.remove(new_animation);
-					Animation.all.splice(anim_index, 0, new_animation);
-					Undo.finishEdit('Reload animation', {animations: [new_animation]})
+					if (new_animation) {
+						Animation.all.remove(new_animation);
+						Animation.all.splice(anim_index, 0, new_animation);
+						Undo.finishEdit('Reload animation', {animations: [new_animation]})
+					} else {
+						Undo.cancelEdit();
+					}
 				})
 			}
 		},
@@ -1001,7 +1011,7 @@ export class Animation extends AnimationItem {
 	])
 	new Property(Animation, 'boolean', 'saved', {default: true, condition: () => Format.animation_files})
 	new Property(Animation, 'string', 'path', {condition: () => isApp && Format.animation_files})
-	new Property(Animation, 'string', 'group_name', {condition: () => !Format.animation_files})
+	new Property(Animation, 'string', 'group_name', {condition: () => Format.animation_grouping == 'custom'})
 	new Property(Animation, 'molang', 'anim_time_update', {default: ''});
 	new Property(Animation, 'molang', 'blend_weight', {default: ''});
 	new Property(Animation, 'molang', 'start_delay', {default: ''});
@@ -1179,7 +1189,7 @@ BARS.defineActions(function() {
 		condition: {modes: ['animate']},
 		click: function () {
 			new Animation({
-				name: Format.animation_files ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
+				name: Format.id.includes('bedrock') ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
 				saved: false
 			}).add(true).propertiesDialog()
 
@@ -1188,7 +1198,7 @@ BARS.defineActions(function() {
 	new Action('create_animation_group', {
 		icon: 'create_new_folder',
 		category: 'animation',
-		condition: {modes: ['animate'], selected: {animation: true}},
+		condition: {modes: ['animate'], selected: {animation: true}, method: () => Format.animation_grouping == 'custom'},
 		click: async function () {
 			let name = await Blockbench.textPrompt('Group Name', 'Animation Group');
 			if (!name) return;
@@ -1444,7 +1454,6 @@ BARS.defineActions(function() {
 						}
 					})
 					animation.setLength(initial_length / speed);
-					TickUpdates.keyframes = true;
 					Animator.preview();
 				},
 				onConfirm(result) {
@@ -1661,10 +1670,11 @@ BARS.defineActions(function() {
 						if (!animator[channel]?.length) continue;
 						if (!animator.channels[channel].transform) continue;
 						let first = animator[channel][0];
+						let expected = +(channel === "scale");
 						// todo: add data points
 						if (animator[channel].length == 1 && first.data_points.length == 1 && (response.selection != 'selected_keyframes' || first.selected)) {
 							let value = first.getArray();
-							if (!value[0] && !value[1] && !value[2]) {
+							if (value.allAre(v => v === expected)) {
 								first.remove();
 								continue;
 							}
@@ -1728,7 +1738,7 @@ BARS.defineActions(function() {
 									}
 								}
 							} else if (!prev && !next) {
-								if (d_kf.allAre(val => !val)) {
+								if (d_kf.allAre(val => val === expected)) {
 									remove = true;
 								} else {
 									kf.time = 0;
@@ -1947,6 +1957,7 @@ Interface.definePanels(function() {
 				animations: Animation.all,
 				animation_controllers: AnimationController.all,
 				files_folded: {},
+				animation_files: true,
 				group_animations_by_file: true,
 				search_enabled: false,
 				search_term: '',
@@ -2274,7 +2285,7 @@ Interface.definePanels(function() {
 									{{ common_controller_namespace ? animation.name.split(common_controller_namespace).join('') : animation.name }}
 									<span v-if="common_controller_namespace"> - {{ animation.name }}</span>
 								</label>
-								<div v-if="group_animations_by_file" class="in_list_button" v-bind:class="{unclickable: animation.saved}" @click.stop="animation.save()" title="${tl('menu.animation.save')}">
+								<div v-if="animation_files" class="in_list_button" v-bind:class="{unclickable: animation.saved}" @click.stop="animation.save()" title="${tl('menu.animation.save')}">
 									<i v-if="animation.saved" class="material-icons">check_circle</i>
 									<i v-else class="material-icons">save</i>
 								</div>

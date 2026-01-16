@@ -36,6 +36,9 @@ export class CanvasFrame {
 	}
 	async loadFromURL(url: string) {
 		let img = new Image()
+		if (!isApp && url.startsWith('https')) {
+			img.crossOrigin = "blockbench.net";
+		}
 		img.src = url.replace(/#/g, '%23');
 		await new Promise<void>((resolve, reject) => {
 			img.onload = () => {
@@ -120,4 +123,10 @@ export class CanvasFrame {
 	}
 }
 
-Object.assign(window, {CanvasFrame});
+const global = {
+	CanvasFrame
+};
+declare global {
+	const CanvasFrame: typeof global.CanvasFrame
+}
+Object.assign(window, global);

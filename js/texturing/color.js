@@ -1,14 +1,8 @@
 import { Blockbench } from "../api";
 import { ipcRenderer } from "../native_apis";
+import { colorDistance } from "../util/util";
 import ColorPickerNormal from "./ColorPickerNormal.vue";
 
-function colorDistance(color1, color2) {
-	return Math.sqrt(
-		Math.pow(color2._r - color1._r, 2) +
-		Math.pow(color2._g - color1._g, 2) +
-		Math.pow(color2._b - color1._b, 2)
-	);
-}
 //
 StateMemory.init('color_palettes', 'array')
 
@@ -110,7 +104,7 @@ export const ColorPanel = {
 	},
 	saveLocalStorages() {
 		localStorage.setItem('colors', JSON.stringify({
-			palette: ColorPanel.panel.vue._data.palette,
+			palette: ColorPanel.palette,
 			history: ColorPanel.panel.vue._data.history,
 		}))
 	},
@@ -496,8 +490,9 @@ SharedActions.add('delete', {
 			Blockbench.showQuickMessage('message.palette_locked');
 			return;
 		}
-		if (ColorPanel.panel.vue.palette.includes(ColorPanel.panel.vue.selected_color)) {
-			ColorPanel.panel.vue.palette.remove(ColorPanel.panel.vue.selected_color)
+		if (ColorPanel.palette.includes(ColorPanel.panel.vue.selected_color)) {
+			ColorPanel.palette.remove(ColorPanel.panel.vue.selected_color);
+			ColorPanel.saveLocalStorages();
 		}
 	}
 })
@@ -547,7 +542,7 @@ Interface.definePanels(() => {
 				}
 				this.vue.$refs.square_picker.style.display = disp_before;
 				Vue.nextTick(() => {
-					$('#main_colorpicker').spectrum('reflow');
+					Panels.color.picker.spectrum('reflow');
 				})
 			})
 		},
@@ -657,7 +652,7 @@ Interface.definePanels(() => {
 						this.second_color_selected = !!secondary;
 						Object.assign(this.hsv, ColorPanel.hexToHsv(this.selected_color));
 						this.updateSliders();
-						$('#main_colorpicker').spectrum('set', this.selected_color);
+						Panels.color.picker.spectrum('set', this.selected_color);
 						this.text_input = this.selected_color;
 					}
 				},
@@ -682,7 +677,7 @@ Interface.definePanels(() => {
 							Object.assign(this.hsv, ColorPanel.hexToHsv(value));
 						}
 						this.updateSliders()
-						$('#main_colorpicker').spectrum('set', value);
+						Panels.color.picker.spectrum('set', value);
 						this.text_input = value;
 						this.editing_hsv = false;
 					}
@@ -695,7 +690,7 @@ Interface.definePanels(() => {
 							Object.assign(this.hsv, ColorPanel.hexToHsv(value));
 						}
 						this.updateSliders()
-						$('#main_colorpicker').spectrum('set', value);
+						Panels.color.picker.spectrum('set', value);
 						this.text_input = value;
 						this.editing_hsv = false;
 					}
@@ -771,6 +766,8 @@ Interface.definePanels(() => {
 			attached_index: 1,
 			sidebar_index: 5,
 		},
+		growable: true,
+		resizable: true,
 		toolbars: [
 			new Toolbar('palette', {
 				children: [
@@ -823,6 +820,7 @@ Interface.definePanels(() => {
 				sort(event) {
 					var item = this.palette.splice(event.oldIndex, 1)[0];
 					this.palette.splice(event.newIndex, 0, item);
+					ColorPanel.saveLocalStorages();
 				},
 				drop(event) {
 				},
@@ -957,7 +955,7 @@ BARS.defineActions(function() {
 		click: function () {
 			let content = 'GIMP Palette\nName: Blockbench palette\nColumns: 10\n';
 			ColorPanel.palette.forEach(color => {
-				t = new tinycolor(color);
+				let t = new tinycolor(color);
 				content += `${t._r}\t${t._g}\t${t._b}\t${color}\n`;
 			})
 			Blockbench.export({
