@@ -2597,10 +2597,9 @@ Interface.definePanels(function() {
 
 					if (!active || Menu.open) return;
 
-					//await new Promise(r => setTimeout(r, 10));
-
-					Blockbench.removeFlag('dragging_textures');
-
+					setTimeout(() => {
+						Blockbench.removeFlag('dragging_textures');
+					}, 10);
 
 					if (isNodeUnderCursor(Interface.preview, e2)) {
 						let data = Canvas.raycast(e2)
@@ -2630,6 +2629,8 @@ Interface.definePanels(function() {
 						}
 					} else if (isNodeUnderCursor(document.getElementById('texture_list'), e2)) {
 
+						let selected_textures = Texture.all.filter(t => t.selected || t.multi_selected);
+
 						let index = Texture.all.length-1;
 						let texture_node = findNodeUnderCursor('#texture_list li.texture', e2);
 						let target_group_head = findNodeUnderCursor('#texture_list .texture_group_head', e2);
@@ -2640,17 +2641,21 @@ Interface.definePanels(function() {
 						} else if (texture_node) {
 							let target_tex = Texture.all.findInArray('uuid', texture_node.getAttribute('texid'));
 							index = Texture.all.indexOf(target_tex);
-							let own_index = Texture.all.indexOf(texture)
-							if (own_index == index) return;
+							let own_index = Texture.all.indexOf(selected_textures[0])
+							if (own_index == index && selected_textures.length == 1) return;
 							let offset = e2.clientY - $(texture_node).offset().top;
-							if (own_index < index) index--;
 							if (offset > 24) index++;
 							new_group = target_tex.group;
 						}
-						Undo.initEdit({texture_order: true, textures: texture.group != new_group ? [texture] : null});
-						Texture.all.remove(texture);
-						Texture.all.splice(index, 0, texture);
-						texture.group = new_group;
+						let track_group_changes = selected_textures.some(t => t.group != new_group);
+						Undo.initEdit({texture_order: true, textures: track_group_changes ? selected_textures : null});
+						let item_at_index = Texture.all[index];
+						selected_textures.forEach(t => Texture.all.remove(t));
+						index = item_at_index ? Texture.all.indexOf(item_at_index) : index;
+						selected_textures.forEach((texture, i) => {
+							Texture.all.splice(index+i, 0, texture);
+							texture.group = new_group;
+						});
 						Canvas.updateLayeredTextures();
 						Undo.finishEdit('Rearrange textures');
 
