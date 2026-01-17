@@ -454,7 +454,7 @@ declare global {
 	interface ToolOptions extends ActionOptions {
 		selectFace?: boolean
 		selectElements?: boolean
-		transformerMode?: 'translate' | ''
+		transformerMode?: 'translate' | 'hidden' | ''
 		animation_channel?: string
 		toolbar?: string
 		alt_tool?: string
@@ -462,6 +462,10 @@ declare global {
 		allowed_view_modes?: ViewMode
 		paintTool?: boolean
 		brush?: BrushOptions
+		onCanvasClick?(raycast_data: any): void
+		onSelect?(): void
+		onUnselect?(): void
+		click?(): void
 	}
 	interface WidgetOptions extends BarItemOptions {
 		id?: string
@@ -525,6 +529,7 @@ declare global {
 	interface BarSelectOptions<T> extends WidgetOptions {
 		value?: string
 		options: Record<string, T>
+		onChange?(self: BarSelect, event?: Event): void
 	}
 	class BarSelect<T> extends Widget {
 		constructor(id: string, options: BarSelectOptions<T>)
@@ -534,6 +539,7 @@ declare global {
 		getNameFor(key: string): string
 		set(key: string): this
 		get(): string
+		onChange?(self: BarSelect, event?: Event): void
 		value: string
 	}
 	class BarText extends Widget {

@@ -3,6 +3,7 @@
  * modified for Blockbench by jannisx11
  */
 
+import { autoFixMeshEdit } from "./mesh/auto_fix";
 import { getPivotObjects, getRotationObjects, getSelectedMovingElements, moveElementsInSpace } from "./transform";
 
  ( function () {
