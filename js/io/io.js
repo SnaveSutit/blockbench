@@ -98,6 +98,7 @@ export function loadModelFile(file, args) {
 		let success = loadIfCompatible(Codecs[id], 'json', model);
 		if (success) return;
 	}
+	unsupportedFileFormatMessage(file.path);
 }
 
 export async function loadImages(files, event) {
@@ -267,6 +268,32 @@ export async function loadImages(files, event) {
 			doLoadImages(result);
 		})
 	}
+}
+
+export function unsupportedFileFormatMessage(file_name) {
+	let extension = pathToExtension(file_name).toLowerCase();
+	let supported_plugins = Plugins.all.filter(plugin => {
+		return plugin.contributes?.open_extensions?.includes(extension);
+	})
+	console
+	let commands = {};
+	for (let plugin of supported_plugins) {
+		commands[plugin.id] = {
+			icon: plugin.icon,
+			text: tl('message.invalid_format.install_plugin', [plugin.title])
+		}
+	}
+	Blockbench.showMessageBox({
+		translateKey: 'unsupported_file_extension',
+		message: tl('message.unsupported_file_extension.message', [extension]),
+		commands,
+	}, (plugin_id) => {
+		let plugin = plugin_id && supported_plugins.find(p => p.id == plugin_id);
+		if (plugin) {
+			BarItems.plugins_window.click();
+			Plugins.dialog.content_vue.selectPlugin(plugin);
+		}
+	})
 }
 
 //Extruder
@@ -717,6 +744,7 @@ Object.assign(window, {
 	loadModelFile,
 	loadImages,
 	Extruder,
+	unsupportedFileFormatMessage,
 	compileJSON,
 	autoParseJSON,
 })

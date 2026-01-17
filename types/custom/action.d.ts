@@ -455,6 +455,7 @@ declare global {
 		selectFace?: boolean
 		selectElements?: boolean
 		transformerMode?: 'translate' | 'hidden' | ''
+		cursor?: string,
 		animation_channel?: string
 		toolbar?: string
 		alt_tool?: string

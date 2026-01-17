@@ -153,7 +153,8 @@ interface PluginOptions {
 	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
 	 */
 	contributes?: {
-		formats: string[]
+		formats?: string[]
+		open_extensions?: string[]
 	}
 	creation_date?: string
 	has_changelog?: boolean
@@ -221,7 +222,13 @@ export class Plugin {
 	bug_tracker: string
 	source: PluginSource
 	creation_date: string|number
-	contributes: {}
+	/**
+	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
+	 */
+	contributes?: {
+		formats?: string[]
+		open_extensions?: string[]
+	}
 	await_loading: boolean
 	has_changelog: boolean
 	changelog: null|PluginChangelog

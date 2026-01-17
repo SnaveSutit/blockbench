@@ -1,3 +1,4 @@
+import { THREE } from './../../lib/libs';
 
 export function cleanupOverlappingMeshFaces(mesh: Mesh) {
 	for (let fkey in mesh.faces) {
