@@ -95,6 +95,14 @@ export interface FormatFeatures {
 	 */
 	per_texture_uv_size: boolean
 	/**
+	 * Set how textures wrap in the format by default
+	 */
+	texture_wrap_default: 'limited' | 'repeat' | 'clamp'
+	/**
+	 * Set a texture wrap value per texture
+	 */
+	per_texture_wrap_mode: boolean
+	/**
 	 * Enable a model identifier field in the project settings. Default is true
 	 */
 	model_identifier: boolean
@@ -628,6 +636,8 @@ new Property(ModelFormat, 'boolean', 'single_texture');
 new Property(ModelFormat, 'boolean', 'single_texture_default');
 new Property(ModelFormat, 'boolean', 'per_group_texture');
 new Property(ModelFormat, 'boolean', 'per_texture_uv_size');
+new Property(ModelFormat, 'enum', 'texture_wrap_default', {default: 'limited', values: ['limited', 'repeat', 'clamp']});
+new Property(ModelFormat, 'boolean', 'per_texture_wrap_mode');
 new Property(ModelFormat, 'boolean', 'model_identifier', {default: true});
 new Property(ModelFormat, 'boolean', 'legacy_editable_file_name');
 new Property(ModelFormat, 'boolean', 'parent_model_id');
