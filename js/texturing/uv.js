@@ -300,7 +300,7 @@ export const UVEditor = {
 		let ctx = canvas.getContext('2d');
 		canvas.width = texture.width;
 
-		if (BarItems.image_tiled_view.value == true) {
+		if ((BarItems.image_tiled_view.value == true && Modes.paint) || (texture.wrap_mode == 'repeat' && Modes.edit)) {
 			canvas.setAttribute('overlay_mode', 'tiled');
 			canvas.width = texture.width * 3;
 			canvas.height = texture.display_height * 3;
@@ -2647,8 +2647,7 @@ Interface.definePanels(function() {
 
 					Vue.nextTick(() => {
 						let wrapper = this.$refs.texture_canvas_wrapper;
-						let overlay_canvas_mode = this.overlay_canvas_mode;
-						if (this.mode != 'paint') overlay_canvas_mode = null;
+						let overlay_canvas_mode = this.overlay_canvas_mode || this.texture.wrap_mode == 'repeat';
 						if (!wrapper || (wrapper.firstChild == this.texture.canvas && !overlay_canvas_mode)) return;
 						while (wrapper.firstChild) {
 							wrapper.firstChild.remove();
