@@ -2499,6 +2499,7 @@
 	"edit.vertex_snap.ignore_axis": "Ignore Axis",
 	"edit.extrude_spline_selection.extend": "Extend",
 	"edit.divide_spline_curve.position": "Position",
+	"edit.reparent_selection.adjust_position": "Preserve World Transform",
 
 	"web.download_app": "Download App",
 
