@@ -27,6 +27,7 @@
 		"preview/canvas",
 		"io/project",
 		"io/codec",
+		"io/io",
 		"preview/screenshot",
 		"texturing/painter",
 		"texturing/texture_groups",

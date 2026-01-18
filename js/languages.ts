@@ -139,7 +139,12 @@ if (code && Language.options[code]) {
 
 Language.data = data[Language.code];
 
-Object.assign(window, {
+const global = {
 	tl,
 	Language
-})
+};
+declare global {
+	const Language: typeof global.Language
+	const tl: typeof global.tl
+}
+Object.assign(window, global);

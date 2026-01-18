@@ -838,4 +838,10 @@ BARS.defineActions(() => {
 	})
 })
 
-Object.assign(window, {MirrorModeling});
+const global = {
+	MirrorModeling
+};
+declare global {
+	const MirrorModeling: typeof global.MirrorModeling
+}
+Object.assign(window, global);

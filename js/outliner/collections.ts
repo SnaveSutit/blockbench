@@ -841,7 +841,10 @@ Interface.definePanels(function() {
 		])
 	})
 })
-
-Object.assign(window, {
+const global = {
 	Collection
-});
+};
+declare global {
+	const Collection: typeof global.Collection
+}
+Object.assign(window, global);

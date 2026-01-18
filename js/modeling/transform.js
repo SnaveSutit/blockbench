@@ -1,5 +1,6 @@
 import { Canvas } from "../preview/canvas";
-import { autoFixMeshEdit } from "./mesh_editing";
+import { autoFixMeshEdit } from "./mesh/auto_fix";
+import { getEditTransformSpace } from "./transform/edit_transform";
 
 //Actions
 export function getSelectionCenter(all = false) {
@@ -292,7 +293,7 @@ export function centerElements(axis, update) {
 
 //Move
 export function moveElementsInSpace(difference, axis) {
-	let space = Transformer.getTransformSpace();
+	let space = getEditTransformSpace();
 	let groups;
 	if (Format.bone_rig && Group.first_selected && (Group.multi_selected.length > 1 || Group.first_selected.matchesSelection())) {
 		groups = Group.multi_selected;
@@ -582,7 +583,7 @@ export function rotateOnAxis(modify, axis, slider) {
 		}
 	})
 
-	let space = Transformer.getTransformSpace()
+	let space = getEditTransformSpace()
 	if (axis instanceof THREE.Vector3) space = 0;
 	things.forEach(obj => {
 		let mesh = obj.mesh;

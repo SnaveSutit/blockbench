@@ -137,7 +137,6 @@ export class Mode extends KeybindItem {
 		updateInterface();
 		updateSelection();
 		Blockbench.dispatchEvent('select_mode', {mode: this})
-		setTimeout(updateInterfacePanels, 1);
 	}
 	/**Unselects the mode */
 	unselect() {
@@ -219,7 +218,13 @@ onVueSetup(function() {
 	}
 });
 
-Object.assign(window, {
+const global = {
 	Mode,
 	Modes
-});
+};
+declare global {
+	const Modes: typeof global.Modes
+	const Mode: typeof global.Mode
+}
+
+Object.assign(window, global);

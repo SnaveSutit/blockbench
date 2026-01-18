@@ -34,6 +34,7 @@
 /// <reference types="./timeline" />
 /// <reference types="./undo" />
 /// <reference types="./util" />
+/// <reference types="./io" />
 /// <reference types="./uveditor" />
 /// <reference types="./validator" />
 /// <reference types="./shared_actions" />

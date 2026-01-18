@@ -34,10 +34,6 @@ type ConditionResolvable<Context extends any = any> =
  */
 declare function Condition<Context extends any = any>(condition: ConditionResolvable<Context>, context?: Context): boolean
 
-/**
- * Wrapper for anys that tells the custom JSON exporter to write in one line
- */
-const oneLiner: new <T>(data?: T) => T
 
 /**
  * If the input event is a touch event, convert touch event to a compatible mouse event
@@ -98,7 +94,6 @@ declare function get(options: any, name: any, defaultValue: any): any
 declare function getKeyByValue(any: any, value: any): any
 declare function onVueSetup(func: any): void
 declare function capitalizeFirstLetter(string: any): any
-declare function autoStringify(any: any): string
 declare function pluralS(arr: any): '' | 's'
 declare function pathToName(path: string, extension: boolean = false): string | ''
 declare function pathToExtension(path: string): string | ''

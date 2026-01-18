@@ -274,14 +274,14 @@ export function openDevTools() {
 	currentwindow.webContents.openDevTools();
 }
 
-Object.assign(window, {
+
+const global = {
 	openDevTools,
 	SystemInfo,
 	Buffer,
-});
-
-/**
- * TODO:
- * - Ensure it still works in the web app
- */
-
+};
+declare global {
+	const openDevTools: typeof global.openDevTools
+	const SystemInfo: typeof global.SystemInfo
+}
+Object.assign(window, global);

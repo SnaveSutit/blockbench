@@ -8,11 +8,6 @@ function isStreamerMode(): boolean {
 	return window.settings.streamer_mode.value;
 }
 
-declare class Blockbench {
-	static isTouch: boolean
-	static showMessageBox(options: any): void
-	static showQuickMessage(message: string): void
-}
 
 export namespace Filesystem {
 	export type FileResult = {
@@ -507,6 +502,7 @@ export namespace Filesystem {
 			//text or binary
 			let content = options.content;
 			if (content instanceof ArrayBuffer) {
+				// @ts-ignore
 				content = Buffer.from(content);
 			}
 			fs.writeFileSync(file_path, content as string)
@@ -671,6 +667,7 @@ export namespace Filesystem {
 			})
 		}
 
+		let handled = false;
 		forDragHandlers(event, function(handler, el) {
 			let fileNames = event.dataTransfer.files
 
@@ -698,8 +695,16 @@ export namespace Filesystem {
 			}
 			Filesystem.read(paths, read_options, (files) => {
 				handler.cb(files, event)
+				handled = true;
 			})
 		})
+		if (!handled) {
+			let file_name = event.dataTransfer.files[0].name;
+			if (file_name) {
+				unsupportedFileFormatMessage(file_name);
+			}
+
+		}
 	}
 	document.body.ondragenter = function(event) {
 		event.preventDefault()
@@ -748,7 +753,6 @@ export namespace Filesystem {
 				}
 			}
 			let extensions = typeof handler.extensions == 'function' ? handler.extensions() : handler.extensions;
-			extensions.includes( pathToExtension(event.dataTransfer.files[0].name).toLowerCase());
 			let name = event.dataTransfer.files[0].name;
 			if (el && extensions.filter(ex => {
 				return name.substr(-ex.length) == ex;
@@ -760,6 +764,10 @@ export namespace Filesystem {
 	}
 }
 
-Object.assign(window, {
+const global = {
 	Filesystem
-})
+};
+declare global {
+	const Filesystem: typeof global.Filesystem
+}
+Object.assign(window, global);

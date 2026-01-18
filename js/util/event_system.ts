@@ -76,5 +76,10 @@ export class EventSystem {
 		}
 	}
 }
-// @ts-ignore
-window.EventSystem = EventSystem
+const global = {
+	EventSystem
+};
+declare global {
+	const EventSystem: typeof global.EventSystem
+}
+Object.assign(window, global);
