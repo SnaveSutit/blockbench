@@ -401,7 +401,7 @@ new TransformerModule('edit', {
 				delete obj.oldCenter;
 				delete obj.oldUVOffset;
 			})
-			if (Transformer.hasChanged && context.keep_changes) {
+			if (context.has_changed && context.keep_changes) {
 				if (tool_id === 'resize_tool') {
 					Undo.finishEdit('Resize')
 				} else if (tool_id === 'stretch_tool') {
@@ -409,7 +409,7 @@ new TransformerModule('edit', {
 				}
 			}
 
-		} else if (Transformer.axis !== null && Transformer.hasChanged && context.keep_changes) {
+		} else if (Transformer.axis !== null && context.has_changed && context.keep_changes) {
 
 			if (tool_id == 'pivot_tool') {
 				Undo.finishEdit('Move pivot')

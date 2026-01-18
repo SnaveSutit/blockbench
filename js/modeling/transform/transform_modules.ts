@@ -13,6 +13,7 @@ interface TransformContextMove extends TransformContext {
 	value?: number
 }
 interface TransformContextEnd extends TransformContext {
+	has_changed: boolean
 	keep_changes: boolean
 }
 
@@ -39,6 +40,7 @@ export class TransformerModule implements TransformerModuleOptions {
 
 	previous_value: number | null
 	initial_value: number | null
+	has_changed: boolean
 
 	constructor(id: string, options: TransformerModuleOptions) {
 		this.id = id;
@@ -48,6 +50,7 @@ export class TransformerModule implements TransformerModuleOptions {
 
 		this.previous_value = null;
 		this.initial_value = null;
+		this.has_changed = false;
 
 		this.updateGizmo = options.updateGizmo;
 		this.onPointerDown = options.onPointerDown;
@@ -75,21 +78,29 @@ export class TransformerModule implements TransformerModuleOptions {
 
 		if (value != this.previous_value) {
 			context.value = value;
-			if (!Transformer.hasChanged && this.onStart) {
+			if (!this.has_changed && this.onStart) {
 				this.onStart(context)
 			}
 			if (this.onMove) {
 				this.onMove(context)
 			}
 			this.previous_value = value;
-			Transformer.hasChanged = true;
+			this.has_changed = true;
 		}
 	}
 	dispatchEnd(context: TransformContextEnd) {
-		if (this.onEnd) this.onEnd(context);
+		if (this.onEnd) {
+			context.has_changed = this.has_changed;
+			this.onEnd(context);
+		}
+		this.has_changed = false;
 	}
 	dispatchCancel(context: TransformContextEnd) {
-		if (this.onCancel) this.onCancel(context);
+		if (this.onCancel) {
+			context.has_changed = this.has_changed;
+			this.onCancel(context);
+		}
+		this.has_changed = false;
 	}
 
 	delete() {

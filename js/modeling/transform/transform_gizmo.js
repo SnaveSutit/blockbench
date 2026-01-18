@@ -1254,7 +1254,10 @@ import { TransformerModule } from "./transform_modules";
 				onPointerUp(event, keep_changes);
 				let module = TransformerModule.active;
 				if (module) {
-					module.dispatchCancel({event, keep_changes});
+					module.dispatchCancel({
+						event,
+						keep_changes
+					});
 				}
 			}
 			function extendTransformLineOnAxis(long, axis) {
@@ -1365,7 +1368,6 @@ import { TransformerModule } from "./transform_modules";
 						var planeIntersect = intersectObjects( pointer, [ _gizmo[ _mode ].activePlane ] );
 
 						scope.last_valid_position.copy(scope.position)
-						scope.hasChanged = false
 
 						if (Toolbox.selected.id === 'resize_tool' || Toolbox.selected.id === 'stretch_tool') {
 							scope.direction = scope.axis.substr(0, 1) !== 'N'
@@ -1490,18 +1492,18 @@ import { TransformerModule } from "./transform_modules";
 							keep_changes
 						});
 					}
+
+					if (module?.has_changed && Blockbench.startup_count <= 1 && !Blockbench.hasFlag('size_modifier_message')) {
+						Blockbench.addFlag('size_modifier_message');
+						setTimeout(() => {
+							Blockbench.showToastNotification({
+								text: 'message.size_modifiers',
+								expire: 10000
+							});
+						}, 5000);
+					}
 				}
 				_dragging = false;
-
-				if (scope.hasChanged && Blockbench.startup_count <= 1 && !Blockbench.hasFlag('size_modifier_message')) {
-					Blockbench.addFlag('size_modifier_message');
-					setTimeout(() => {
-						Blockbench.showToastNotification({
-							text: 'message.size_modifiers',
-							expire: 10000
-						});
-					}, 5000);
-				}
 
 				if ( 'TouchEvent' in window && event instanceof TouchEvent ) {
 					// Force "rollover"
