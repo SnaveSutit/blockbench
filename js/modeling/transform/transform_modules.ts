@@ -1,24 +1,19 @@
-
-/*
-Dimensions:
-- Mode
-	- Tool
-
-
-Control
-- Gizmo visibility
-- Gizmo position / rotation (transform space)
-- extend line
-- mouse down
-- start move
-- move
-- finish
-- cancel
-*/
-
 interface TransformContext {
 	event: Event
-	value: number
+}
+interface TransformContextMove extends TransformContext {
+	point: THREE.Vector3
+	axis: 'x'|'y'|'z'
+	axis_number: 0|1|2
+	second_axis?: 'x'|'y'|'z'
+	second_axis_number?: 0|1|2
+	rotate_normal: THREE.Vector3
+	direction: 1 | -1
+	angle?: number
+	value?: number
+}
+interface TransformContextEnd extends TransformContext {
+	keep_changes: boolean
 }
 
 interface TransformerModuleOptions {
@@ -26,13 +21,13 @@ interface TransformerModuleOptions {
 	condition: ConditionResolvable
 	use_condition: ConditionResolvable
 
-	updateGizmo: (this: TransformerModule, context: TransformContext) => void
+	updateGizmo: (this: TransformerModule) => void
 	onPointerDown: (this: TransformerModule, context: TransformContext) => void
-	calculateOffset: (this: TransformerModule, context: TransformContext) => number
-	onStart: (this: TransformerModule, context: TransformContext) => void
-	onMove: (this: TransformerModule, context: TransformContext) => void
-	onEnd: (this: TransformerModule, context: TransformContext) => void
-	onCancel: (this: TransformerModule, context: TransformContext) => void
+	calculateOffset: (this: TransformerModule, context: TransformContextMove) => number
+	onStart: (this: TransformerModule, context: TransformContextMove) => void
+	onMove: (this: TransformerModule, context: TransformContextMove) => void
+	onEnd: (this: TransformerModule, context: TransformContextEnd) => void
+	onCancel: (this: TransformerModule, context: TransformContextEnd) => void
 }
 export interface TransformerModule extends TransformerModuleOptions {}
 
@@ -71,7 +66,7 @@ export class TransformerModule implements TransformerModuleOptions {
 
 		if (this.onPointerDown) this.onPointerDown(context);
 	}
-	dispatchMove(context: TransformContext) {
+	dispatchMove(context: TransformContextMove) {
 		if (!Condition(this.use_condition)) return;
 
 		let value = this.calculateOffset(context);
@@ -89,6 +84,12 @@ export class TransformerModule implements TransformerModuleOptions {
 			this.previous_value = value;
 			Transformer.hasChanged = true;
 		}
+	}
+	dispatchEnd(context: TransformContextEnd) {
+		if (this.onEnd) this.onEnd(context);
+	}
+	dispatchCancel(context: TransformContextEnd) {
+		if (this.onCancel) this.onCancel(context);
 	}
 
 	delete() {

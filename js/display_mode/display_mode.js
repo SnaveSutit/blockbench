@@ -1461,7 +1461,7 @@ new TransformerModule('display', {
 		} else if (channel === 'translation') {
 			value = limitNumber( bf+Math.round(value*4)/4, -80, 80) - bf;
 		} else /* scale */ {
-			value = limitNumber( bf+Math.round(value*64)/(64*8)*(Transformer.direction ? 1 : -1), 0, 4) - bf;
+			value = limitNumber( bf+Math.round(value*64)/(64*8)*context.direction, 0, 4) - bf;
 		}
 
 		if (display_slot.includes('lefthand')) {

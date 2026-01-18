@@ -1,3 +1,4 @@
+import { getEditTransformSpace } from "../modeling/transform/edit_transform";
 import { TransformerModule } from "../modeling/transform/transform_modules";
 
 function displayDistance(number) {
@@ -7,7 +8,7 @@ function displayDistance(number) {
 let transform_keyframes = [];
 
 new TransformerModule('animation', {
-	priority: 2,
+	priority: 0,
 	condition: () => Modes.animate,
 	use_condition: () => Animation.selected && Animation.selected.getBoneAnimator(),
 	updateGizmo() {
@@ -54,7 +55,7 @@ new TransformerModule('animation', {
 			if (axis == 'e') value = point.length() * Math.sign(point.y||point.x);
 			var round_num = canvasGridSize(event.shiftKey || Pressing.overrides.shift, event.ctrlOrCmd || Pressing.overrides.ctrl)
 			if (tool_id === 'resize_tool') {
-				value *= (Transformer.direction) ? 0.1 : -0.1;
+				value *= context.direction * 0.1;
 				round_num *= 0.1;
 			}
 		}
@@ -87,11 +88,11 @@ new TransformerModule('animation', {
 
 		let {mesh} = Group.first_selected || ((Outliner.selected[0] && Outliner.selected[0].constructor.animator) ? Outliner.selected[0] : undefined);
 
-		if (tool_id === 'rotate_tool' && (BarItems.rotation_space.value === 'global' || Transformer.axis == 'E' || (Timeline.selected_animator?.rotation_global && Transformer.getTransformSpace() == 2))) {
+		if (tool_id === 'rotate_tool' && (BarItems.rotation_space.value === 'global' || Transformer.axis == 'E' || (Timeline.selected_animator?.rotation_global && getEditTransformSpace() == 2))) {
 
 			let old_rotation = mesh.pre_rotation ?? mesh.fix_rotation;
 			let normal = Transformer.axis == 'E'
-				? rotate_normal
+				? context.rotate_normal
 				: axis_number == 0 ? THREE.NormalX : (axis_number == 1 ? THREE.NormalY : THREE.NormalZ);
 			let rotWorldMatrix = new THREE.Matrix4();
 			rotWorldMatrix.makeRotationAxis(normal, Math.degToRad(difference))
@@ -110,7 +111,7 @@ new TransformerModule('animation', {
 			transform_keyframes[0].offset('y', Math.trimDeg( ( Math.radToDeg(e.y - old_rotation.y)) - transform_keyframes[0].calc('y') ));
 			transform_keyframes[0].offset('z', Math.trimDeg( ( Math.radToDeg(e.z - old_rotation.z)) - transform_keyframes[0].calc('z') ));
 		
-		} else if (tool_id === 'rotate_tool' && Transformer.getTransformSpace() == 2 && [0, 1, 2].find(axis => axis !== axis_number && transform_keyframes[0].get(getAxisLetter(axis))) !== undefined) {
+		} else if (tool_id === 'rotate_tool' && getEditTransformSpace() == 2 && [0, 1, 2].find(axis => axis !== axis_number && transform_keyframes[0].get(getAxisLetter(axis))) !== undefined) {
 
 			let old_rotation = mesh.pre_rotation ?? mesh.fix_rotation;
 			let old_order = mesh.rotation.order;
@@ -175,5 +176,8 @@ new TransformerModule('animation', {
 		if (transform_keyframes.length && context.keep_changes) {
 			Undo.finishEdit('Change keyframe', {keyframes: transform_keyframes});
 		}
+	},
+	onCancel(context) {
+		Undo.cancelEdit(true);
 	}
 });
