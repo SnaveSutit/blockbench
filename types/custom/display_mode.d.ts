@@ -1,6 +1,13 @@
 /// <reference types="./blockbench"/>
 declare const DisplayMode: {
 	slots: string[]
+	slot: DisplaySlot
+	/**
+	 * ID of the slot that is selected for editing
+	 */
+	display_slot: string
+	display_area: any
+	display_base: any
 }
 
 interface DisplaySlotOptions {

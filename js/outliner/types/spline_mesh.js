@@ -944,7 +944,7 @@ export class SplineMesh extends OutlinerElement {
 
         // Clamp value to 1 if handles are selected, and transformed along their length.
         // so users don't end up with 0 scale handles that they can't fix (possibly not needed, users should know better)
-        if (axis == 2 && Transformer.getTransformSpace() == 3 && this.getSelectedHandles().length) {
+        if (axis == 2 && getEditTransformSpace() == 3 && this.getSelectedHandles().length) {
             let clamped_unit_scale = Math.clamp(unit_scale, 1, Infinity);
             scale = clamped_unit_scale / size;
         }
