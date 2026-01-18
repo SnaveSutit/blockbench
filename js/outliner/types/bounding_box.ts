@@ -1,6 +1,7 @@
-import { settings, Settings } from "../interface/settings";
-import { flipNameOnAxis } from "../modeling/transform";
-import { fastWorldPosition } from "../util/three_custom";
+import { settings, Settings } from "../../interface/settings";
+import { flipNameOnAxis } from "../../modeling/transform";
+import { fastWorldPosition } from "../../util/three_custom";
+import { OutlinerElement } from "../abstract/outliner_element";
 import { Vue } from './../../lib/libs';
 
 type AxisNumber = 0|1|2;
@@ -14,8 +15,6 @@ interface BoundingBoxOptions {
 }
 
 export class BoundingBox extends OutlinerElement {
-	declare mesh: THREE.LineSegments
-	declare preview_controller: NodePreviewController
 	old_size?: ArrayVector3
 	oldCenter?: ArrayVector3
 
@@ -430,7 +429,6 @@ BARS.defineActions(function() {
 	new Action('add_bounding_box', {
 		icon: 'activity_zone',
 		category: 'edit',
-		keybind: new Keybind({key: 'n', ctrl: true}),
 		condition: () => Modes.edit,
 		click: function () {
 			

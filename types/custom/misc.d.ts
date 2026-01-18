@@ -54,6 +54,7 @@ type EventName =
 	| 'add_texture_mesh'
 	| 'add_armature'
 	| 'add_armature_bone'
+	| 'add_bounding_box'
 	| 'group_elements'
 	| 'update_selection'
 	| 'compile_bedrock_animations'
