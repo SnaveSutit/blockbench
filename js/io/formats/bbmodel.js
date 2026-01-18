@@ -1,6 +1,9 @@
-import LZUTF8 from './../../../lib/lzutf8'
+import { invertMolang } from '../../util/molang';
+import LZUTF8 from '../../lib/lzutf8'
+import { fs } from '../../native_apis';
+import VersionUtil from '../../util/version_util';
 
-const FORMATV = '4.10';
+const FORMATV = '5.0';
 
 function processHeader(model) {
 	if (!model.meta) {
@@ -13,9 +16,10 @@ function processHeader(model) {
 	if (!model.meta.format_version) {
 		model.meta.format_version = model.meta.format;
 	}
-	if (compareVersions(model.meta.format_version, FORMATV)) {
+	if (VersionUtil.compare(model.meta.format_version, '>', FORMATV)) {
 		Blockbench.showMessageBox({
-			translateKey: 'outdated_client',
+			title: 'message.newer_project_format_version.title',
+			message: tl('message.newer_project_format_version.message', [model.meta.format_version]),
 			icon: 'error',
 		})
 		return;
@@ -36,7 +40,7 @@ function processCompatibility(model) {
 	}
 	if (model.geometry_name) model.model_identifier = model.geometry_name;
 
-	if (model.elements && model.meta.box_uv && compareVersions('4.5', model.meta.format_version)) {
+	if (model.elements && model.meta.box_uv && VersionUtil.compare(model.meta.format_version, '<', '4.5')) {
 		model.elements.forEach(element => {
 			if (element.shade === false) {
 				element.mirror_uv = true;
@@ -45,7 +49,7 @@ function processCompatibility(model) {
 	}
 
 	if (model.outliner) {
-		if (compareVersions('3.2', model.meta.format_version)) {
+		if (VersionUtil.compare(model.meta.format_version, '<', '3.2')) {
 			//Fix Z-axis inversion pre 3.2
 			function iterate(list) {
 				for (var child of list) {
@@ -59,9 +63,36 @@ function processCompatibility(model) {
 		}
 	}
 	if (model.textures) {
-		if (isApp && compareVersions('4.10', model.meta.format_version)) {
+		if (isApp && VersionUtil.compare(model.meta.format_version, '<', '4.10')) {
 			for (let texture of model.textures) {
 				if (texture.relative_path) texture.relative_path = PathModule.join('/', texture.relative_path);
+			}
+		}
+	}
+	if (model.animations && VersionUtil.compare(model.meta.format_version, '<', '5.0')) {
+		for (let anim of model.animations) {
+			for (let uuid in anim.animators) {
+				let animator = anim.animators[uuid]
+				for (let keyframe of (animator.keyframes??[])) {
+					for (let data_point of keyframe.data_points) {
+						if ((keyframe.channel == 'position' || keyframe.channel == 'rotation') && data_point.x) {
+							data_point.x = invertMolang(data_point.x);
+						}
+						if (keyframe.channel == 'rotation' && data_point.y) {
+							data_point.y = invertMolang(data_point.y);
+						}
+					}
+					if (keyframe.interpolation == 'bezier') {
+						if ((keyframe.channel == 'position' || keyframe.channel == 'rotation') && keyframe.bezier_left_value) {
+							keyframe.bezier_left_value[0] *= -1;
+							keyframe.bezier_right_value[0] *= -1;
+						}
+						if (keyframe.channel == 'rotation' && keyframe.bezier_left_value) {
+							keyframe.bezier_left_value[1] *= -1;
+							keyframe.bezier_right_value[1] *= -1;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -152,6 +183,7 @@ var codec = new Codec('project', {
 	},
 	compile(options) {
 		if (!options) options = 0;
+		Blockbench.addFlag('compiling_bbmodel');
 		let model = {
 			meta: {
 				format_version: FORMATV,
@@ -207,12 +239,20 @@ var codec = new Codec('project', {
 				var all_collection_children = options.collection_only.getAllChildren();
 			}
 			model.elements = [];
-			elements.forEach(el => {
+			Outliner.elements.forEach(el => {
 				if (options.collection_only && !all_collection_children.includes(el)) return;
 				let copy = el.getSaveCopy(model.meta);
 				model.elements.push(copy);
 			})
-			model.outliner = compileGroups(true);
+			model.groups = [];
+			Group.all.forEach(group => {
+				if (options.collection_only && !all_collection_children.includes(group)) return;
+				let copy = group.getSaveCopy(false);
+				model.groups.push(copy);
+			});
+
+			model.outliner = Outliner.toJSON();
+
 			if (options.collection_only) {
 				function filterList(list) {
 					list.forEachReverse(item => {
@@ -266,7 +306,6 @@ var codec = new Codec('project', {
 		let collections = [];
 		for (let collection of Collection.all) {
 			let copy = collection.getSaveCopy();
-			if (copy.export_path)
 			collections.push(copy);
 		}
 		if (collections.length) model.collections = collections;
@@ -343,6 +382,7 @@ var codec = new Codec('project', {
 
 		Blockbench.dispatchEvent('save_project', {model, options});
 		this.dispatchEvent('compile', {model, options})
+		Blockbench.removeFlag('compiling_bbmodel');
 
 		if (options.raw) {
 			return model;
@@ -439,7 +479,7 @@ var codec = new Codec('project', {
 		}
 		if (model.elements) {
 			let default_texture = Texture.getDefault();
-			model.elements.forEach(function(template) {
+			model.elements.forEach((template) => {
 
 				let copy = OutlinerElement.fromSave(template, true)
 				for (let face in copy.faces) {
@@ -455,8 +495,13 @@ var codec = new Codec('project', {
 				copy.init()
 			})
 		}
+		if (model.groups) {
+			model.groups.forEach((template) => {
+				new Group(template, template.uuid).init();
+			})
+		}
 		if (model.outliner) {
-			parseGroups(model.outliner)
+			Outliner.loadJSON(model.outliner)
 		}
 		if (model.collections instanceof Array) {
 			for (let collection_data of model.collections) {
@@ -578,11 +623,13 @@ var codec = new Codec('project', {
 		let uuid_map = {};
 		let tex_uuid_map = {};
 		let new_elements = [];
+		let new_groups = [];
 		let new_textures = [];
 		let new_animations = [];
 		let imported_format = Formats[model.meta.model_format];
 		Undo.initEdit({
 			elements: new_elements,
+			groups: new_groups,
 			textures: new_textures,
 			animations: Format.animation_mode && new_animations,
 			outliner: true,
@@ -706,6 +753,15 @@ var codec = new Codec('project', {
 				new_elements.push(copy);
 			})
 		}
+		if (model.groups) {
+			model.groups.forEach((template) => {
+				if (Group.all.find(g => g.uuid == template.uuid)) {
+					template.uuid = uuid_map[template.uuid] = guid();
+				}
+				let group = new Group(template, template.uuid).init();
+				new_groups.push(group);
+			})
+		}
 		if (model.outliner) {
 			// Handle existing UUIDs
 			function processList(list) {
@@ -717,8 +773,8 @@ var codec = new Codec('project', {
 						}
 					} else if (node && node.uuid) {
 						// Group
-						if (Group.all.find(g => g.uuid == node.uuid)) {
-							node.uuid = uuid_map[node.uuid] = guid();
+						if (uuid_map[node.uuid]) {
+							node.uuid = uuid_map[node.uuid];
 						}
 						if (node.children) processList(node.children);
 					}
@@ -726,12 +782,17 @@ var codec = new Codec('project', {
 			}
 			processList(model.outliner);
 
-			parseGroups(model.outliner, true);
+			Outliner.loadJSON(model.outliner, true);
 		}
 		if (model.collections instanceof Array) {
 			for (let collection_data of model.collections) {
 				let collection = new Collection(collection_data, collection_data.uuid);
 				collection.add();
+				for (let i = 0; i < collection.children.length; i++) {
+					if (uuid_map[collection.children[i]]) {
+						collection.children[i] = uuid_map[collection.children[i]];
+					}
+				}
 			}
 		}
 		if (model.animations && Format.animation_mode) {
@@ -844,6 +905,68 @@ BARS.defineActions(function() {
 			codec.export()
 		}
 	})
+	new Action('export_legacy_project', {
+		icon: 'save',
+		name: 'Export Legacy Project',
+		description: 'Export bbmodel file for Blockbench 4',
+		category: 'file',
+		condition: () => Project,
+		click: function () {
+			saveTextures(true);
+			let model = codec.compile({raw: true});
+			model.meta.format_version = '4.10';
+			function compileGroups(undo, lut) {
+				var result = []
+				function iterate(array, save_array) {
+					var i = 0;
+					for (var element of array) {
+						if (element.type === 'group') {
+							var obj = element.compile(undo)
+		
+							if (element.children.length > 0) {
+								iterate(element.children, obj.children)
+							}
+							save_array.push(obj)
+						} else {
+							if (undo) {
+								save_array.push(element.uuid)
+							} else {
+								var index = elements.indexOf(element)
+								if (index >= 0) {
+									save_array.push(index)
+								}
+							}
+						}
+						i++;
+					}
+				}
+				iterate(Outliner.root, result);
+				return result;
+			}
+			model.outliner = compileGroups(true);
+			delete model.groups;
+			for (let anim of (model.animations??[])) {
+				for (let animator_id in anim.animators) {
+					for (let kf of (anim.animators[animator_id].keyframes??[])) {
+						for (let dp of (kf.data_points??[])) {
+							if ((kf.channel == 'rotation' || kf.channel == 'position') && dp.x) dp.x = invertMolang(dp.x);
+							if (kf.channel == 'rotation' && dp.y) dp.y = invertMolang(dp.y);
+						}
+					}
+				}
+			}
+
+			let content = compileJSON(model, {small: Settings.get('minify_bbmodel')});
+			Blockbench.export({
+				resource_id: 'model',
+				type: codec.name,
+				extensions: [codec.extension],
+				name: codec.fileName(),
+				startpath: codec.startPath(),
+				content,
+			}, path => codec.afterDownload(path))
+		}
+	})
 
 	new Action('import_project', {
 		icon: 'icon-blockbench_file',
@@ -857,7 +980,7 @@ BARS.defineActions(function() {
 				multiple: true,
 			}, function(files) {
 				files.forEach(file => {
-					var model = autoParseJSON(file.content);
+					var model = autoParseJSON(file.content, {file_path: file.path});
 					codec.merge(model);
 				})
 			})

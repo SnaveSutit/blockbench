@@ -1,5 +1,5 @@
-
-/*INIT*/
+@layer reset, lib, base, plugin, theme, theme-override;
+@layer reset {
 	* {
 		margin: 0;
 		padding: 0;
@@ -10,9 +10,35 @@
 		user-select: none;
 		-webkit-user-select: none;
 	}
+	div {
+		cursor: default;
+		box-sizing: border-box;
+	}
+	a {
+		text-decoration: none;
+		cursor: default;
+		color: inherit;
+	}
+	i {
+		cursor: inherit;
+	}
+
+	b {
+		font-weight: bolder;
+	}
+	li {
+		list-style: none;
+		cursor: default;
+	}
+}
+@layer base {
+/*INIT*/
 	body.is_mobile * {
 		user-select: none;
 		-webkit-user-select: none;
+	}
+	[hidden], template {
+		display: none;
 	}
 	/*Webkit*/
 	a[href] {
@@ -117,20 +143,28 @@
 		src: local('Assistant-ExtraBold'),
 			url(../font/Assistant-ExtraBold.ttf) format('truetype');
 	}
+	@font-face {
+		font-family: 'Montserrat';
+		font-style: normal;
+		font-weight: 100 1000;
+		src: local('Montserrat-VariableFont'),
+			url(../font/Montserrat-VariableFont_wght.ttf) format('truetype'),
+			url(../font/Montserrat-VariableFont_wght.ttf) format('truetype');
+	}
 	
 	/* https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@1 */
 	@font-face {
 		font-family: 'Material Icons';
 		font-style: normal;
 		font-weight: 400;
-		src: url(../font/material-icons.woff2?4) format('woff');
+		src: url(../font/material-icons.woff2) format('woff');
 	}
 	@font-face {
 		font-family: 'icomoon';
 		font-weight: normal;
 		font-style: normal;
-		src: url('../font/icomoon.ttf?wxwksw') format('truetype'),
-			 url('../font/icomoon.woff?wxwksw') format('woff');
+		src: url('../font/icomoon.ttf') format('truetype'),
+			 url('../font/icomoon.woff') format('woff');
 	}
 
 /*Icons*/
@@ -150,6 +184,15 @@
 	}
 
 
+	.icon-keyframe_discontinuous_bezier:before {
+		content: "\e92d";
+	}
+	.icon-keyframe_smooth:before {
+		content: "\e92c";
+	}
+	.icon-keyframe_step:before {
+		content: "\e92b";
+	}
 	.icon-keyframe_bezier:before {
 		content: "\e92a";
 	}
@@ -282,7 +325,9 @@
 
 
 	
-
+	.icon {
+		user-select: none;
+	}
 	.material-icons {
 		font-family: 'Material Icons';
 		font-weight: normal;
@@ -326,14 +371,15 @@
 
 /*Vars*/
 	body {
-		--color-back: #21252b;
-		--color-dark: #17191d;
-		--color-border: #181a1f;
-		--color-ui: #282c34;
+		--color-back: #181b1f;
+		--color-dark: #101316;
+		--color-border: #101316;
+		--color-ui: #1e2127;
 		--color-accent: #3e90ff;
-		--color-button: #3a3f4b;
-		--color-selected: #474d5d;
-		--color-elevated: #323640;
+		--color-button: #33383f;
+		--color-selected: #3b3e49;
+		--color-elevated: #272a31;
+		--color-frame: #121418;
 		--color-text: #cacad4;
 		--color-light: #f4f3ff;
 		--color-accent_text: #000006;
@@ -341,8 +387,9 @@
 		--color-subtle_text: #848891;
 		--color-bright_ui: #f4f3ff;
 		--color-bright_border: var(--color-text);
-		--color-grid: #495061;
-		--color-checkerboard: #1c2026;
+		--color-grid: #30333d;
+		--color-wireframe: #576f82;
+		--color-checkerboard: #14171b;
 
 		--color-menu_separator: #b0afba;
 		--color-guidelines: rgba(136, 150, 157, 0.35);
@@ -356,13 +403,20 @@
 		--color-axis-x: #ff1242;
 		--color-axis-y: #23d400;
 		--color-axis-z: #0894ed;
+		--color-axis-u: #23d4ed;
+		--color-axis-v: #ff12ed;
+		--color-axis-w: #ffd442;
 
+		--color-spline-handle-mirrored: #ff1242;
+		--color-spline-handle-aligned: #F0B000;
+		--color-spline-handle-free: #00D123;
+		
 		--font-custom-main: '';
 		--font-custom-headline: '';
 		--font-custom-code: '';
 
 		--font-main: var(--font-custom-main), Assistant, segoe ui, sans-serif;
-		--font-headline: var(--font-custom-headline), var(--font-custom-main), Assistant, segoe ui, sans-serif;
+		--font-headline: var(--font-custom-headline), Montserrat, segoe ui, sans-serif;
 		--font-code: var(--font-custom-code), Consolas, Monospace;
 	}
 
@@ -387,26 +441,6 @@
 		image-rendering: pixelated;
 		forced-color-adjust: none;
 	}
-	div {
-		cursor: default;
-		box-sizing: border-box;
-	}
-	a {
-		text-decoration: none;
-		cursor: default;
-		color: inherit;
-	}
-	i {
-		cursor: inherit;
-	}
-
-	b {
-		font-weight: bolder;
-	}
-	li {
-		list-style: none;
-		cursor: default;
-	}
 	hr {
 		border-top: 1px solid var(--color-border);
 		margin: 12px 0;
@@ -417,14 +451,14 @@
 	}
 	h1 {
 		letter-spacing: -0.03em;
+		font-weight: 800;
 	}
 	h2 {
-		font-weight: lighter;
+		font-weight: 200;
 		margin: 0;
 	}
 	h3 {
 		font-size: 1.28em;
-		padding-bottom: 4px;
 		font-weight: inherit;
 		margin-left: 16px;
 		min-width: 10px;
@@ -531,7 +565,8 @@
 		user-select: initial;
 		-webkit-user-select: initial;
 	}
-	div.bb-select {
+	div.bb-select,
+	select {
 		display: block;
 		position: relative;
 		background-color: var(--color-button);
@@ -546,7 +581,8 @@
 		white-space: nowrap;
 		overflow: hidden;
 	}
-	div.bb-select:hover{
+	div.bb-select:hover,
+	select {
 		color: var(--color-light);
 	}
 
@@ -666,7 +702,7 @@
 	}
 	input[type=checkbox].toggle_switch {
 		height: 22px;
-		width: 42px;
+		width: 46px;
 		background-color: var(--color-button);
 		position: relative;
 		--color: var(--color-text);
@@ -676,9 +712,6 @@
 		transition: background-color 70ms ease-out;
 	}
 	input[type=checkbox].toggle_switch:checked {
-		height: 22px;
-		width: 46px;
-		border-radius: 12px;
 		background-color: var(--color-accent);
 		--color: var(--color-light);
 	}
@@ -825,3 +858,4 @@
 	.y_scrollable {
 		overflow-y: scroll;
 	}
+}

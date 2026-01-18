@@ -1,8 +1,8 @@
-import { Vue } from "../lib/libs"
+import { Vue } from "./lib/libs"
 import { Blockbench } from "./api"
-import { Interface, Panels } from "./interface/interface"
+import { Interface } from "./interface/interface"
 import { MenuBar } from "./interface/menu_bar"
-import { updatePanelSelector, updateSidebarOrder } from "./interface/panels"
+import { Panels, updateInterfacePanels, updatePanelSelector, updateSidebarOrder } from "./interface/panels"
 import { Prop } from "./misc"
 import { Outliner } from "./outliner/outliner"
 import { ReferenceImage } from "./preview/reference_images"
@@ -10,7 +10,7 @@ import { ReferenceImage } from "./preview/reference_images"
 interface ModeOptions {
 	id?: string
 	name?: string
-	icon?: string
+	icon?: IconString
 	default_tool?: string
 	selectElements?: boolean
 	category?: string
@@ -29,7 +29,7 @@ interface ModeOptions {
 export class Mode extends KeybindItem {
 	id: string
 	name: string
-	icon: string
+	icon: IconString
 	selected: boolean
 	tool: string
 	default_tool?: string
@@ -80,6 +80,7 @@ export class Mode extends KeybindItem {
 			this.vue.$mount(mount);
 		}
 	}
+	/**Selects the mode */
 	select() {
 		if (Modes.selected instanceof Mode) {
 			Modes.selected.unselect();
@@ -117,7 +118,6 @@ export class Mode extends KeybindItem {
 		if (!Blockbench.isMobile) {
 			for (let id in Panels) {
 				let panel = Panels[id];
-				panel.updatePositionData();
 				panel.updateSlot();
 
 			}
@@ -134,21 +134,22 @@ export class Mode extends KeybindItem {
 		} else {
 			if (BarItems.move_tool != Toolbox.selected) (BarItems.move_tool as Tool).select();
 		}
-		// @ts-ignore
-		TickUpdates.interface = true;
-		TickUpdates.selection = true;
+		updateInterface();
+		updateSelection();
 		Blockbench.dispatchEvent('select_mode', {mode: this})
 	}
+	/**Unselects the mode */
 	unselect() {
 		delete Modes[this.id];
 		Modes.previous_id = this.id;
 		if (typeof this.onUnselect === 'function') {
-			Blockbench.dispatchEvent('unselect_mode', {mode: this})
 			this.onUnselect()
 		}
+		Blockbench.dispatchEvent('unselect_mode', {mode: this})
 		this.selected = false;
 		Mode.selected = Modes.selected = false;
 	}
+	/**Activates the mode */
 	trigger() {
 		if (Condition(this.condition)) {
 			this.select()
@@ -170,6 +171,11 @@ export const Modes = {
 	selected: false as boolean | Mode,
 	previous_id: '',
 	options: {} as Record<string, Mode>,
+	animate: false,
+	display: false,
+	edit: false,
+	paint: false,
+	pose: false,
 	mobileModeMenu(button, event) {
 		let entries = [];
 		for (let id in Modes.options) {
@@ -212,7 +218,13 @@ onVueSetup(function() {
 	}
 });
 
-Object.assign(window, {
+const global = {
 	Mode,
 	Modes
-});
+};
+declare global {
+	const Modes: typeof global.Modes
+	const Mode: typeof global.Mode
+}
+
+Object.assign(window, global);

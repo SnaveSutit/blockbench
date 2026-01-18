@@ -1,27 +1,8 @@
+import './molang'
+import './state_memory'
+
 //Blockbench
-export function compareVersions(string1/*new*/, string2/*old*/) {
-	// Is string1 newer than string2 ?
-	var arr1 = string1.split(/[.-]/);
-	var arr2 = string2.split(/[.-]/);
-	var i = 0;
-	var num1 = 0;
-	var num2 = 0;
-	while (i < Math.max(arr1.length, arr2.length)) {
-		num1 = arr1[i];
-		num2 = arr2[i];
-		if (num1 == 'beta') num1 = -1;
-		if (num2 == 'beta') num2 = -1;
-		num1 = parseInt(num1) || 0;
-		num2 = parseInt(num2) || 0;
-		if (num1 > num2) {
-			return true;
-		} else if (num1 < num2) {
-			return false
-		}
-		i++;
-	}
-	return false;
-}
+
 /**
  * 
  * @param {*} condition Input condition. Can be undefined, a boolean, a function or a condition object
@@ -100,17 +81,6 @@ export function pureMarked(input) {
 	return DOMPurify.sanitize(dom);
 }
 
-export class oneLiner {
-	constructor(data) {
-		if (data !== undefined) {
-			for (var key in data) {
-				if (data.hasOwnProperty(key)) {
-					this[key] = data[key]
-				}
-			}
-		}
-	}
-}
 var asyncLoop = function(o){
 	var i=-1;
 	var async_loop = function(){
@@ -627,7 +597,15 @@ export function labColorDistance(labA, labB){
 	var deltaCkcsc = deltaC / (sc);
 	var deltaHkhsh = deltaH / (sh);
 	var i = deltaLKlsl * deltaLKlsl + deltaCkcsc * deltaCkcsc + deltaHkhsh * deltaHkhsh;
-	return i < 0 ? 0 : Math.sqrt(i);}
+	return i < 0 ? 0 : Math.sqrt(i);
+}
+export function colorDistance(color1, color2) {
+	return Math.sqrt(
+		Math.pow(color2._r - color1._r, 2) +
+		Math.pow(color2._g - color1._g, 2) +
+		Math.pow(color2._b - color1._b, 2)
+	);
+}
 
 export function stringifyLargeInt(int) {
 	let string = int.toString();
@@ -708,9 +686,18 @@ export function cameraRotationToTarget(position, rotation) {
 	return vec.toArray().V3_add(position);
 }
 
-export function getDateDisplay(input_date) {
+const date_formatter = new Intl.DateTimeFormat();
+const date_time_formatter = new Intl.DateTimeFormat(undefined, {
+	year: 'numeric',
+	month: 'numeric',
+	day: 'numeric',
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit"
+});
+export function getDateDisplay(input_date, print_time = true) {
 	let date = new Date(input_date);
-	var diff = Math.round(Blockbench.openTime / (60_000*60*24)) - Math.round(date / (60_000*60*24));
+	var diff = Math.floor(Blockbench.openTime / (60_000*60*24)) - Math.floor(date / (60_000*60*24));
 	let label;
 	if (diff <= 0) {
 		label = tl('dates.today');
@@ -721,11 +708,17 @@ export function getDateDisplay(input_date) {
 	} else if (diff <= 60) {
 		label = tl('dates.weeks_ago', [Math.ceil(diff/7)]);
 	} else {
-		label = date.toLocaleDateString();
+		label = date_formatter.format(date);
 	}
 	return {
 		short: label,
-		full: date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+		full: print_time ? date_time_formatter.format(date) : date_formatter.format(date)
+	}
+}
+
+if (!window.structuredClone) {
+	window.structuredClone = function structuredClone(data) {
+		return JSON.parse(JSON.stringify(data));
 	}
 }
 
@@ -733,12 +726,17 @@ export const NativeGlobals = {
 	Animation
 }
 
+if (!window.structuredClone) {
+	window.structuredClone = (input) => {
+		if (!input) return;
+		return JSON.parse(JSON.stringify(input));
+	}
+}
+
 Object.assign(window, {
 	Condition,
-	oneLiner,
 	Objector,
 	Merge,
-	compareVersions,
 	pureMarked,
 	convertTouchEvent,
 	addEventListeners,

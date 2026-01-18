@@ -1,3 +1,4 @@
+import { currentwindow, fs, nativeImage } from "../native_apis";
 
 function createEmptyCanvas(width, height) {
 	let canvas = document.createElement('canvas');
@@ -144,7 +145,7 @@ export const ScreencamGIFFormats = {
 
 			vars.apng_encoder.finish();
 
-			var base64Out = bytesToBase64(vars.apng_encoder.stream().bin);
+			var base64Out = APNGencoder.bytesToBase64(vars.apng_encoder.stream().bin);
 			let dataUrl = "data:image/png;base64," + base64Out;
 			Screencam.returnScreenshot(dataUrl, vars.cb);
 		}
@@ -257,6 +258,7 @@ export const Screencam = {
 			if (options.crop !== false) {
 
 				if (!options && Modes.display && DisplayMode.display_slot === 'gui') {
+					let display_preview = Preview.all.find(p => p.id == 'display');
 					var zoom = display_preview.camOrtho.zoom * devicePixelRatio
 					var resolution = 256 * zoom;
 	
@@ -485,7 +487,10 @@ export const Screencam = {
 		})
 		dialog.show();
 	},
-	// deprecated
+	/**
+	 * Take a screenshot without gizmos
+	 * @deprecated
+	 */
 	cleanCanvas(options, cb) {
 		Preview.selected.screenshot(options, cb)
 	},

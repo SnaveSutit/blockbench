@@ -5,8 +5,8 @@ export class MenuSeparator {
 		this.id = id || '';
 		this.menu_node = Interface.createElement('li', {class: 'menu_separator', menu_separator_id: id});
 		if (label) {
-			label = tl(label);
-			this.menu_node.append(Interface.createElement('label', {}, label));
+			this.label = tl(label);
+			this.menu_node.append(Interface.createElement('label', {}, this.label));
 			this.menu_node.classList.add('has_label');
 		}
 	}
@@ -51,6 +51,7 @@ function handleMenuOverflow(node) {
 		offset(-e.deltaY);
 	})
 }
+// FIXME - This should be changed to `Menu implements Deletable` when this is converted to TypeScript
 export class Menu {
 	constructor(id, structure, options) {
 		if (typeof id !== 'string') {
@@ -95,18 +96,30 @@ export class Menu {
 
 			var p_width = obj.outerWidth()
 			childlist.css('left', p_width + 'px')
+			childlist.css('margin-top', '');
 			var el_width = childlist.width()
 			var offset = childlist.offset()
 			var el_height = childlist.height()
 
 			if (offset.left + el_width > window.innerWidth) {
+				let clamp_at_screen_edge = window.innerWidth - offset.left + p_width - el_width;
 				if (Blockbench.isMobile) {
+					// On mobile, overlay submenus
 					childlist.css('visibility', 'hidden');
 					setTimeout(() => {
 						childlist.css('left', 0);
 						childlist.css('visibility', 'visible');
 					}, 100);
+				} else if (expand) {
+					// In hybrid menu, offset below so the menu doesn't close
+					childlist.css('margin-top', (node.clientHeight-5) + 'px');
+					let clamp_at_button_overlap = p_width - event.target.clientWidth;
+					childlist.css('left', Math.min(clamp_at_screen_edge, clamp_at_button_overlap) + 'px');
+				} else if (el_width > offset.left - p_width) {
+					// If not enough space on the left, stick to the right screen edge
+					childlist.css('left', clamp_at_screen_edge + 'px');
 				} else {
+					// Display to the left of the menu
 					childlist.css('left', -el_width + 'px')
 				}
 			}
@@ -725,6 +738,9 @@ export class Menu {
 		}
 		traverse(this.structure, 0)
 		rm_item.menus.remove(scope)
+	}
+	delete() {
+		this.node.remove()
 	}
 	static open = null;
 }

@@ -1,4 +1,6 @@
+import { AutoBackup } from "../auto_backup";
 import { setProjectTitle } from "../interface/interface";
+import { currentwindow, ipcRenderer, shell } from "../native_apis";
 
 export class ModelProject {
 	constructor(options = {}, uuid) {
@@ -17,8 +19,8 @@ export class ModelProject {
 		})
 
 		this.box_uv = options.format ? options.format.box_uv : false;
-		this._texture_width = 16;
-		this._texture_height = 16;
+		this._texture_width = options.format?.block_size || 16;
+		this._texture_height = options.format?.block_size || 16;
 
 		this._name = '';
 		this._saved = true;
@@ -59,6 +61,7 @@ export class ModelProject {
 		this.selected_elements = [];
 		this.selected_groups = [];
 		this.mesh_selection = {};
+		this.spline_selection = {};
 		this.textures = [];
 		this.selected_texture = null;
 		this.texture_groups = [];
@@ -330,6 +333,9 @@ export class ModelProject {
 		Blockbench.Project = 0;
 		if (Modes.selected) Modes.selected.unselect();
 		Settings.updateSettingsInProfiles();
+		
+		// Clear spline gizmos, otherwise they force the project open and glitch out the entire app
+		SplineGizmos.clear();
 
 		OutlinerNode.uuids = {};
 		Outliner.root = [];
@@ -366,7 +372,7 @@ export class ModelProject {
 
 		async function saveWarning() {
 			return await new Promise((resolve) => {
-				if (isApp) {
+				if (isApp && Blockbench.platform == 'win32') {
 					shell.beep();
 				}
 				Blockbench.showMessageBox({
@@ -476,6 +482,16 @@ new Property(ModelProject, 'string', 'modded_entity_version', {
 		return options;
 	}
 });
+new Property(ModelProject, 'string', 'java_block_version', {
+	label: 'dialog.project.java_block_version',
+	default: () => settings.default_java_block_version.value == 'latest' ? '1.21.11' : settings.default_java_block_version.value,
+	condition: {formats: ['java_block']},
+	options: {
+		'1.9.0': '1.9 - 1.21.5',
+		'1.21.6': '1.21.6 - 1.21.10',
+		'1.21.11': '1.21.11+',
+	}
+});
 new Property(ModelProject, 'string', 'credit', {
 	label: 'dialog.project.credit',
 	condition: () => Project.credit && Project.credit !== settings.credit.value
@@ -567,6 +583,7 @@ export function setupProject(format, uuid) {
 	if (typeof format == 'string' && Formats[format]) format = Formats[format];
 	if (uuid && ModelProject.all.find(project => project.uuid == uuid)) uuid = null;
 	new ModelProject({format}, uuid).select();
+	Preview.selected.loadAnglePreset(DefaultCameraPresets[0]);
 
 	if (format.edit_mode) {
 		if (Mode.selected != Modes.options.edit) Modes.options.edit.select();
@@ -585,6 +602,7 @@ export function setupProject(format, uuid) {
 export function newProject(format) {
 	if (typeof format == 'string' && Formats[format]) format = Formats[format];
 	new ModelProject({format}).select();
+	Preview.selected.loadAnglePreset(DefaultCameraPresets[0]);
 
 	if (format.edit_mode) {
 		if (Mode.selected != Modes.options.edit) Modes.options.edit.select();
@@ -1031,7 +1049,8 @@ BARS.defineActions(function() {
 				width: 500,
 				form,
 				onConfirm: function(formResult) {
-					var save;
+					let save;
+					let was_changed = false;
 					let box_uv = formResult.uv_mode == 'box_uv';
 					let texture_width = Math.clamp(formResult.texture_size[0], 1, Infinity);
 					let texture_height = Math.clamp(formResult.texture_size[1], 1, Infinity);
@@ -1040,12 +1059,15 @@ BARS.defineActions(function() {
 						Project.texture_width != texture_width ||
 						Project.texture_height != texture_height
 					) {
+						was_changed = true;
+						/*
 						// Adjust UV Mapping if resolution changed
 						if (!Project.box_uv && !box_uv && !Format.per_texture_uv_size &&
 							(Project.texture_width != texture_width || Project.texture_height != texture_height)
 						) {
 							save = Undo.initEdit({elements: [...Cube.all, ...Mesh.all], uv_only: true, uv_mode: true})
 							Cube.all.forEach(cube => {
+								if (cube.box_uv) return;
 								for (var key in cube.faces) {
 									var uv = cube.faces[key].uv;
 									uv[0] *= texture_width / Project.texture_width;
@@ -1063,7 +1085,7 @@ BARS.defineActions(function() {
 									}
 								}
 							})
-						}
+						}*/
 						// Convert UV mode per element
 						if (Project.box_uv != box_uv &&
 							((box_uv && !Cube.all.find(cube => cube.box_uv)) ||
@@ -1088,6 +1110,9 @@ BARS.defineActions(function() {
 					}
 					
 					for (var key in ModelProject.properties) {
+						if (formResult[key] != undefined && Project[key] != formResult[key] && typeof Project[key] != 'object') {
+							was_changed = true;
+						}
 						ModelProject.properties[key].merge(Project, formResult);
 					}
 					Project.name = Project.name.trim();
@@ -1095,6 +1120,9 @@ BARS.defineActions(function() {
 
 					if (save) {
 						Undo.finishEdit('Change project UV settings')
+					}
+					if (was_changed) {
+						Project.saved = false;
 					}
 
 					Blockbench.dispatchEvent('update_project_settings', formResult);
@@ -1280,6 +1308,7 @@ BARS.defineActions(function() {
 
 Object.assign(window, {
 	ModelProject,
+	ProjectData,
 	setupProject,
 	newProject,
 	selectNoProject,

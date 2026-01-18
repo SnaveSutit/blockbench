@@ -65,6 +65,7 @@ var part_format = new ModelFormat({
 		bone_rig: true,
 		centered_grid: true,
 		texture_folder: true,
+		pbr: true,
 		codec: part_codec
 })
 Object.defineProperty(part_format, 'integer_size', {get: _ => Project.box_uv})
@@ -95,8 +96,8 @@ BARS.defineActions(function() {
 				multiple: true,
 			}, function(files) {
 				files.forEach(file => {
-					var model = autoParseJSON(file.content)
-					part_codec.parse(model, file.path, true)
+					var model = autoParseJSON(file.content, {file_path: file.path})
+					part_codec.parse(model, file.path)
 				})
 			})
 		}

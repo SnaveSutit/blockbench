@@ -1,3 +1,6 @@
+import { clipboard } from "../native_apis";
+import { Preview } from "./preview";
+
 export class ReferenceImage {
 	constructor(data = {}) {
 
@@ -93,6 +96,11 @@ export class ReferenceImage {
 	extend(data) {
 		if (data.size instanceof Array) this.auto_aspect_ratio = false;
 
+		if (data.layer == 'blueprint') {
+			data.layer = 'background';
+			data.is_blueprint = true;
+		}
+
 		if (data.modes instanceof Array) {
 			this.modes.replace(data.modes);
 		}
@@ -131,6 +139,9 @@ export class ReferenceImage {
 			this.enableBlueprintMode();
 			this.changeLayer('background');
 		}
+		if (Format.image_editor) {
+			this.changeLayer('viewport');
+		}
 		this.scope = 'project';
 		this.update();
 		if (save) this.save();
@@ -141,6 +152,9 @@ export class ReferenceImage {
 		if (Preview.selected && Preview.selected.angle) {
 			this.enableBlueprintMode();
 			this.changeLayer('background');
+		}
+		if (Format.image_editor) {
+			this.changeLayer('viewport');
 		}
 		this.scope = 'global';
 		this.update();
@@ -649,6 +663,7 @@ export class ReferenceImage {
 		return this;
 	}
 	enableBlueprintMode() {
+		if (this.is_blueprint) return;
 		if (Preview.selected?.angle) {
 			this.is_blueprint = true;
 			if (this.layer == 'float') this.changeLayer('viewport');

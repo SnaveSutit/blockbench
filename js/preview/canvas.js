@@ -13,26 +13,6 @@ import BrushOutlineFragShader from './../shaders/brush_outline.frag.glsl'
 import { prepareShader } from '../shaders/shader';
 import { gizmo_colors } from './preview'
 
-export function getRescalingFactor(angle) {
-	switch (Math.abs(angle)) {
-		case 0:
-			return 1.4142
-			break;
-		case 22.5:
-			return 1.0824
-			break;
-		case 67.5:
-			return 1.0824
-			break;
-		case 45:
-			return 1.4142
-			break;
-		default:
-			return 1;
-			break;
-	}
-}
-
 export const Reusable = {
 	vec1: new THREE.Vector3(),
 	vec2: new THREE.Vector3(),
@@ -45,9 +25,11 @@ export const Reusable = {
 
 	quat1: new THREE.Quaternion(),
 	quat2: new THREE.Quaternion(),
+	quat3: new THREE.Quaternion(),
 
 	euler1: new THREE.Euler(),
 	euler2: new THREE.Euler(),
+	euler3: new THREE.Euler(),
 }
 
 
@@ -66,6 +48,20 @@ export const Canvas = {
 		depthTest: settings.seethrough_outline.value == false,
 		transparent: true,
 		color: gizmo_colors.outline
+	}),
+	splinePathLineMaterial: new THREE.LineBasicMaterial({
+		linewidth: 4,
+		vertexColors: true, 
+		depthTest: settings.seethrough_outline.value == false,
+		transparent: true,
+	}),
+	splinePathDashedLineMaterial: new THREE.LineDashedMaterial({
+		linewidth: 4,
+		vertexColors: true, 
+		depthTest: settings.seethrough_outline.value == false,
+		transparent: true, 
+		dashSize: 0.75, 
+		gapSize: 0.5
 	}),
 	meshOutlineMaterial: new THREE.LineBasicMaterial({
 		linewidth: 2,
@@ -98,6 +94,13 @@ export const Canvas = {
 			vertexShader: prepareShader(DirectionHelperVertShader),
 			fragmentShader: prepareShader(DirectionHelperFragShader),
 			side: THREE.DoubleSide
+		});
+	})(),
+	vertexWeightHelperMaterial: (function() {
+		return new THREE.MeshLambertMaterial({
+			color: 0xffffff,
+			side: 2,
+			vertexColors: true
 		});
 	})(),
 	uvHelperMaterial: (function() {
@@ -206,6 +209,8 @@ export const Canvas = {
 		three_grid.name = 'grid_group'
 		gizmo_colors.grid.set(parseInt('0x'+CustomTheme.data.colors.grid.replace('#', ''), 16));
 
+		const block_size = Format.block_size ?? 16;
+
 		Canvas.northMarkMaterial.color = gizmo_colors.grid
 
 		function setupAxisLine(origin, length, axis) {
@@ -230,8 +235,8 @@ export const Canvas = {
 		//Axis Lines
 		if (settings.base_grid.value) {
 			var length = Format.centered_grid
-				? (settings.full_grid.value ? 24 : 8)
-				: 16
+				? (settings.full_grid.value ? block_size*1.5 : block_size/2)
+				: block_size
 			setupAxisLine(new THREE.Vector3( 0, 0.01, 0), length, 'x')
 			setupAxisLine(new THREE.Vector3( 0, 0.01, 0), length, 'z')
 
@@ -240,25 +245,25 @@ export const Canvas = {
 		var side_grid = new THREE.Object3D()
 
 		if (settings.full_grid.value === true) {
-			//Grid
-			let size = settings.large_grid_size.value*16;
+			let size = settings.large_grid_size.value*block_size;
 			var grid = new THREE.GridHelper(size, size/canvasGridSize(), Canvas.gridMaterial);
 			if (Format.centered_grid) {
 				grid.position.set(0,0,0)
 			} else { 
-				grid.position.set(8,0,8)
+				grid.position.set(block_size/2,0,block_size/2)
 			}
 			grid.name = 'grid'
 			three_grid.add(grid)
 			side_grid.add(grid.clone())
 
 			//North
-			geometry = new THREE.PlaneGeometry(5, 5)
+			let north_size = 5 * (block_size/16);
+			let geometry = new THREE.PlaneGeometry(north_size, north_size);
 			var north_mark = new THREE.Mesh(geometry, Canvas.northMarkMaterial)
 			if (Format.centered_grid) {
 				north_mark.position.set(0,0, -3 - size/2)
 			} else {
-				north_mark.position.set(8, 0, 5 - size/2)
+				north_mark.position.set(block_size/2, 0, 5 - size/2)
 			}
 			north_mark.rotation.x = Math.PI / -2
 			three_grid.add(north_mark)
@@ -267,11 +272,11 @@ export const Canvas = {
 			if (settings.large_grid.value === true) {
 				//Grid
 				let size = settings.large_grid_size.value
-				var grid = new THREE.GridHelper(size*16, size, Canvas.gridMaterial);
+				var grid = new THREE.GridHelper(size*block_size, size, Canvas.gridMaterial);
 				if (Format.centered_grid) {
 					grid.position.set(0,0,0)
 				} else { 
-					grid.position.set(8,0,8)
+					grid.position.set(block_size/2,0,block_size/2)
 				}
 				grid.name = 'grid'
 				three_grid.add(grid)
@@ -280,24 +285,25 @@ export const Canvas = {
 
 			if (settings.base_grid.value === true) {
 				//Grid
-				var grid = new THREE.GridHelper(16, 16/canvasGridSize(), Canvas.gridMaterial);
+				var grid = new THREE.GridHelper(block_size, block_size/canvasGridSize(), Canvas.gridMaterial);
 
 				if (Format.centered_grid) {
 					grid.position.set(0,0,0)
 				} else { 
-					grid.position.set(8,0,8)
+					grid.position.set(block_size/2,0,block_size/2)
 				}
 				grid.name = 'grid'
 				three_grid.add(grid)
 				side_grid.add(grid.clone())
 
 				//North
-				let geometry = new THREE.PlaneGeometry(2.4, 2.4)
+				let north_size = 2.4 * (block_size/16);
+				let geometry = new THREE.PlaneGeometry(north_size, north_size);
 				var north_mark = new THREE.Mesh(geometry, Canvas.northMarkMaterial)
 				if (Format.centered_grid) {
-					north_mark.position.set(0,0,-9.5)
+					north_mark.position.set(0,0,-0.6*north_size - block_size/2);
 				} else {
-					north_mark.position.set(8,0,-1.5)
+					north_mark.position.set(block_size/2,0,-0.6*north_size);
 				}
 				north_mark.rotation.x = Math.PI / -2
 				three_grid.add(north_mark)
@@ -329,7 +335,7 @@ export const Canvas = {
 		Canvas.side_grids.x.name = 'side_grid_x'
 		Canvas.side_grids.x.visible = !Modes.display;
 		Canvas.side_grids.x.rotation.z = Math.PI/2;
-		Canvas.side_grids.x.position.y = Format.centered_grid ? 8 : 0;
+		Canvas.side_grids.x.position.y = Format.centered_grid ? block_size/2 : 0;
 		Canvas.side_grids.z.position.z = 0
 		Canvas.side_grids.x.children.forEach(el => {
 			el.layers.set(1)
@@ -340,7 +346,7 @@ export const Canvas = {
 		Canvas.side_grids.z.visible = !Modes.display;
 		Canvas.side_grids.z.rotation.z = Math.PI/2;
 		Canvas.side_grids.z.rotation.y = Math.PI/2
-		Canvas.side_grids.z.position.y = Format.centered_grid ? 8 : 0;
+		Canvas.side_grids.z.position.y = Format.centered_grid ? block_size/2 : 0;
 		Canvas.side_grids.z.position.z = 0
 		Canvas.side_grids.z.children.forEach(el => {
 			el.layers.set(3)
@@ -426,6 +432,7 @@ export const Canvas = {
 			polygonOffset: true,
 			polygonOffsetUnits: 1,
 			polygonOffsetFactor: -1,
+			extensions: { derivatives: true },
 
 			uniforms: {
 				color: { value: new THREE.Color() },
@@ -600,6 +607,7 @@ export const Canvas = {
 	updateViewMode() {
 		this.updateAllFaces();
 		this.updateShading();
+		updateSelection();
 	},
 	//Main updaters
 	clear() {
@@ -648,7 +656,7 @@ export const Canvas = {
 	},
 	updateAllFaces(texture) {
 		Outliner.elements.forEach(function(obj) {
-			if (obj.faces || obj instanceof TextureMesh) {
+			if (obj.preview_controller.updateFaces) {
 				var used = true;
 				if (texture && obj.faces && !Format.single_texture) {
 				 	used = false;
@@ -761,43 +769,14 @@ export const Canvas = {
 	updateAllBones(bones = Group.all) {
 		if (Project) Project.model_3d.scale.set(1, 1, 1);
 		bones.forEach((obj) => {
-			let bone = obj.mesh
-			if (bone && obj instanceof Group) {
-
-				bone.rotation.order = 'ZYX';
-				bone.rotation.setFromDegreeArray(obj.rotation);
-				bone.position.fromArray(obj.origin);
-				bone.scale.x = bone.scale.y = bone.scale.z = 1;
-
-				if (obj.parent.type === 'group') {
-
-					bone.position.x -=  obj.parent.origin[0];
-					bone.position.y -=  obj.parent.origin[1];
-					bone.position.z -=  obj.parent.origin[2];
-
-					var parent_bone = obj.parent.mesh;
-					parent_bone.add(bone);
-				} else {
-					Project.model_3d.add(bone);
-				}
-
-				bone.fix_position = bone.position.clone();
-				bone.fix_rotation = bone.rotation.clone();
-			}
+			obj.preview_controller.updateTransform(obj);
 		})
-		if (bones == Group.all) {
-			scene.updateMatrixWorld();
-		} else {
-			bones.forEach(bone => {
-				bone.mesh.updateMatrixWorld();
-			})
-		}
 	},
 	updatePivotMarker() {
 		if (Canvas.pivot_marker.parent) {
 			Canvas.pivot_marker.parent.remove(Canvas.pivot_marker)
 		}
-		if (settings.origin_size.value > 0 && Canvas.show_gizmos) {
+		if (settings.origin_size.value > 0 && Canvas.show_gizmos && !Modes.paint) {
 			if (Group.first_selected && Format.bone_rig) {
 				if (Group.first_selected.visibility) {
 					Group.first_selected.mesh.add(Canvas.pivot_marker)
@@ -885,11 +864,11 @@ export const Canvas = {
 		})
 
 		var material_shh = new THREE.ShaderMaterial({
-		  uniforms: uniforms,
-		  vertexShader: prepareShader(LayeredVertShader),
-		  fragmentShader: prepareShader(LayeredFragShader),
-		  side: Canvas.getRenderSide(),
-		  transparent: true
+			uniforms: uniforms,
+			vertexShader: prepareShader(LayeredVertShader),
+			fragmentShader: prepareShader(LayeredFragShader),
+			side: Canvas.getRenderSide(),
+			transparent: true
 		});
 		Canvas.layered_material = material_shh;
 		return material_shh;
@@ -898,48 +877,6 @@ export const Canvas = {
 		delete Canvas.layered_material;
 		if (Format.single_texture && Texture.all.length >= 2) {
 			Canvas.updateAllFaces();
-		}
-	},
-	adaptObjectFaces(cube, mesh) {
-		if (!mesh) mesh = cube.mesh
-		if (!mesh) return;
-
-		Canvas.adaptObjectFaceGeo(cube);
-
-		if (Project.view_mode === 'solid') {
-			mesh.material = Canvas.monochromaticSolidMaterial
-
-		} else if (Project.view_mode === 'colored_solid') {
-			mesh.material = Canvas.getSolidColorMaterial(cube.color);
-
-		} else if (Project.view_mode === 'wireframe') {
-			mesh.material = Canvas.wireframeMaterial
-
-		} else if (Format.single_texture && Texture.all.length >= 2 && Texture.all.find(t => t.render_mode == 'layered')) {
-			mesh.material = Canvas.getLayeredMaterial();
-
-		} else if (Format.single_texture) {
-			let tex = Texture.getDefault();
-			mesh.material = tex ? tex.getMaterial() : Canvas.getEmptyMaterial(cube.color);
-
-		} else {
-			var materials = []
-			Canvas.face_order.forEach(function(face) {
-
-				if (cube.faces[face].texture === null) {
-					materials.push(Canvas.transparentMaterial)
-
-				} else {
-					var tex = cube.faces[face].getTexture()
-					if (tex && tex.uuid) {
-						materials.push(tex.getMaterial())
-					} else {
-						materials.push(Canvas.getEmptyMaterial(cube.color));
-					}
-				}
-			})
-			if (materials.allEqual(materials[0])) materials = materials[0];
-			mesh.material = materials
 		}
 	},
 	updateUV(cube, animation = true) {
@@ -1002,7 +939,6 @@ export const Canvas = {
 Canvas.gizmos.push(Canvas.pivot_marker);
 
 Object.assign(window, {
-	getRescalingFactor,
 	Reusable,
 	Canvas,
 	buildGrid: Canvas.buildGrid

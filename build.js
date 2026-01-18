@@ -5,7 +5,9 @@ import commandLineArgs from 'command-line-args'
 import path from 'path';
 import { writeFileSync } from 'fs';
 import fs from 'node:fs';
-const pkg = createRequire(import.meta.url)("./package.json");
+import vuePlugin from 'esbuild-vue/src/index.js';
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
 
 const options = commandLineArgs([
     {name: 'target', type: String},
@@ -14,12 +16,19 @@ const options = commandLineArgs([
     {name: 'analyze', type: Boolean},
 ])
 
-function conditionalImportPlugin(config) {
+function conditionalImportPlugin(name, config) {
     return {
-        name: 'conditional-import-plugin',
+        name: 'conditional-import-plugin-'+name,
+        /**
+         * @param {esbuild.PluginBuild} build 
+         */
         setup(build) {
-            build.onResolve({ filter: /desktop.js$/ }, args => {
-                return { path: path.join(args.resolveDir, config.file) };
+            build.onResolve({ filter: config.filter }, args => {
+                if (config.library) {
+                    return { path: path.join( import.meta.dirname, 'node_modules', path.dirname(args.path), config.file) };
+                } else {
+                    return { path: path.join(args.resolveDir, path.dirname(args.path), config.file) };
+                }
             });
         }
     };
@@ -57,7 +66,7 @@ const dev_mode = options.watch || options.serve;
 const minify = !dev_mode;
 
 /**
- * @typedef {esbuild.BuildOptions} BuildOptions
+ * @type {esbuild.BuildOptions} BuildOptions
  */
 const config = {
     entryPoints: ['./js/main.js'],
@@ -72,15 +81,31 @@ const config = {
     minify,
     outfile: './dist/bundle.js',
     mainFields: ['module', 'main'],
+    logOverride: {
+        'commonjs-variable-in-esm': 'silent'
+    },
     external: [
         'electron',
     ],
+    loader: {
+        '.bbtheme': 'text'
+    },
     plugins: [
-        conditionalImportPlugin({
+        conditionalImportPlugin(2, {
+            filter: /native_apis/,
+            file: isApp ? 'native_apis.ts' : 'native_apis_web.ts'
+        }),
+        conditionalImportPlugin(3, {
+            filter: /vue.js/,
+            file: dev_mode ? 'vue.js' : 'vue.min.js',
+            library: true,
+        }),
+        conditionalImportPlugin(1, {
+            filter: /desktop/,
             file: isApp ? 'desktop.js' : 'web.js'
         }),
-        createJsonPlugin('.bbtheme', 'bbtheme'),
         createJsonPlugin('.bbkeymap', 'bbkeymap'),
+        vuePlugin(),
         glsl({
             minify
         })
@@ -94,7 +119,7 @@ if (options.watch || options.serve) {
         await ctx.watch({});
     } else {
         const host = 'localhost';
-        const port = 3000;
+        const port = 3001;
         await ctx.serve({
             servedir: import.meta.dirname,
             host,

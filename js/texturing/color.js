@@ -1,10 +1,8 @@
-function colorDistance(color1, color2) {
-	return Math.sqrt(
-		Math.pow(color2._r - color1._r, 2) +
-		Math.pow(color2._g - color1._g, 2) +
-		Math.pow(color2._b - color1._b, 2)
-	);
-}
+import { Blockbench } from "../api";
+import { ipcRenderer } from "../native_apis";
+import { colorDistance } from "../util/util";
+import ColorPickerNormal from "./ColorPickerNormal.vue";
+
 //
 StateMemory.init('color_palettes', 'array')
 
@@ -106,7 +104,7 @@ export const ColorPanel = {
 	},
 	saveLocalStorages() {
 		localStorage.setItem('colors', JSON.stringify({
-			palette: ColorPanel.panel.vue._data.palette,
+			palette: ColorPanel.palette,
 			history: ColorPanel.panel.vue._data.history,
 		}))
 	},
@@ -492,8 +490,9 @@ SharedActions.add('delete', {
 			Blockbench.showQuickMessage('message.palette_locked');
 			return;
 		}
-		if (ColorPanel.panel.vue.palette.includes(ColorPanel.panel.vue.selected_color)) {
-			ColorPanel.panel.vue.palette.remove(ColorPanel.panel.vue.selected_color)
+		if (ColorPanel.palette.includes(ColorPanel.panel.vue.selected_color)) {
+			ColorPanel.palette.remove(ColorPanel.panel.vue.selected_color);
+			ColorPanel.saveLocalStorages();
 		}
 	}
 })
@@ -509,7 +508,8 @@ Interface.definePanels(() => {
 			slot: 'right_bar',
 			float_position: [0, 0],
 			float_size: [300, 400],
-			height: 400
+			height: 400,
+			sidebar_index: 4,
 		},
 		toolbars: [
 			new Toolbar('color_picker', {
@@ -542,15 +542,16 @@ Interface.definePanels(() => {
 				}
 				this.vue.$refs.square_picker.style.display = disp_before;
 				Vue.nextTick(() => {
-					$('#main_colorpicker').spectrum('reflow');
+					Panels.color.picker.spectrum('reflow');
 				})
 			})
 		},
 		component: {
+			components: {ColorPickerNormal},
 			data: {
 				width: 100,
 				picker_height: 100,
-				picker_type: Settings.get('color_wheel') ? 'wheel' : 'box',
+				picker_type: Settings.get('color_picker_style'),
 				main_color: '#ffffff',
 				second_color: '#000000',
 				hover_color: '',
@@ -580,14 +581,18 @@ Interface.definePanels(() => {
 							name: 'menu.color_picker.picker_type',
 							icon: 'palette',
 							children: [
-								{name: 'menu.color_picker.picker_type.square', icon: Settings.get('color_wheel') ? 'far.fa-circle' : 'far.fa-dot-circle', click: () => {
-									settings.color_wheel.set(false);
+								{name: 'menu.color_picker.picker_type.square', icon: Settings.get('color_picker_style') == 'box' ? 'far.fa-dot-circle' : 'far.fa-circle', click: () => {
+									settings.color_picker_style.set('box');
 									Panels.color.onResize();
 								}},
-								{name: 'menu.color_picker.picker_type.wheel', icon: Settings.get('color_wheel') ? 'far.fa-dot-circle' : 'far.fa-circle', click: () => {
-									settings.color_wheel.set(true);
+								{name: 'menu.color_picker.picker_type.wheel', icon: Settings.get('color_picker_style') == 'wheel' ? 'far.fa-dot-circle' : 'far.fa-circle', click: () => {
+									settings.color_picker_style.set('wheel');
 									Panels.color.onResize();
-								}}
+								}},
+								{name: 'menu.color_picker.picker_type.normal', icon: Settings.get('color_picker_style') == 'normal' ? 'far.fa-dot-circle' : 'far.fa-circle', click: () => {
+									settings.color_picker_style.set('normal');
+									Panels.color.onResize();
+								}},
 							]
 						},
 						{
@@ -624,7 +629,7 @@ Interface.definePanels(() => {
 				},
 				onMouseWheel(event) {
 					if (!event.target) return;
-					if (settings.color_wheel.value || event.target.classList.contains('sp-hue') || event.target.classList.contains('sp-slider')) {
+					if (settings.color_picker_style.value == 'wheel' || event.target.classList.contains('sp-hue') || event.target.classList.contains('sp-slider')) {
 						let sign = Math.sign(event.deltaY);
 						if (event.shiftKey) sign *= 4;
 						BarItems.slider_color_h.change(v => v+sign);
@@ -647,7 +652,7 @@ Interface.definePanels(() => {
 						this.second_color_selected = !!secondary;
 						Object.assign(this.hsv, ColorPanel.hexToHsv(this.selected_color));
 						this.updateSliders();
-						$('#main_colorpicker').spectrum('set', this.selected_color);
+						Panels.color.picker.spectrum('set', this.selected_color);
 						this.text_input = this.selected_color;
 					}
 				},
@@ -672,7 +677,7 @@ Interface.definePanels(() => {
 							Object.assign(this.hsv, ColorPanel.hexToHsv(value));
 						}
 						this.updateSliders()
-						$('#main_colorpicker').spectrum('set', value);
+						Panels.color.picker.spectrum('set', value);
 						this.text_input = value;
 						this.editing_hsv = false;
 					}
@@ -685,7 +690,7 @@ Interface.definePanels(() => {
 							Object.assign(this.hsv, ColorPanel.hexToHsv(value));
 						}
 						this.updateSliders()
-						$('#main_colorpicker').spectrum('set', value);
+						Panels.color.picker.spectrum('set', value);
 						this.text_input = value;
 						this.editing_hsv = false;
 					}
@@ -719,11 +724,12 @@ Interface.definePanels(() => {
 						</div>
 					</div>
 
-					<div @wheel="onMouseWheel($event)">
+					<div @wheel="onMouseWheel($event)" class="color_picker_wrapper">
 						<div v-show="picker_type == 'box'" ref="square_picker" :style="{maxWidth: width + 'px', '--height': picker_height + 'px'}">
 							<input id="main_colorpicker">
 						</div>
 						<color-wheel v-if="picker_type == 'wheel' && width" :value="selected_color" @input="changeColor" :width="width" :height="width"></color-wheel>
+						<color-picker-normal v-if="picker_type == 'normal' && width" :value="selected_color" @input="changeColor" :width="width" :height="width"></color-picker-normal>
 						<div class="toolbar_wrapper color_picker" toolbar="color_picker"></div>
 					</div>
 				</div>
@@ -756,7 +762,12 @@ Interface.definePanels(() => {
 			float_position: [0, 0],
 			float_size: [300, 400],
 			height: 400,
+			attached_to: 'color',
+			attached_index: 1,
+			sidebar_index: 5,
 		},
+		growable: true,
+		resizable: true,
 		toolbars: [
 			new Toolbar('palette', {
 				children: [
@@ -809,6 +820,7 @@ Interface.definePanels(() => {
 				sort(event) {
 					var item = this.palette.splice(event.oldIndex, 1)[0];
 					this.palette.splice(event.newIndex, 0, item);
+					ColorPanel.saveLocalStorages();
 				},
 				drop(event) {
 				},
@@ -943,7 +955,7 @@ BARS.defineActions(function() {
 		click: function () {
 			let content = 'GIMP Palette\nName: Blockbench palette\nColumns: 10\n';
 			ColorPanel.palette.forEach(color => {
-				t = new tinycolor(color);
+				let t = new tinycolor(color);
 				content += `${t._r}\t${t._g}\t${t._b}\t${color}\n`;
 			})
 			Blockbench.export({
@@ -1005,7 +1017,16 @@ BARS.defineActions(function() {
 		}
 	})
 
-	function loadPalette(arr) {
+	async function loadPalette(arr) {
+		if (ColorPanel.palette.length) {
+			let result = await new Promise((resolve, reject) => {
+				Blockbench.showMessageBox({
+					translateKey: 'load_palette',
+					buttons: ['dialog.confirm', 'dialog.cancel']
+				}, resolve);
+			})
+			if (result != 0) return;
+		}
 		ColorPanel.palette.splice(0, Infinity, ...arr);
 		ColorPanel.saveLocalStorages();
 	}

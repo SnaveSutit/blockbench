@@ -1,3 +1,5 @@
+import { fs } from "../native_apis";
+
 export const Codecs = {};
 export class Codec extends EventSystem {
 	constructor(id, data) {
@@ -40,19 +42,18 @@ export class Codec extends EventSystem {
 		return options;
 	}
 	//Import
-	load(model, file, add) {
+	load(model, file, args = {}) {
 		if (!this.parse) return false;
-		if (!add) {
+		if (!args.import_to_current_project) {
 			setupProject(this.format)
 		}
 		if (file.path && isApp && this.remember && !file.no_file ) {
 			var name = pathToName(file.path, true);
 			Project.name = pathToName(name, false);
 			Project.export_path = file.path;
-			
 		}
 
-		this.parse(model, file.path)
+		this.parse(model, file.path, args)
 
 		if (file.path && isApp && this.remember && !file.no_file ) {
 			loadDataFromModelMemory();
@@ -125,6 +126,8 @@ export class Codec extends EventSystem {
 	}
 	async patchCollectionExport(collection, callback) {
 		this.context = collection;
+		let name = this.name;
+		this.name = collection.name;
 		let element_export_values = {};
 		let all = Outliner.elements.concat(Group.all);
 		for (let node of all) {
@@ -141,6 +144,7 @@ export class Codec extends EventSystem {
 			throw error;
 		} finally {
 			this.context = null;
+			this.name = name;
 			for (let node of all) {
 				if (element_export_values[node.uuid] === undefined) continue;
 				node.export = element_export_values[node.uuid];
@@ -154,7 +158,7 @@ export class Codec extends EventSystem {
 	}
 	async writeCollection(collection) {
 		this.patchCollectionExport(collection, async () => {
-			await this.export();
+			this.write(this.compile(), collection.export_path);
 		})
 	}
 	fileName() {

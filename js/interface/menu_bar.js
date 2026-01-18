@@ -1,3 +1,5 @@
+import { currentwindow, exposeNativeApisInDevTools } from "../native_apis";
+
 export class BarMenu extends Menu {
 	constructor(id, structure, options = {}) {
 		super(id, structure, options)
@@ -45,6 +47,11 @@ export class BarMenu extends Menu {
 		this.highlight_action = action;
 		this.label.classList.add('highlighted');
 	}
+	delete() {
+		super.delete();
+		this.label.remove();
+		delete MenuBar.menus[this.id];
+	}
 }
 
 export const MenuBar = {
@@ -64,7 +71,7 @@ export const MenuBar = {
 					let redact = settings.streamer_mode.value;
 					for (let key in Formats) {
 						let format = Formats[key];
-						if (!format.show_in_new_list) continue;
+						if (format.show_in_new_list === false) continue;
 						arr.push({
 							id: format.id,
 							name: (redact && format.confidential) ? `[${tl('generic.redacted')}]` : format.name,
@@ -189,7 +196,9 @@ export const MenuBar = {
 				'export_gltf',
 				'export_obj',
 				'export_fbx',
+				'export_stl',
 				'export_collada',
+				'export_legacy_project',
 				'export_modded_animations',
 				'upload_sketchfab',
 				'share_model',
@@ -241,13 +250,8 @@ export const MenuBar = {
 			'redo',
 			'edit_history',
 			new MenuSeparator('add_element'),
-			'add_cube',
-			'add_mesh',
+			'add_element',
 			'add_group',
-			'add_billboard',
-			'add_locator',
-			'add_null_object',
-			'add_texture_mesh',
 			new MenuSeparator('modify_elements'),
 			'duplicate',
 			'rename',
@@ -310,6 +314,7 @@ export const MenuBar = {
 			'merge_vertices',
 			'dissolve_edges',
 			'solidify_mesh_selection',
+			'set_vertex_weights',
 			new MenuSeparator('element'),
 			'apply_mesh_rotation',
 			'split_mesh',
@@ -366,6 +371,7 @@ export const MenuBar = {
 			new MenuSeparator('edit'),
 			'add_marker',
 			'select_effect_animator',
+			'copy_animation_pose',
 			'flip_animation',
 			'optimize_animation',
 			'retarget_animators',
@@ -542,15 +548,30 @@ export const MenuBar = {
 				}},
 				'open_dev_tools',
 				{name: 'Error Log', condition: () => window.ErrorLog.length, icon: 'error', color: 'red', keybind: {toString: () => window.ErrorLog.length.toString()}, click() {
-					let lines = window.ErrorLog.slice(0, 64).map((error) => {
-						return Interface.createElement('p', {style: 'word-break: break-word;'}, `${error.message}\n - In .${error.file.split(location.origin).join('')} : ${error.line}`);
+					let error_messages = window.ErrorLog.map((error) => {
+						return `${error.message}\n - In .${error.file.split(location.origin).join('')} : ${error.line}`;
+					})
+					let lines = error_messages.slice(0, 64).map((message) => {
+						return Interface.createElement('p', {style: 'word-break: break-word;'}, message);
 					})
 					new Dialog({
 						id: 'error_log',
 						title: 'Error Log',
 						lines,
-						singleButton: true
+						buttons: ['action.copy', 'dialog.close'],
+						confirmIndex: 1,
+						cancelIndex: 1,
+						onButton(index) {
+							if (index == 0) {
+								Clipbench.setText(error_messages.slice(0, 256).join('\n'));
+							}
+						}
 					}).show();
+				}},
+				{name: 'Expose Native Modules', icon: 'terminal', condition: isApp && (() => {
+					return currentwindow.webContents.isDevToolsOpened();
+				}), click: () => {
+					exposeNativeApisInDevTools();
 				}},
 				{name: 'menu.help.developer.reset_storage', icon: 'fas.fa-hdd', click: () => {
 					factoryResetAndReload();
@@ -558,6 +579,15 @@ export const MenuBar = {
 				{name: 'menu.help.developer.unlock_projects', id: 'unlock_projects', icon: 'vpn_key', condition: () => ModelProject.all.find(project => project.locked), click() {
 					ModelProject.all.forEach(project => project.locked = false);
 				}},
+				{
+					name: 'Uncorrupt Mesh',
+					id: 'uncorrupt_mesh',
+					icon: 'build',
+					condition: () => Mesh.hasSelected(),
+					click() {
+						uncorruptMesh();
+					}
+				},
 				{name: 'menu.help.developer.cache_reload', id: 'cache_reload', icon: 'cached', condition: !isApp, click: () => {
 					if('caches' in window){
 						caches.keys().then((names) => {

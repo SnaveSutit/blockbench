@@ -1,3 +1,6 @@
+import { AutoBackup } from "../auto_backup";
+import { changeImageEditor } from "../desktop";
+import { currentwindow } from "../native_apis";
 import { Setting, Settings, SettingsProfile } from "./settings";
 import { addStartScreenSection } from "./start_screen";
 
@@ -45,6 +48,9 @@ function setupSettings() {
 	new Setting('status_bar_modifier_keys', {category: 'interface', value: true, condition: !Blockbench.isTouch, onChange(value) {
 		Interface.status_bar.vue.show_modifier_keys = value;
 	}});
+	new Setting('status_bar_transform_sliders', {category: 'interface', value: true, condition: Blockbench.isTouch, onChange(value) {
+		updateInterface();
+	}});
 	new Setting('always_show_splash_art',{category: 'interface', value: true});
 	new Setting('origin_size',  		{category: 'interface', value: 10, type: 'number', min: 2, max: 40});
 	new Setting('control_size',  		{category: 'interface', value: 10, type: 'number', min: 2, max: 40});
@@ -70,6 +76,7 @@ function setupSettings() {
 	new Setting('only_selected_bezier_handles',{category: 'interface', value: false, onChange(val) {
 		Timeline.vue.show_all_handles = !val;
 	}});
+	new Setting('autocomplete_code',	{category: 'interface', value: true});
 	
 	//Preview 
 	new Setting('brightness',  		{category: 'preview', value: 50, type: 'number', min: 0, max: 400, onChange() {
@@ -79,7 +86,7 @@ function setupSettings() {
 		Canvas.updateShading()
 	}});
 	new Setting('antialiasing', 	{category: 'preview', value: true, requires_restart: true});
-	new Setting('antialiasing_bleed_fix', 	{category: 'preview', value: false, requires_restart: true});
+	new Setting('antialiasing_bleed_fix', 	{category: 'preview', value: true, requires_restart: true});
 	new Setting('fov', 		  		{category: 'preview', value: 45, type: 'number', min: 1, max: 120, onChange(val) {
 		Preview.all.forEach(preview => preview.setFOV(val));
 	}});
@@ -158,25 +165,34 @@ function setupSettings() {
 		'face': tl('menu.paste.face'),
 		'mesh_selection': tl('menu.paste.mesh_selection'),
 	}});
-	new Setting('stretch_linked',		{category: 'edit', value: true});
-	new Setting('auto_keyframe',		{category: 'edit', value: true});
+	new Setting('stretch_linked',			{category: 'edit', value: true});
+	new Setting('auto_keyframe',			{category: 'edit', value: true});
+	new Setting('detect_flipbook_textures',	{category: 'edit', value: true});
 
 	//Paint
-	new Setting('color_wheel',					{category: 'paint', value: false, onChange(value) {
-		Interface.Panels.color.vue.picker_type = value ? 'wheel' : 'box';
-	}});
-	new Setting('brush_cursor_2d',			{category: 'paint', value: true});
-	new Setting('brush_cursor_3d',			{category: 'paint', value: true, onChange(value) {
+	new Setting('color_picker_style',			{category: 'paint', value: 'box', type: 'select',
+		options: {
+			box: 'menu.color_picker.picker_type.square',
+			wheel: 'menu.color_picker.picker_type.wheel',
+			normal: 'menu.color_picker.picker_type.normal',
+		},
+		onChange(value) {
+			Interface.Panels.color.vue.picker_type = value;
+		}
+	});
+	new Setting('brush_cursor_2d',					{category: 'paint', value: true});
+	new Setting('brush_cursor_3d',					{category: 'paint', value: true, onChange(value) {
 		if (!value) scene.remove(Canvas.brush_outline);
 	}});
-	new Setting('outlines_in_paint_mode',		{category: 'paint', value: true});
-	new Setting('move_with_selection_tool',		{category: 'paint', value: true});
-	new Setting('pick_color_opacity',			{category: 'paint', value: false});
-	new Setting('pick_combined_color',			{category: 'paint', value: false});
-	new Setting('paint_through_transparency',	{category: 'paint', value: true});
-	new Setting('paint_side_restrict',			{category: 'paint', value: true});
-	new Setting('paint_with_stylus_only',		{category: 'paint', value: false});
-	new Setting('brush_opacity_modifier',		{category: 'paint', value: 'none', type: 'select', options: {
+	new Setting('outlines_in_paint_mode',			{category: 'paint', value: true});
+	new Setting('move_with_selection_tool',			{category: 'paint', value: true});
+	new Setting('pick_color_opacity',				{category: 'paint', value: false});
+	new Setting('pick_combined_color',				{category: 'paint', value: false});
+	new Setting('paint_through_transparency',		{category: 'paint', value: true});
+	new Setting('paint_side_restrict',				{category: 'paint', value: true});
+	new Setting('limit_brush_opacity_per_stroke',	{category: 'paint', value: true});
+	new Setting('paint_with_stylus_only',			{category: 'paint', value: false});
+	new Setting('brush_opacity_modifier',			{category: 'paint', value: 'none', type: 'select', options: {
 		'pressure': tl('settings.brush_modifier.pressure'),
 		'tilt': tl('settings.brush_modifier.tilt'),
 		'none': tl('settings.brush_modifier.none'),
@@ -186,7 +202,12 @@ function setupSettings() {
 		'tilt': tl('settings.brush_modifier.tilt'),
 		'none': tl('settings.brush_modifier.none'),
 	}});
-	new Setting('image_editor',  	{category: 'paint', value: false, type: 'click', condition: isApp, icon: 'fas.fa-pen-square', click: function() {changeImageEditor(null) }});
+	new Setting('image_editor',  	{category: 'paint', value: false, type: 'click',
+		launch_setting: true,
+		condition: isApp,
+		icon: 'fas.fa-pen-square',
+		click: function() {changeImageEditor(null) }
+	});
 	
 	//Grid
 	new Setting('grids',				{category: 'grid', value: true, onChange() {Canvas.buildGrid()}});
@@ -224,14 +245,29 @@ function setupSettings() {
 	new Setting('nearest_rectangle_select',{category: 'snapping', value: false});
 	
 	//Defaults
-	new Setting('default_cube_size',		{category: 'defaults', value: 2, type: 'number', min: 0, max: 32});
-	new Setting('autouv',					{category: 'defaults', value: true});
-	new Setting('inherit_parent_color',		{category: 'defaults', value: false});
-	new Setting('create_rename', 			{category: 'defaults', value: false});
-	new Setting('show_only_selected_uv', 	{category: 'defaults', value: false});
-	new Setting('default_path', 			{category: 'defaults', value: false, type: 'click', condition: isApp, icon: 'burst_mode', click: function() { openDefaultTexturePath() }});
-	new Setting('animation_snap',			{category: 'defaults', value: 24, type: 'number'});
-	new Setting('uniform_keyframe',			{category: 'defaults', value: true});
+	new Setting('default_cube_size',				{category: 'defaults', value: 2, type: 'number', min: 0, max: 32});
+	new Setting('autouv',							{category: 'defaults', value: true});
+	new Setting('inherit_parent_color',				{category: 'defaults', value: false});
+	new Setting('create_rename', 					{category: 'defaults', value: false});
+	new Setting('show_only_selected_uv', 			{category: 'defaults', value: false});
+	new Setting('default_path', 					{category: 'defaults', value: false, type: 'click', condition: isApp, icon: 'burst_mode', click: function() { openDefaultTexturePath() }});
+	new Setting('default_bedrock_format',			{category: 'defaults', type: 'select', value: 'entity', options: {
+		entity: 'format.bedrock',
+		block: 'format.bedrock_block',
+	}});
+	new Setting('default_java_block_version',		{category: 'defaults', type: 'select', value: 'latest', options: {
+		latest: 'Latest',
+		'1.21.6': '1.21.6 - 1.21.10',
+		'1.9.0': '1.9 - 1.21.5',
+	}});
+	new Setting('animation_snap',					{category: 'defaults', value: 24, type: 'number'});
+	new Setting('default_keyframe_interpolation',	{category: 'defaults', value: 'linear', type: 'select', options: {
+		linear: 'action.keyframe_interpolation.linear',
+		catmullrom: 'action.keyframe_interpolation.catmullrom',
+		bezier: 'action.keyframe_interpolation.bezier',
+		step: 'action.keyframe_interpolation.step',
+	}});
+	new Setting('uniform_keyframe',					{category: 'defaults', value: true});
 	
 	//Dialogs
 	new Setting('dialog_larger_cubes', 		{category: 'dialogs', value: true, name: tl('message.model_clipping.title'), description: tl('settings.dialog.desc', [tl('message.model_clipping.title')])});
@@ -278,9 +314,16 @@ function setupSettings() {
 	new Setting('sketchfab_token', 		{category: 'export', value: '', type: 'password'});
 	new Setting('credit', 				{category: 'export', value: 'Made with Blockbench', type: 'text'});
 
-	Blockbench.onUpdateTo('4.12.1', () => {
-		settings.antialiasing_bleed_fix.set(false);
+	Blockbench.onUpdateTo('5.0.0', () => {
+		settings.antialiasing_bleed_fix.set(true);
 	})
+	// Fail-safe
+	setTimeout(() => {
+		if (Preview.selected && Preview.selected.renderer.capabilities.isWebGL2 == false) {
+			settings.antialiasing_bleed_fix.set(false);
+			console.warn('Downgrading settings to support WebGL 1');
+		}
+	}, 4*1000);
 }
 function setupSettingsProfiles() {
 	if (localStorage.getItem('settings_profiles') != null) {

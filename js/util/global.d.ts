@@ -37,9 +37,9 @@ declare global {
 		 */
 		isBetween(number: number, limit1: number, limit2: number): boolean
 		/**
-		 * Checks if the absolute difference between a and b is smaller than epsilon
+		 * Checks if the absolute difference between a and b is smaller than epsilon (defaults to 0.001)
 		 */
-		epsilon(a: number, b: number, epsilon: number): boolean
+		epsilon(a: number, b: number, epsilon: number = 0.001): boolean
 		/**
 		 * Take a rotation value in degrees, and trim it to a value between -180 and 180, while keeping the same angle
 		 */
@@ -87,7 +87,7 @@ declare global {
 		safePush(...items: any): boolean
 		equals(array: Array<any>): boolean
 		replace(items: T[]): boolean
-		allAre(callback: (item: T, index: number) => boolean): boolean
+		allAre(callback: (item: T, index: number) => unknown): boolean
 		findInArray(key: string, value: any): number
 		positiveItems(): number
 		/**
@@ -116,13 +116,16 @@ declare global {
 		V3_subtract(x: number, y: number, z: number): ArrayVector3
 		V3_subtract(values: ArrayVector3): ArrayVector3
 		V3_subtract(value: THREE.Vector3): ArrayVector3
+		V3_multiply(scalar: number): ArrayVector3
 		V3_multiply(x: number, y: number, z: number): ArrayVector3
 		V3_multiply(values: ArrayVector3): ArrayVector3
 		V3_multiply(value: THREE.Vector3): ArrayVector3
 		V3_divide(x: number, y: number, z: number): ArrayVector3
 		V3_divide(values: ArrayVector3): ArrayVector3
 		V3_divide(value: THREE.Vector3): ArrayVector3
+		V3_divide(scalar: number): ArrayVector3
 		V3_toThree(): THREE.Vector3
+		V3_toEuler(): THREE.Euler
 	}
 
 	interface Event {

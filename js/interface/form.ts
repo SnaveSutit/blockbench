@@ -1,8 +1,38 @@
+import { Blockbench } from "../api"
 import { Clipbench } from "../copy_paste"
-import { FileSystem } from "../file_system"
+import { Filesystem } from "../file_system"
+import { tl } from "../languages"
 import { EventSystem } from "../util/event_system"
-import { getStringWidth } from "../util/util"
+import { getStringWidth, pureMarked } from "../util/util"
 import { Interface } from "./interface"
+
+type ReadType = 'buffer' | 'binary' | 'text' | 'image'
+interface FileResult {
+	name: string
+	path: string
+	content: string | ArrayBuffer
+	no_file?: boolean
+}
+export enum FormInputType {
+	Text = 'text',
+	Password = 'password',
+	Number = 'number',
+	Range = 'range',
+	Checkbox = 'checkbox',
+	Select = 'select',
+	Radio = 'radio',
+	Textarea = 'textarea',
+	Vector = 'vector',
+	Color = 'color',
+	File = 'file',
+	Folder = 'folder',
+	Save = 'save',
+	InlineSelect = 'inline_select',
+	InlineMultiSelect = 'inline_multi_select',
+	Info = 'info',
+	NumSlider = 'num_slider',
+	Buttons = 'buttons',
+}
 
 export interface FormElementOptions {
 	label?: string
@@ -10,25 +40,14 @@ export interface FormElementOptions {
 	 * Detailed description of the field, available behind the questionmark icon or on mouse hover
 	 */
 	description?: string
-	type:
-		| 'text'
-		| 'password'
-		| 'number'
-		| 'range'
-		| 'checkbox'
-		| 'select'
-		| 'radio'
-		| 'textarea'
-		| 'vector'
-		| 'color'
-		| 'file'
-		| 'folder'
-		| 'save'
-		| 'inline_select'
-		| 'inline_multi_select'
-		| 'info'
-		| 'num_slider'
-		| 'buttons'
+	/**
+	 * Type of the input. If unspecified, defaults to text
+	 */
+	type?: FormInputType | `${FormInputType}`
+	/**
+	 * Visual style of the input. Checkbox inputs support 'checkbox' or 'toggle_switch'
+	 */
+	style?: 'checkbox' | 'toggle_switch'
 	/**
 	 * Stretch the input field across the whole width of the form
 	 */
@@ -70,6 +89,10 @@ export interface FormElementOptions {
 	 */
 	step?: number
 	/**
+	 * On num slider inputs, The color of the slider
+	 */
+	color?: string
+	/**
 	 * If enabled, the value is forced to multiples of the "step" value. This can be used to create integer-only inputs etc.
 	 */
 	force_step?: boolean
@@ -84,7 +107,7 @@ export interface FormElementOptions {
 	/**
 	 * Available options on select or inline_select inputs
 	 */
-	options?: { [key: string]: string | { name: string } }
+	options?: Record<string, string | { name: string }> | (() => Record<string, string | { name: string }>)
 	/**
 	 * List of buttons for the button type
 	 */
@@ -127,9 +150,9 @@ export interface FormElementOptions {
 	filetype?: string
 }
 
-type FormResultValue = string | number | boolean | any[] | {}
+export type FormResultValue = string | number | boolean | any[] | {}
 
-type InputFormConfig = {
+export type InputFormConfig = {
 	[formElement: string]: '_' | FormElementOptions
 }
 type FormValues = Record<string, FormResultValue>
@@ -184,7 +207,9 @@ export class InputForm extends EventSystem {
 			if (!form_element || (ignore_hidden && !Condition(form_element.condition))) continue;
 
 			if (form_element.uses_wide_inputs) this.uses_wide_inputs = true;
-			this.max_label_width = Math.max(form_element.label_width, this.max_label_width);
+			if (form_element.label_width) {
+				this.max_label_width = Math.max(form_element.label_width, this.max_label_width);
+			}
 		}
 		this.node.style.setProperty('--max_label_width', this.max_label_width+'px');
 	}
@@ -393,6 +418,7 @@ FormElement.types.range = class FormElementRange extends FormElement {
 	}
 	setValue(value: number): void {
 		this.input.value = value.toString();
+		if (this.numeric_input) this.numeric_input.value = value;
 	}
 	getDefault(): number {
 		return Math.clamp(0, this.options.min, this.options.max);
@@ -454,17 +480,18 @@ FormElement.types.text = class FormElementText extends FormElement {
 		}
 		if (this.options.type == 'password') {
 
-			bar.append(`<div class="password_toggle form_input_tool tool">
-					<i class="fas fa-eye-slash"></i>
-				</div>`)
+			let password_toggle = Interface.createElement(
+				'div',
+				{class: 'password_toggle form_input_tool tool'},
+				Blockbench.getIconNode('fas.fa-eye-slash')
+			) as HTMLDivElement;
+			bar.append(password_toggle);
 			input_element.type = 'password';
 			let hidden = true;
-			let this_bar = $(bar);
-			let this_input_element = input_element;
-			this_bar.find('.password_toggle').on('click', e => {
+			password_toggle.addEventListener('click', e => {
 				hidden = !hidden;
-				this_input_element.setAttribute('type', hidden ? 'password' : 'text');
-				this_bar.find('.password_toggle i')[0].className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
+				input_element.setAttribute('type', hidden ? 'password' : 'text');
+				password_toggle.firstElementChild.className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
 			})
 		}
 		if (this.options.share_text && this.options.value) {
@@ -473,6 +500,8 @@ FormElement.types.text = class FormElementText extends FormElement {
 
 			let copy_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.copy_to_clipboard')}, Blockbench.getIconNode('content_paste'));
 			copy_button.addEventListener('click', e => {
+				let text = this.getValue();
+				let is_url = text.startsWith('https://');
 				if (isApp || navigator.clipboard) {
 					Clipbench.setText(text);
 					Blockbench.showQuickMessage('dialog.copied_to_clipboard');
@@ -491,6 +520,7 @@ FormElement.types.text = class FormElementText extends FormElement {
 			if (is_url) {
 				let open_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.open_url')}, Blockbench.getIconNode('open_in_browser'));
 				open_button.addEventListener('click', e => {
+					let text = this.getValue();
 					Blockbench.openLink(text);
 				});
 				bar.append(open_button);
@@ -498,6 +528,7 @@ FormElement.types.text = class FormElementText extends FormElement {
 			if (navigator.share) {
 				let share_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('generic.share')}, Blockbench.getIconNode('share'));
 				share_button.addEventListener('click', e => {
+					let text = this.getValue();
 					navigator.share({
 						title: this.options.label ? tl(this.options.label) : 'Share',
 						[is_url ? 'url' : 'text']: text
@@ -738,6 +769,7 @@ FormElement.types.num_slider = class FormElementNumSlider extends FormElement {
 			onChange: () => {
 				this.change();
 			},
+			color: this.options.color || "",
 			getInterval,
 			settings: {
 				default: this.options.value || 0,
@@ -862,7 +894,7 @@ FormElement.types.color = class FormElementColor extends FormElement {
 		this.colorpicker.onChange = function() {
 			scope.change();
 		};
-		this.colorpicker.on('modify_color', ({color}) => {
+		this.colorpicker.on('modify_color', () => {
 			scope.change();
 		})
 		bar.append(this.colorpicker.getNode())
@@ -883,10 +915,10 @@ FormElement.types.checkbox = class FormElementCheckbox extends FormElement {
 		super.build(bar);
 		this.input = Interface.createElement('input', {
 			type: 'checkbox',
-			class: 'focusable_input',
+			class: 'focusable_input' + (this.options.style == 'toggle_switch' ? ' toggle_switch' : ''),
 			id: this.id,
-			checked: this.options.value
 		})
+		this.input.checked = this.options.value;
 		bar.append(this.input)
 		this.input.addEventListener('change', () => {
 			this.change();
@@ -904,7 +936,7 @@ FormElement.types.checkbox = class FormElementCheckbox extends FormElement {
 };
 
 class FormElementFile extends FormElement {
-	file: FileSystem.FileResult
+	file: Filesystem.FileResult
 	value: string
 	content: any
 	input: HTMLInputElement
@@ -938,7 +970,7 @@ class FormElementFile extends FormElement {
 		})
 
 		input_wrapper.on('click', e => {
-			function fileCB(files) {
+			const fileCB = (files) => {
 				this.value = files[0].path;
 				this.content = files[0].content;
 				this.file = files[0];
@@ -977,7 +1009,7 @@ class FormElementFile extends FormElement {
 			}
 		})
 	}
-	getValue(): FileSystem.FileResult | string | any {
+	getValue(): Filesystem.FileResult | string | any {
 		if (this.options.return_as == 'file') {
 			return this.file;
 		} else {
@@ -1004,5 +1036,9 @@ FormElement.types.file = FormElementFile;
 FormElement.types.folder = FormElementFile;
 FormElement.types.save = FormElementFile;
 
-
-Object.assign(window, {InputForm, FormElement});
+const global = {InputForm, FormElement};
+declare global {
+	const InputForm: typeof global.InputForm
+	const FormElement: typeof global.FormElement
+}
+Object.assign(window, global);

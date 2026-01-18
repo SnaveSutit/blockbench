@@ -61,7 +61,7 @@ export function setupDragHandlers() {
 	)
 }
 
-export function loadModelFile(file) {
+export function loadModelFile(file, args) {
 	
 	let existing_tab = isApp && ModelProject.all.find(project => (
 		project.save_path == file.path || project.export_path == file.path
@@ -75,7 +75,7 @@ export function loadModelFile(file) {
 				if (existing_tab && !codec.multiple_per_file) {
 					existing_tab.select();
 				} else {
-					codec.load(content, file);
+					codec.load(content, file, args);
 				}
 				return true;
 			}
@@ -93,11 +93,12 @@ export function loadModelFile(file) {
 		if (success) return;
 	}
 	// JSON
-	let model = autoParseJSON(file.content);
+	let model = autoParseJSON(file.content, {file_path: file.path});
 	for (let id in Codecs) {
 		let success = loadIfCompatible(Codecs[id], 'json', model);
 		if (success) return;
 	}
+	unsupportedFileFormatMessage(file.path);
 }
 
 export async function loadImages(files, event) {
@@ -109,7 +110,8 @@ export async function loadImages(files, event) {
 	await new Promise((resolve, reject) => {
 		img.src = isApp ? files[0].path : files[0].content;
 		img.onload = resolve;
-		img.onerror = reject;
+		// TGA images will fail, should still continue
+		img.onerror = resolve;
 	})
 
 	// Options
@@ -127,8 +129,11 @@ export async function loadImages(files, event) {
 		if (!Format.image_editor && Condition(Panels.textures.condition)) {
 			options.texture = 'action.import_texture';
 		}
-		if (Modes.paint && document.querySelector('#UVEditor:hover') && Texture.selected) {
-			options.layer = 'data.layer';
+		if (Modes.paint && Texture.selected) {
+			options.layer = 'message.load_images.add_layer';
+		}
+		if (Modes.edit && (!Project.box_uv || Format.optional_box_uv)) {
+			options.extrude_with_cubes = 'dialog.extrude.title';
 		}
 	}
 	options.edit = 'message.load_images.edit_image';
@@ -144,9 +149,6 @@ export async function loadImages(files, event) {
 		} else {
 			options.texture = 'action.import_texture';
 		}
-	}
-	if (Project && (!Project.box_uv || Format.optional_box_uv)) {
-		options.extrude_with_cubes = 'dialog.extrude.title';
 	}
 
 	function doLoadImages(method) {
@@ -204,7 +206,8 @@ export async function loadImages(files, event) {
 		} else if (method == 'minecraft_skin') {
 			Formats.skin.setup_dialog.show();
 			Formats.skin.setup_dialog.setFormValues({
-				texture: files[0]
+				texture_source: 'upload_texture',
+				texture_file: files[0]
 			})
 
 		} else if (method == 'extrude_with_cubes') {
@@ -227,9 +230,30 @@ export async function loadImages(files, event) {
 			minecraft_skin: 'icon-player',
 			extrude_with_cubes: 'eject',
 		};
+		let categories = {
+			replace_texture: 'message.load_images.category.add_to_project',
+			texture: 'message.load_images.category.add_to_project',
+			layer: 'message.load_images.category.add_to_project',
+			reference_image: 'message.load_images.category.add_to_project',
+			edit: 'message.load_images.category.new_project',
+			minecraft_skin: 'message.load_images.category.new_project',
+			extrude_with_cubes: 'message.load_images.category.add_to_project',
+		}
 		let commands = {};
 		for (let id in options) {
-			commands[id] = {text: options[id], icon: icons[id]};
+			if (categories[id] == 'message.load_images.category.new_project') continue;
+			commands[id] = {
+				text: options[id],
+				icon: icons[id],
+				category: categories[id],
+			};
+		}
+		for (let id in options) {
+			commands[id] = {
+				text: options[id],
+				icon: icons[id],
+				category: categories[id],
+			};
 		}
 		let title = tl('message.load_images.title');
 		let message = `${files[0].name}`;
@@ -244,6 +268,32 @@ export async function loadImages(files, event) {
 			doLoadImages(result);
 		})
 	}
+}
+
+export function unsupportedFileFormatMessage(file_name) {
+	let extension = pathToExtension(file_name).toLowerCase();
+	let supported_plugins = Plugins.all.filter(plugin => {
+		return plugin.contributes?.open_extensions?.includes(extension);
+	})
+	console
+	let commands = {};
+	for (let plugin of supported_plugins) {
+		commands[plugin.id] = {
+			icon: plugin.icon,
+			text: tl('message.invalid_format.install_plugin', [plugin.title])
+		}
+	}
+	Blockbench.showMessageBox({
+		translateKey: 'unsupported_file_extension',
+		message: tl('message.unsupported_file_extension.message', [extension]),
+		commands,
+	}, (plugin_id) => {
+		let plugin = plugin_id && supported_plugins.find(p => p.id == plugin_id);
+		if (plugin) {
+			BarItems.plugins_window.click();
+			Plugins.dialog.content_vue.selectPlugin(plugin);
+		}
+	})
 }
 
 //Extruder
@@ -280,7 +330,7 @@ export const Extruder = {
 			}
 		},
 		lines: [
-			`<canvas height="256" width="256" id="extrusion_canvas" class="checkerboard"></canvas>`
+			Interface.createElement('canvas', {height: 256, width: 256, id: 'extrusion_canvas', class: 'checkerboard'})
 		],
 		onConfirm(formResult) {
 			Extruder.startConversion(formResult);
@@ -569,7 +619,7 @@ BARS.defineActions(function() {
 		condition: () => Project,
 		click: async function(event) {
 			if (isApp) {
-				saveTextures()
+				await saveTextures()
 				if (Format) {
 					let export_codec = Format.codec;
 					if (Project.save_path) {
@@ -621,7 +671,7 @@ BARS.defineActions(function() {
 					BarItems.save_all_animations.trigger();
 				}
 			} else {
-				saveTextures()
+				await saveTextures()
 				if (Format.codec && Format.codec.export) {
 					Format.codec.export()
 				}
@@ -694,6 +744,7 @@ Object.assign(window, {
 	loadModelFile,
 	loadImages,
 	Extruder,
+	unsupportedFileFormatMessage,
 	compileJSON,
 	autoParseJSON,
 })

@@ -1,3 +1,6 @@
+import { Filesystem } from "../file_system";
+import { currentwindow, ipcRenderer } from "../native_apis";
+
 export const Toolbars = {};
 
 export class Toolbar {
@@ -392,6 +395,7 @@ export const BARS = {
 				transformerMode: 'translate',
 				animation_channel: 'position',
 				toolbar: 'main_tools',
+				transform_toolbar: 'element_position',
 				alt_tool: 'resize_tool',
 				modes: ['edit', 'display', 'animate', 'pose'],
 				keybind: new Keybind({key: 'v'}),
@@ -403,6 +407,7 @@ export const BARS = {
 				transformerMode: 'scale',
 				animation_channel: 'scale',
 				toolbar: 'main_tools',
+				transform_toolbar: 'element_size',
 				alt_tool: 'move_tool',
 				modes: ['edit', 'display', 'animate'],
 				keybind: new Keybind({key: 's'}),
@@ -427,9 +432,10 @@ export const BARS = {
 				transformerMode: 'rotate',
 				animation_channel: 'rotation',
 				toolbar: 'main_tools',
+				transform_toolbar: 'element_rotation',
 				alt_tool: 'pivot_tool',
 				modes: ['edit', 'display', 'animate', 'pose'],
-				keybind: new Keybind({key: 'r'})
+				keybind: new Keybind({key: 'r'}),
 			})
 			new Tool('pivot_tool', {
 				icon: 'gps_fixed',
@@ -437,6 +443,7 @@ export const BARS = {
 				selectFace: true,
 				transformerMode: 'translate',
 				toolbar: 'main_tools',
+				transform_toolbar: 'element_origin',
 				alt_tool: 'rotate_tool',
 				modes: ['edit', 'animate'],
 				keybind: new Keybind({key: 'p'}),
@@ -478,13 +485,38 @@ export const BARS = {
 			new Tool('stretch_tool', {
 				icon: 'expand',
 				category: 'tools',
-				condition: () => Format.stretch_cubes,
+				condition: {features: ['stretch_cubes'], modes: ['edit']},
 				selectFace: true,
 				transformerMode: 'stretch',
 				toolbar: 'main_tools',
+				transform_toolbar: 'element_stretch',
 				alt_tool: 'resize_tool',
 				modes: ['edit'],
 				keybind: new Keybind({key: 's', alt: true}),
+			})
+			new Action('set_element_marker_color', {
+				name: 'menu.cube.color',
+				icon: 'color_lens',
+				condition: () => Outliner.selected.find(el => el.getTypeBehavior('marker_color')) || Group.selected.length,
+				click(e) {
+					new Menu('set_element_marker_color', this.children()).open(e.target);
+				},
+				children() {
+					return markerColors.map((color, i) => {return {
+						icon: 'bubble_chart',
+						color: color.standard,
+						name: color.name || 'cube.color.'+color.id,
+						click() {
+							let elements = Outliner.selected.filter(el => el.getTypeBehavior('marker_color'))
+							let groups = Group.all.filter(g => g.selected);
+							Undo.initEdit({elements, groups})
+							elements.concat(groups).forEach(el => {
+								el.setColor(i);
+							})
+							Undo.finishEdit('Set marker color');
+						}
+					}});
+				}
 			})
 			new Action('randomize_marker_colors', {
 				icon: 'fa-shuffle',
@@ -492,10 +524,10 @@ export const BARS = {
 				condition: {modes: ['edit' ], project: true},
 				click: function() {
 					let randomColor = function() { return Math.floor(Math.random() * markerColors.length)}
-					let elements = Outliner.selected.filter(element => element.setColor)
-					Undo.initEdit({outliner: true, elements: elements, selection: true})
+					let elements = Outliner.selected.filter(element => element.getTypeBehavior('marker_color'))
+					Undo.initEdit({outliner: true, elements: elements, selection: true, groups: Group.all.filter(g => g.selected)})
 					Group.all.forEach(group => {
-						if (group.first_selected) {
+						if (group.selected) {
 							let lastColor = group.color
 							// Ensure chosen group color is never the same as before
 							do group.color = randomColor();
@@ -526,7 +558,7 @@ export const BARS = {
 				category: 'file',
 				condition: () => {return isApp && (Project.save_path || Project.export_path)},
 				click: function () {
-					showItemInFolder(Project.export_path || Project.save_path);
+					Filesystem.showFileInFolder(Project.export_path || Project.save_path);
 				}
 			})
 			new Action('reload', {
@@ -555,9 +587,6 @@ export const BARS = {
 					replace: {label: 'dialog.find_replace.replace', type: 'text'},
 					regex: {label: 'dialog.find_replace.regex', type: 'checkbox', value: false},
 				},
-				onFormChange() {
-
-				},
 				onConfirm(form) {
 					if (!form.find) return;
 					function replace(name) {
@@ -581,7 +610,7 @@ export const BARS = {
 					}
 					if (form.target == 'group_names') {
 						let groups = Group.first_selected ? Group.all.filter(g => g.selected) : Group.all;
-						Undo.initEdit({outliner: true});
+						Undo.initEdit({groups});
 						groups.forEach(group => {
 							group.name = replace(group.name);
 							group.sanitizeName();
@@ -717,6 +746,7 @@ export const BARS = {
 				'stretch_tool',
 				'knife_tool',
 				'seam_tool',
+				'weight_brush',
 				'pan_tool',
 				'brush_tool',
 				'copy_brush',
@@ -735,12 +765,16 @@ export const BARS = {
 		
 		Toolbars.main_tools = new Toolbar({
 			id: 'main_tools',
-			no_wrap: true,
+			no_wrap: Blockbench.isMobile != true,
 			children: [
 				'transform_space',
 				'rotation_space',
 				'transform_pivot_space',
 				'selection_mode',
+				'spline_selection_mode',
+				'spline_handle_mode',
+				'slider_spline_handle_tilt',
+				'slider_spline_handle_size',
 				'animation_controller_preview_mode',
 				'slider_animation_controller_speed',
 				'bedrock_animation_mode',
@@ -812,12 +846,15 @@ export const BARS = {
 		})
 		if (Blockbench.isMobile) {
 			// Update to 5.0
-			[Toolbars.element_position,
+			let toolbars = [
+				Toolbars.element_position,
 				Toolbars.element_size,
 				Toolbars.element_stretch,
 				Toolbars.element_origin,
 				Toolbars.element_rotation
-			].forEach(toolbar => {
+			];
+
+			toolbars.forEach(toolbar => {
 				for (let child of Toolbars.main_tools.children) {
 					if (toolbar.children.includes(child)) {
 						toolbar.remove(child);
@@ -855,7 +892,9 @@ export const BARS = {
 			no_wrap: true,
 			children: [
 				'vertex_snap_mode',
-				'selection_mode'
+				'selection_mode',
+				'spline_selection_mode',
+				'spline_handle_mode',
 			]
 		})
 		Toolbars.seam_tool = new Toolbar({
@@ -863,6 +902,18 @@ export const BARS = {
 			no_wrap: true,
 			children: [
 				'select_seam'
+			]
+		})
+		Toolbars.weight_brush = new Toolbar({
+			id: 'weight_brush',
+			no_wrap: true,
+			children: [
+				'slider_weight_brush_size',
+				'slider_weight_brush_limit',
+				'weight_brush_blend_mode',
+				'weight_brush_xray',
+				'_',
+				'mirror_modeling',
 			]
 		})
 
@@ -1051,6 +1102,8 @@ export const BARS = {
 				Toolbars[key].update()
 			}
 		}
+		// On mobile, the variable height of the top toolbar can shift the UI
+		TickUpdates.interface = true;
 	}
 }
 

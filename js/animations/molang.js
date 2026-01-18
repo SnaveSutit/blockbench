@@ -1,3 +1,5 @@
+import { isStringNumber } from "../util/math_util"
+
 Animator.MolangParser.context = {}
 Animator.MolangParser.global_variables = {
 	true: 1,
@@ -64,11 +66,11 @@ Animator.MolangParser.global_variables = {
 		return val
 	},
 	get 'query.distance_from_camera'() {
-		return Preview.selected.camera.position.length() / 16
+		return Preview.selected.camera.position.length() / Format.block_size
 	},
 	'query.lod_index'(indices) {
 		indices.sort((a, b) => a - b)
-		let distance = Preview.selected.camera.position.length() / 16
+		let distance = Preview.selected.camera.position.length() / Format.block_size
 		let index = indices.length
 		indices.forEachReverse((val, i) => {
 			if (distance < val) index = i
@@ -76,7 +78,7 @@ Animator.MolangParser.global_variables = {
 		return index
 	},
 	'query.camera_distance_range_lerp'(a, b) {
-		let distance = Preview.selected.camera.position.length() / 16
+		let distance = Preview.selected.camera.position.length() / Format.block_size
 		return Math.clamp(Math.getLerp(a, b, distance), 0, 1)
 	},
 	get 'query.is_first_person'() {
@@ -89,12 +91,16 @@ Animator.MolangParser.global_variables = {
 		return Timeline.time
 	},
 }
-
+const variable_fallbacks = {
+	'query.model_scale': 1/16,
+};
 Animator.MolangParser.variableHandler = function (variable, variables, args) {
-	let variable_with_args = args?.length ? `${variable}(${args.map(arg => "'"+arg+"'").join(',')})` : variable;
-	const val = Animator.global_variable_lines[variable_with_args]
+	let variable_with_args = args?.length && `${variable}(${args.map(arg => isStringNumber(arg) ? arg : "'"+arg+"'").join(',')})`;
+
+	const val = Animator.global_variable_lines[variable] ?? Animator.global_variable_lines[variable_with_args];
 	if (val === undefined) {
-		return
+		if (variable_fallbacks[variable] != undefined) return variable_fallbacks[variable];
+		return;
 	}
 
 	if (val.match(/^(slider|toggle|impulse)\(/)) {
@@ -239,10 +245,10 @@ new ValidatorCheck('molang_syntax', {
 							.replace(/[^a-z0-9._]/g, '')
 				)
 			}
-			if (clear_string.match(/[^\w\s+\-*/().,;:[\]!?=<>&|]/)) {
+			if (clear_string.match(/[^\w\s+\-*/(){}.,;:[\]!?=<>&|]/)) {
 				issues.push(
 					'Invalid character: ' +
-						clear_string.match(/[^\s\w+\-*/().,;:[\]!?=<>&|]+/g).join(', ')
+						clear_string.match(/[^\s\w+\-*/(){}.,;:[\]!?=<>&|]+/g).join(', ')
 				)
 			}
 			let left = string.match(/\(/g) || 0
@@ -1702,6 +1708,143 @@ export function sortAutocompleteResults(results, incomplete) {
 					id: 'hermite_blend',
 					arguments: ['0_to_1'],
 				})
+				.addQuery({
+					id: 'min_angle',
+					arguments: ['angle'],
+				})
+				.addQuery({
+					id: 'sign',
+					arguments: ['vaule'],
+				})
+				.addQuery({
+					id: 'copy_sign',
+					arguments: ['value', 'sign'],
+				})
+				.addQuery({
+					id: 'inverse_lerp',
+					arguments: ['start', 'end', 'value'],
+				})
+				.addQuery({
+					id: 'ease_in_quad',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_quad',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_quad',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_cubic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_cubic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_cubic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_quart',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_quart',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_quart',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_quint',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_quint',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_quint',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_sine',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_sine',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_sine',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_expo',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_expo',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_expo',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_circ',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_circ',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_circ',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_bounce',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_bounce',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_bounce',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_back',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_back',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_back',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_elastic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_out_elastic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+				.addQuery({
+					id: 'ease_in_out_elastic',
+					arguments: ['start', 'end', '0_to_1'],
+				})
+
 		)
 		.addNamespace(
 			new MolangAutocomplete.Namespace({
