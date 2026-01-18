@@ -1526,6 +1526,7 @@
 	"action.settings_window.desc": "Open the Blockbench settings dialog.",
 	"action.plugins_window": "Plugins...",
 	"action.plugins_window.desc": "Open the plugin store window",
+	"action.plugins_window_menu": "Menu",
 	"action.action_control": "Action Control",
 	"action.action_control.desc": "Search and execute any available action",
 	"action.edit_session": "Edit Session...",
@@ -1539,6 +1540,8 @@
 	"action.load_plugin.desc": "Load a plugin by importing the source file",
 	"action.load_plugin_from_url": "Load Plugin from URL",
 	"action.load_plugin_from_url.desc": "Load a plugin from a server by specifying the URL",
+	"action.copy_installed_plugins": "Copy installed plugins",
+	"action.copy_installed_plugins.desc": "Generate and copy a list of the currently installed plugins",
 	"action.reload_plugins": "Reload Plugins",
 	"action.reload_plugins.desc": "Reload all development plugins",
 

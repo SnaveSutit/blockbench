@@ -161,6 +161,10 @@ declare global {
 		condition?: ConditionResolvable
 		category?: string
 		keybind?: Keybind
+		/**
+		 * If set to true, the item can only be used in private context and does not appear in keybindings, action control, or toolbar customization
+		 */
+		private?: true
 	}
 	/**
 	 * Anything that can go into a toolbar, including actions, tools, toggles, widgets etc.

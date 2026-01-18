@@ -1175,8 +1175,22 @@ BARS.defineActions(function() {
 		resizable: 'xy',
 		onOpen() {
 			if (!actions_setup) {
-				BarItems.load_plugin.toElement(document.getElementById('plugins_list_main_bar'));
-				BarItems.load_plugin_from_url.toElement(document.getElementById('plugins_list_main_bar'));
+				let bar = document.getElementById('plugins_list_main_bar');
+				let menu_action = new Action('plugins_window_menu', {
+					private: true,
+					icon: 'more_vert',
+					click(e) {
+						let target = ('target' in e && e.target) as HTMLElement | undefined;
+						new Menu('apply_display_preset', this.children).open(target);
+					},
+					children: [
+						'copy_installed_plugins',
+					]
+				})
+
+				BarItems.load_plugin.toElement(bar);
+				BarItems.load_plugin_from_url.toElement(bar);
+				menu_action.toElement(bar);
 				actions_setup = true;
 			}
 		},
@@ -1902,6 +1916,34 @@ BARS.defineActions(function() {
 			Blockbench.textPrompt('URL', '', url => {
 				new Plugin().loadFromURL(url, true)
 			})
+		}
+	})
+	new Action('copy_installed_plugins', {
+		icon: 'assignment',
+		category: 'blockbench',
+		click() {
+			function getList(details: boolean): string {
+				let plugins = Plugins.all.filter(p => p.installed);
+				if (details) {
+					return plugins.map(p => 
+						(`${p.id}@${p.version}${p.source == 'store' ? '' : ('('+p.source+')')}`)
+					).join(', ');
+				} else {
+					return plugins.map(p => p.id).join(', ');
+				}
+			}
+			new Dialog({
+				title: 'action.copy_installed_plugins',
+				form: {
+					output: {type: 'text', value: getList(true), readonly: true, share_text: true},
+					details: {type: 'checkbox', label: 'Include Details', value: true},
+				},
+				onFormChange(result) {
+					Dialog.open.form.setValues({
+						output: getList(result.details as boolean)
+					}, false);
+				}
+			}).show();
 		}
 	})
 	new Action('add_plugin', {
