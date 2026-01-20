@@ -105,6 +105,8 @@ BARS.defineActions(() => {
 				}
 
 				// Simplify voxels to boxes
+				// TODO: Test shrink-wrapping algorithm instead of expand
+
 				type MBox = [number, number, number, number, number, number];
 				let boxes: MBox[] = [];
 				let miss_factor = (options.complexity/100)**2; // Square curve to distribute along slider more nicely

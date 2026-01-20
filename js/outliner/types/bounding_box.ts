@@ -73,14 +73,14 @@ export class BoundingBox extends OutlinerElement {
 			this.extend(data)
 		}
 	}
-	get from() {return this._static.properties.from};
-	get to() {return this._static.properties.to};
-	set from(v) {this._static.properties.from = v};
-	set to(v) {this._static.properties.to = v};
-	get position() {
+	get from(): ArrayVector3 {return this._static.properties.from};
+	get to(): ArrayVector3 {return this._static.properties.to};
+	set from(v: ArrayVector3) {this._static.properties.from = v};
+	set to(v: ArrayVector3) {this._static.properties.to = v};
+	get position(): ArrayVector3 {
 		return [0, 0, 0];
 	}
-	get origin() {
+	get origin(): ArrayVector3 {
 		return [0, 0, 0];
 	}
 	extend(object: BoundingBoxOptions) {

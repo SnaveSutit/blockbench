@@ -1,0 +1,138 @@
+import { BoundingBox } from "../../outliner/types/bounding_box";
+
+type BoxSchema = {
+	min: ArrayVector3,
+	max: ArrayVector3,
+}
+type MainSchema = {
+	description: {
+		identifier: string
+	}
+	shape: {
+		boxes: BoxSchema[]
+	}
+}
+
+var codec = new Codec('bedrock_voxel_shape', {
+	name: 'Bedrock Voxel Shape',
+	extension: 'json',
+	remember: true,
+	support_partial_export: true,
+	load_filter: {
+		type: 'json',
+		extensions: ['json'],
+		condition(model) {
+			return model['minecraft:voxel_shape'];
+		}
+	},
+	parse(model, path, args = {}) {
+
+		this.dispatchEvent('parse', {model});
+
+		let main = model["minecraft:voxel_shape"] as MainSchema;
+		if (main.description.identifier && !args.import_to_current_project) {
+			Project.model_identifier = main.description.identifier;
+		}
+
+		let bounding_boxes: BoundingBox[] = [];
+		let groups = [];
+		if (args.import_to_current_project) {
+			Undo.initEdit({elements: bounding_boxes, groups, outliner: true});
+		}
+
+		let group = new Group({
+			name: 'voxel_shape',
+		}).init();
+		const offset: ArrayVector3 = [-8, 0, -8];
+		let i = 0;
+		for (let box_template of main.shape.boxes) {
+			let bounding_box = new BoundingBox({
+				from: box_template.min.slice().V3_add(offset),
+				to: box_template.max.slice().V3_add(offset),
+				color: i
+			});
+			bounding_box.init().addTo(group);
+			bounding_boxes.push(bounding_box);
+			i++;
+		}
+
+		if (args.import_to_current_project) {
+			groups.push(group);
+			Undo.finishEdit('Import bounding box');
+		}
+
+		this.dispatchEvent('parsed', {model});
+		Validator.validate();
+	},
+	compile(options: any = {}) {
+
+		let main_tag: MainSchema = {
+			description: {
+				identifier: Project.model_identifier
+			},
+			shape: {boxes: []}
+		}
+
+		const offset: ArrayVector3 = [-8, 0, -8];
+		for (let element of BoundingBox.all) {
+			let box = element as BoundingBox;
+			if (box.export == false) continue;
+			let box_template: BoxSchema = {
+				min: box.from.slice().V3_subtract(offset),
+				max: box.to.slice().V3_subtract(offset),
+			}
+			main_tag.shape.boxes.push(box_template);
+		}
+
+		let file_object = {
+			"format_version": "1.21.110",
+			"minecraft:voxel_shape": main_tag
+		}
+
+		this.dispatchEvent('compile', {model: file_object, options});
+
+		if (options.raw) {
+			return file_object
+		} else {
+			return autoStringify(file_object)
+		}
+	},
+	fileName() {
+		var name = Project.name||'model';
+		if (!name.match(/\.geo$/)) {
+			name += '.geo';
+		}
+		return name;
+	},
+})
+codec.format = Formats.bedrock_block;
+
+BARS.defineActions(function() {
+	codec.export_action = new Action('export_bedrock_voxel_shape', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block'], method: () => BoundingBox.all.length > 0},
+		click() {
+			codec.export()
+		}
+	})
+	new Action('import_bedrock_voxel_shape', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block']},
+		click() {
+			Filesystem.importFile({
+				resource_id: 'bedrock_voxel_shape',
+				extensions: ['json'],
+				type: 'Voxel Shape',
+				multiple: true,
+				readtype: 'text'
+			}, files => {
+				for (let file of files) {
+					let json = autoParseJSON(file.content as string);
+					codec.parse(json, file.path, {import_to_current_project: true});
+				}
+			})
+		}
+	})
+})

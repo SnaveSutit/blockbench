@@ -1169,7 +1169,7 @@ var codec = new Codec('bedrock', {
 		type: 'json',
 		extensions: ['json'],
 		condition(model) {
-			return model.format_version && VersionUtil.compare(model.format_version, '>=', '1.12.0');
+			return model['minecraft:geometry'] && model.format_version && VersionUtil.compare(model.format_version, '>=', '1.12.0');
 		}
 	},
 	load(model, file, args = {}) {
