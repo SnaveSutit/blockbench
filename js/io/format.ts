@@ -450,6 +450,7 @@ export class ModelFormat implements FormatOptions {
 		Undo.history.empty();
 		Undo.index = 0;
 		Project.export_path = '';
+		Project.export_codec = '';
 		Project.unhandled_root_fields = {};
 
 		var old_format = Blockbench.Format as ModelFormat;

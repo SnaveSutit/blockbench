@@ -51,6 +51,7 @@ export class Codec extends EventSystem {
 			var name = pathToName(file.path, true);
 			Project.name = pathToName(name, false);
 			Project.export_path = file.path;
+			Project.export_codec = this.id;
 		}
 
 		this.parse(model, file.path, args)
@@ -200,6 +201,7 @@ export class Codec extends EventSystem {
 				Project.save_path = path;
 			} else {
 				Project.export_path = path;
+				Project.export_codec = this.id;
 			}
 			Project.name = pathToName(path, false);
 			Project.saved = true;

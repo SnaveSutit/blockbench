@@ -27,6 +27,7 @@ export class ModelProject {
 
 		this.save_path = '';
 		this.export_path = '';
+		this.export_codec = '';
 		this.export_options = {};
 		this.added_models = 0;
 

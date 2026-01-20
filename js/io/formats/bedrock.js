@@ -1198,6 +1198,7 @@ var codec = new Codec('bedrock', {
 			var name = pathToName(file.path, true);
 			Project.name = pathToName(name, false);
 			Project.export_path = file.path;
+			Project.export_codec = 'bedrock';
 		}
 
 		this.parse(model, file.path, args)

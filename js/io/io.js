@@ -618,10 +618,10 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 's', ctrl: true}),
 		condition: () => Project,
 		click: async function(event) {
+			let export_codec = Codecs[Project.export_codec] ?? Format?.codec;
 			if (isApp) {
 				await saveTextures()
 				if (Format) {
-					let export_codec = Format.codec;
 					if (Project.save_path) {
 						Codecs.project.write(Codecs.project.compile(), Project.save_path);
 					}
