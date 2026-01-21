@@ -421,9 +421,9 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			groups: options.adjust_position ? Group.all.filter(g => g.selected) : null,
 		}, options.amended);
 	}
-	function updatePosRecursive(item) {
+	function updateTransformRecursive(item) {
 		if (item.children && item.children.length) {
-			item.children.forEach(updatePosRecursive)
+			item.children.forEach(updateTransformRecursive)
 		}
 		if (item.preview_controller?.updateTransform) {
 			item.preview_controller.updateTransform(item);
@@ -448,7 +448,7 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 		} else {
 			obj.sortInBefore(target, order == 1 ? 1 : undefined);
 		}
-		updatePosRecursive(obj);
+		updateTransformRecursive(obj);
 
 		if (options.adjust_position) {
 
@@ -463,52 +463,15 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			let scale_change = Reusable.vec2;
 			matrix2.decompose(position_change, quaternion, scale_change);
 
-			let absolute_position = Format.bone_rig &&
-				obj.parent instanceof OutlinerNode &&
-				obj.parent.getTypeBehavior('parent') &&
-				obj.parent.getTypeBehavior('use_absolute_position');
-			if (absolute_position) {
-				position_change.x += obj.parent.origin[0];
-				position_change.y += obj.parent.origin[1];
-				position_change.z += obj.parent.origin[2];
-			}
-
-			let position_arr = position_change.toArray();
-
-			// Offset children
-			if ('forEachChild' in obj && obj.getTypeBehavior('use_absolute_position')) {
-				let difference = position_arr.slice().V3_subtract(obj.origin);
-				obj.forEachChild(child => {
-					if (child instanceof Mesh) {
-						for (let vkey in child.vertices) {
-							child.vertices[vkey].V3_add(difference);
-						}
-					}
-					if (child.from) child.from.V3_add(difference);
-					if (child.to) child.to.V3_add(difference);
-					if (child.origin) child.origin.V3_add(difference);
-				})
-			}
-
-			if (obj.getTypeBehavior('movable')) {
-
-				if (obj.from && obj.to) {
-					position_arr.V3_subtract(obj.origin);
-					obj.from.V3_add(position_arr);
-					obj.to.V3_add(position_arr);
-					if (obj.origin) obj.origin.V3_add(position_arr);
-				} else if (obj.position) {
-					obj.position.V3_set(position_arr);
-				} else if (obj.origin) {
-					obj.origin.V3_set(position_arr);
-				}
-			}
+			changeNodeLocalPosition(obj, position_change);
+			
 			if (obj.getTypeBehavior('rotatable')) {
 				let new_rotation = Reusable.euler1;
 				new_rotation.setFromQuaternion(quaternion, scene_object.rotation.order);
 				obj.rotation.V3_set(new_rotation.toArray().map(radToDeg));
 			}
-			updatePosRecursive(obj);
+			updateTransformRecursive(obj);
+
 		} else if (old_parent != obj.parent && !adjust_position_viable) {
 			scene_object.updateMatrixWorld(true);
 			let elements1 = scene_object.matrixWorld.elements;

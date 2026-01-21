@@ -498,6 +498,53 @@ export function moveElementsInSpace(difference, axis) {
 		group_aspects: {transform: true}
 	})
 }
+/**
+ * Apply local offset, including children
+ */
+function changeNodeLocalPosition(obj, vector) {
+	// Needs cleaning up
+
+	let absolute_position = Format.bone_rig &&
+		obj.parent instanceof OutlinerNode &&
+		obj.parent.getTypeBehavior('parent') &&
+		obj.parent.getTypeBehavior('use_absolute_position');
+	if (absolute_position) {
+		vector.x += obj.parent.origin[0];
+		vector.y += obj.parent.origin[1];
+		vector.z += obj.parent.origin[2];
+	}
+
+	let position_arr = vector.toArray();
+	
+	// Offset children
+	if ('forEachChild' in obj && obj.getTypeBehavior('use_absolute_position')) {
+		let difference = position_arr.slice().V3_subtract(obj.origin);
+		obj.forEachChild(child => {
+			if (child instanceof Mesh) {
+				for (let vkey in child.vertices) {
+					child.vertices[vkey].V3_add(difference);
+				}
+			}
+			if (child.from) child.from.V3_add(difference);
+			if (child.to) child.to.V3_add(difference);
+			if (child.origin) child.origin.V3_add(difference);
+		})
+	}
+
+	// Offset self
+	if (obj.getTypeBehavior('movable')) {
+		if (obj.from && obj.to) {
+			position_arr.V3_subtract(obj.origin);
+			obj.from.V3_add(position_arr);
+			obj.to.V3_add(position_arr);
+			if (obj.origin) obj.origin.V3_add(position_arr);
+		} else if (obj.position) {
+			obj.position.V3_set(position_arr);
+		} else if (obj.origin) {
+			obj.origin.V3_set(position_arr);
+		}
+	}
+}
 
 export function getSelectedMovingElements() {
 	let selection = Outliner.selected.filter(el => el.movable || el.getTypeBehavior('movable'));
@@ -1929,6 +1976,7 @@ Object.assign(window, {
 	mirrorSelected,
 	centerElements,
 	moveElementsInSpace,
+	changeNodeLocalPosition,
 	getSpatialInterval,
 	getRotationInterval,
 	getRotationObjects,
