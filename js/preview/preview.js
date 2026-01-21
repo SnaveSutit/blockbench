@@ -340,7 +340,7 @@ export class Preview {
 
 		this.raycaster = new THREE.Raycaster();
 		this.mouse = new THREE.Vector2();
-		addEventListeners(this.canvas, 'mousedown touchstart', 	event => { this.click(event)}, { passive: false })
+		addEventListeners(this.canvas, 'pointerdown',			event => { this.click(event)}, { passive: false })
 		addEventListeners(this.canvas, 'mousemove touchmove', 	event => {
 			if (!this.static_rclick) return;
 			convertTouchEvent(event);
@@ -830,7 +830,7 @@ export class Preview {
 	}
 	//Controls
 	click(event) {
-		event.preventDefault();
+		//event.preventDefault();
 		$(':focus').blur();
 		if (open_menu) open_menu.hide();
 		unselectInterface(event);
@@ -847,7 +847,7 @@ export class Preview {
 			Transformer.dispatchPointerHover(event);
 		}
 		if (Transformer.hoverAxis !== null) return;
-		let is_canvas_click = Keybinds.extra.preview_select.keybind.key == event.which || event.which === 0 || (Modes.paint && Keybinds.extra.paint_secondary_color.keybind.isTriggered(event));
+		let is_canvas_click = Keybinds.extra.preview_select.keybind.key == event.which || event.button === 0 || (Modes.paint && Keybinds.extra.paint_secondary_color.keybind.isTriggered(event));
 
 		var data = is_canvas_click && this.raycast(event);
 		if (data) {

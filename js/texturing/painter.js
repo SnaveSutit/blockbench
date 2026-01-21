@@ -119,8 +119,8 @@ export const Painter = {
 		Painter.startPaintTool(texture, x, y, data.element.faces[data.face].uv, e, data)
 
 		if (Toolbox.selected.id !== 'color_picker') {
-			addEventListeners(document, 'mousemove touchmove', Painter.movePaintToolCanvas, false );
-			addEventListeners(document, 'mouseup touchend', Painter.stopPaintToolCanvas, false );
+			addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+			addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 		}
 	},
 	movePaintToolCanvas(event, data) {
@@ -168,8 +168,8 @@ export const Painter = {
 		}
 	},
 	stopPaintToolCanvas() {
-		removeEventListeners(document, 'mousemove touchmove', Painter.movePaintToolCanvas, false );
-		removeEventListeners(document, 'mouseup touchend', Painter.stopPaintToolCanvas, false );
+		removeEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+		removeEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 		Painter.stopPaintTool();
 	},
 	getMeshUVIsland(fkey, face) {
@@ -184,7 +184,7 @@ export const Painter = {
 		//Called directly by startPaintToolCanvas and startBrushUV
 
 		delete Painter.paint_stroke_canceled;
-		if (settings.paint_with_stylus_only.value && !(event.touches && event.touches[0] && event.touches[0].touchType == 'stylus')) {
+		if (settings.paint_with_stylus_only.value && !(event.pointerType == 'pen' || event.touches?.[0]?.touchType == 'stylus')) {
 			Painter.paint_stroke_canceled = true;
 			return;
 		}
@@ -208,6 +208,7 @@ export const Painter = {
 			undo_aspects.textures = [texture];
 		}
 		Undo.initEdit(undo_aspects);
+		Painter.current.start_event = event;
 		Painter.brushChanges = false;
 		Painter.painting = true;
 		
@@ -320,6 +321,7 @@ export const Painter = {
 		delete Painter.current.textures;
 		delete Painter.current.uv_rects;
 		delete Painter.current.uv_islands;
+		delete Painter.current.dynamic_brush_size;
 		Painter.painting = false;
 		Painter.currentPixel = [-1, -1];
 	},
@@ -429,10 +431,12 @@ export const Painter = {
 	},
 	useBrush(texture, ctx, x, y, event) {
 
-		var color = tinycolor(ColorPanel.get(Keybinds.extra.paint_secondary_color.keybind.isTriggered(event))).toRgb();
+		let use_2nd_color = Keybinds.extra.paint_secondary_color.keybind.isTriggered(Painter.current.start_event ?? event);
+		var color = tinycolor(ColorPanel.get(use_2nd_color)).toRgb();
 		var size = BarItems.slider_brush_size.get();
 		let softness = BarItems.slider_brush_softness.get()/100;
-		let b_opacity = BarItems.slider_brush_opacity.get()/255;
+		let max_opacity = BarItems.slider_brush_opacity.get()/255;
+		let b_opacity = max_opacity;
 		let tool = Toolbox.selected;
 		let matrix_id = Painter.current.element
 					  ? (Painter.current.element.uuid + Painter.current.face)
@@ -454,23 +458,34 @@ export const Painter = {
 				}
 			}
 		}
+		let pressure;
+		let angle;
 		if (event.touches && event.touches[0] && event.touches[0].touchType == 'stylus' && event.touches[0].force !== undefined) {
 			// Stylus
 			var touch = event.touches[0];
+			pressure = touch.force;
+			angle = touch.altitudeAngle;
 
-			if (settings.brush_opacity_modifier.value == 'pressure' && touch.force !== undefined) {
-				b_opacity = Math.clamp(b_opacity * Math.clamp(touch.force*1.25, 0, 1), 0, 100);
+		} else if (event.pressure >= 0 && event.pressure <= 1 && (event.pressure < 1 || event.pointerType != 'touch') && event.pressure !== 0.5) {
+			pressure = event.pressure;
+			angle = event.altitudeAngle;
+		}
 
-			} else if (settings.brush_opacity_modifier.value == 'tilt' && touch.altitudeAngle !== undefined) {
-				var modifier = Math.clamp(0.5 / (touch.altitudeAngle + 0.3), 0, 1);
+		if (pressure !== undefined) {
+			if (settings.brush_opacity_modifier.value == 'pressure' && pressure !== undefined) {
+				b_opacity = Math.clamp(b_opacity * Math.clamp(pressure*1.25, 0, 1), 0, 100);
+
+			} else if (settings.brush_opacity_modifier.value == 'tilt' && angle !== undefined) {
+				var modifier = Math.clamp(0.5 / (angle + 0.3), 0, 1);
 				b_opacity = Math.clamp(b_opacity * modifier, 0, 100);
 			}
-			if (settings.brush_size_modifier.value == 'pressure' && touch.force !== undefined) {
-				size = Math.clamp(touch.force * size * 2, 1, 20);
+			if (settings.brush_size_modifier.value == 'pressure' && pressure !== undefined) {
+				size = Math.clamp(pressure * size * 2, 1, 20);
 
-			} else if (settings.brush_size_modifier.value == 'tilt' && touch.altitudeAngle !== undefined) {
-				size *= Math.clamp(1.5 / (touch.altitudeAngle + 0.3), 1, 4);
+			} else if (settings.brush_size_modifier.value == 'tilt' && angle !== undefined) {
+				size *= Math.clamp(1.5 / (angle + 0.3), 1, 4);
 			}
+			Painter.current.dynamic_brush_size = size;
 		}
 
 		if (tool.brush.draw) {
@@ -485,7 +500,7 @@ export const Painter = {
 						return pxcolor;
 					}
 				}
-				return tool.brush.changePixel(px, py, pxcolor, local_opacity, {color, opacity: b_opacity, ctx, x, y, size, softness, texture, event});
+				return tool.brush.changePixel(px, py, pxcolor, local_opacity, {color, opacity: b_opacity, max_opacity, ctx, x, y, size, softness, texture, event});
 			}
 			let shape = BarItems.brush_shape.value;
 			if (shape == 'square') {
@@ -2367,7 +2382,7 @@ BARS.defineActions(function() {
 			pixel_perfect: true,
 			floor_coordinates: () => BarItems.slider_brush_softness.get() == 0,
 			get interval() {
-				let size = BarItems.slider_brush_size.get();
+				let size = Painter.current.dynamic_brush_size ?? BarItems.slider_brush_size.get();
 				if (size > 40) {
 					return size / 12;
 				} else {
@@ -2409,7 +2424,7 @@ BARS.defineActions(function() {
 
 							let target = Math.lerp(before, opacity??1, local_opacity);
 							if (target > before) Painter.setAlphaMatrix(texture, px, py, target);
-							a = target;
+							a = Math.max(target, before);
 						}
 					}
 					let result_color;
@@ -2634,7 +2649,8 @@ BARS.defineActions(function() {
 			offset_even_radius: true,
 			floor_coordinates: () => BarItems.slider_brush_softness.get() == 0,
 			get interval() {
-				return 1 + BarItems.slider_brush_size.get() * BarItems.slider_brush_softness.get() / 1500;
+				let size = Painter.current.dynamic_brush_size ?? BarItems.slider_brush_size.get();
+				return 1 + size * BarItems.slider_brush_softness.get() / 1500;
 			},
 			changePixel(px, py, pxcolor, local_opacity, {opacity, ctx, x, y, size, softness, texture, event}) {
 				if (Painter.lock_alpha) return pxcolor;
