@@ -3,11 +3,12 @@ import cinema4d from '../../keymaps/cinema4d.bbkeymap';
 import maya from '../../keymaps/maya.bbkeymap';
 import { BARS } from './toolbars';
 
-window.KeymapPresets = {
+const KeymapPresets = {
 	blender,
 	cinema4d,
 	maya,
 }
+const isMac = window.SystemInfo?.platform == 'darwin' || navigator.userAgent.includes('Mac OS');
 
 export const Keybinds = {
 	actions: [],
@@ -20,8 +21,10 @@ export const Keybinds = {
 }
 if (localStorage.getItem('keybindings')) {
 	try {
-		Keybinds.stored = JSON.parse(localStorage.getItem('keybindings'))
-	} catch (err) {}
+		Keybinds.stored = JSON.parse(localStorage.getItem('keybindings'));
+	} catch (err) {
+		console.error(err);
+	}
 }
 
 export class Keybind {
@@ -43,9 +46,14 @@ export class Keybind {
 		this.label = '';
 		this.conflict = false;
 		if (keys) {
-			if (isApp && Blockbench.platform == 'darwin' && keys.ctrl && !keys.meta) {
-				keys.meta = true;
-				keys.ctrl = undefined;
+			if (isMac) {
+				if (keys.ctrl && !keys.meta) {
+					keys.meta = true;
+					keys.ctrl = undefined;
+				}
+				if (keys.key == 46) {
+					keys.key = 8;
+				}
 			}
 			if (typeof keys.key == 'string') {
 				keys.key = keys.key.toUpperCase().charCodeAt(0)
@@ -770,6 +778,7 @@ $(document).keyup(function(e) {
 
 Object.assign(window, {
 	Keybind,
+	KeymapPresets,
 	updateKeybindConflicts,
 	getFocusedTextInput
 });
