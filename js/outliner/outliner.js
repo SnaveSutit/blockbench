@@ -418,7 +418,7 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			outliner: true,
 			selection: true,
 			elements: options.adjust_position ? Outliner.selected : undefined,
-			groups: options.adjust_position ? Group.selected : undefined,
+			groups: options.adjust_position ? Group.all.filter(g => g.selected) : null,
 		}, options.amended);
 	}
 	function updatePosRecursive(item) {
@@ -451,7 +451,6 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 		updatePosRecursive(obj);
 
 		if (options.adjust_position) {
-			// FIXME: Supported dragging nested structures such as groups
 
 			// Calculate matrix
 			scene_object.parent.updateMatrixWorld(true);
@@ -474,16 +473,34 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 				position_change.z += obj.parent.origin[2];
 			}
 
+			let position_arr = position_change.toArray();
+
+			// Offset children
+			if ('forEachChild' in obj && obj.getTypeBehavior('use_absolute_position')) {
+				let difference = position_arr.slice().V3_subtract(obj.origin);
+				obj.forEachChild(child => {
+					if (child instanceof Mesh) {
+						for (let vkey in child.vertices) {
+							child.vertices[vkey].V3_add(difference);
+						}
+					}
+					if (child.from) child.from.V3_add(difference);
+					if (child.to) child.to.V3_add(difference);
+					if (child.origin) child.origin.V3_add(difference);
+				})
+			}
+
 			if (obj.getTypeBehavior('movable')) {
-				let arr = position_change.toArray();
 
 				if (obj.from && obj.to) {
-					arr.V3_subtract(obj.origin);
-					obj.from.V3_add(arr);
-					obj.to.V3_add(arr);
-					obj.origin.V3_add(arr);
+					position_arr.V3_subtract(obj.origin);
+					obj.from.V3_add(position_arr);
+					obj.to.V3_add(position_arr);
+					if (obj.origin) obj.origin.V3_add(position_arr);
 				} else if (obj.position) {
-					obj.position.V3_set(arr);
+					obj.position.V3_set(position_arr);
+				} else if (obj.origin) {
+					obj.origin.V3_set(position_arr);
 				}
 			}
 			if (obj.getTypeBehavior('rotatable')) {
@@ -521,11 +538,10 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 	if (Format.bone_rig) {
 		Canvas.updateAllBones()
 	}
+	updateSelection();
 	if (duplicate) {
-		updateSelection()
 		Undo.finishEdit('Duplicate selection', {elements: selected, outliner: true, selection: true, groups: Group.selected})
 	} else {
-		Transformer.updateSelection()
 		Undo.finishEdit('Move elements in outliner')
 	}
 	return adjust_position_viable;
