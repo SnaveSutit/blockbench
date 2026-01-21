@@ -81,6 +81,9 @@ const config = {
     minify,
     outfile: './dist/bundle.js',
     mainFields: ['module', 'main'],
+    logOverride: {
+        'commonjs-variable-in-esm': 'silent'
+    },
     external: [
         'electron',
     ],

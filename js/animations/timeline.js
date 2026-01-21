@@ -2092,7 +2092,18 @@ BARS.defineActions(function() {
 					ba.addToTimeline();
 				}
 			}
-
+		}
+	})
+	new Action('add_all_to_timeline', {
+		icon: 'docs_add_on',
+		category: 'animation',
+		condition: {modes: ['animate'], selected: {animation_controller: false, animation: true}},
+		click() {
+			Group.all.concat(Outliner.elements).forEach(node => {
+				if (!node.selected) return;
+				let ba = Animation.selected.getBoneAnimator(node);
+				if (ba) ba.addToTimeline();
+			})
 		}
 	})
 	new Action('fold_all_animations', {

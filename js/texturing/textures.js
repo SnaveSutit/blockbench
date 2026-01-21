@@ -711,6 +711,8 @@ export class Texture {
 		mat.uniforms.EMISSIVE.value = this.render_mode == 'emissive';
 		mat.blending = this.render_mode == 'additive' ? THREE.AdditiveBlending : THREE.NormalBlending;
 		mat.side = this.render_sides == 'auto' ? Canvas.getRenderSide() : (this.render_sides == 'front' ? THREE.FrontSide : THREE.DoubleSide);
+		let wrap = this.wrap_mode == 'repeat' ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+		mat.map.wrapS = mat.map.wrapT = wrap;
 
 		// Map
 		mat.map.needsUpdate = true;
@@ -1151,6 +1153,15 @@ export class Texture {
 				}},
 			});
 		}
+		if (Format.per_texture_wrap_mode) {
+			Object.assign(form, {
+				wrap_mode: {label: 'menu.texture.wrap_mode', type: 'select', value: this.wrap_mode, options: {
+					limited: 'menu.texture.wrap_mode.limited',
+					repeat: 'menu.texture.wrap_mode.repeat',
+					clamp: 'menu.texture.wrap_mode.clamp',
+				}},
+			});
+		}
 		if (Format.per_texture_uv_size) {
 			form.uv_size = {type: 'vector', label: 'dialog.texture.uv_size', value: [this.uv_width, this.uv_height], dimensions: 2, step: 1, min: 1, linked_ratio: false};
 		}
@@ -1198,6 +1209,7 @@ export class Texture {
 				if (results.namespace !== undefined) this.namespace = results.namespace;
 				if (results.render_mode !== undefined) this.render_mode = results.render_mode;
 				if (results.render_sides !== undefined) this.render_sides = results.render_sides;
+				if (results.wrap_mode !== undefined) this.wrap_mode = results.wrap_mode;
 				
 				if (Format.per_texture_uv_size) {
 					let changed = this.uv_width != results.uv_size[0] || this.uv_height != results.uv_size[1];
@@ -2144,6 +2156,7 @@ export class Texture {
 	new Property(Texture, 'string', 'sync_to_project')
 	new Property(Texture, 'enum', 'render_mode', {default: 'default'})
 	new Property(Texture, 'enum', 'render_sides', {default: 'auto'})
+	new Property(Texture, 'enum', 'wrap_mode', {default: () => Format.texture_wrap_default ?? 'limited'})
 	new Property(Texture, 'enum', 'pbr_channel', {default: 'color'})
 	
 	new Property(Texture, 'number', 'frame_time', {default: 1})
@@ -2597,10 +2610,9 @@ Interface.definePanels(function() {
 
 					if (!active || Menu.open) return;
 
-					//await new Promise(r => setTimeout(r, 10));
-
-					Blockbench.removeFlag('dragging_textures');
-
+					setTimeout(() => {
+						Blockbench.removeFlag('dragging_textures');
+					}, 10);
 
 					if (isNodeUnderCursor(Interface.preview, e2)) {
 						let data = Canvas.raycast(e2)
@@ -2630,6 +2642,8 @@ Interface.definePanels(function() {
 						}
 					} else if (isNodeUnderCursor(document.getElementById('texture_list'), e2)) {
 
+						let selected_textures = Texture.all.filter(t => t.selected || t.multi_selected);
+
 						let index = Texture.all.length-1;
 						let texture_node = findNodeUnderCursor('#texture_list li.texture', e2);
 						let target_group_head = findNodeUnderCursor('#texture_list .texture_group_head', e2);
@@ -2640,17 +2654,21 @@ Interface.definePanels(function() {
 						} else if (texture_node) {
 							let target_tex = Texture.all.findInArray('uuid', texture_node.getAttribute('texid'));
 							index = Texture.all.indexOf(target_tex);
-							let own_index = Texture.all.indexOf(texture)
-							if (own_index == index) return;
+							let own_index = Texture.all.indexOf(selected_textures[0])
+							if (own_index == index && selected_textures.length == 1) return;
 							let offset = e2.clientY - $(texture_node).offset().top;
-							if (own_index < index) index--;
 							if (offset > 24) index++;
 							new_group = target_tex.group;
 						}
-						Undo.initEdit({texture_order: true, textures: texture.group != new_group ? [texture] : null});
-						Texture.all.remove(texture);
-						Texture.all.splice(index, 0, texture);
-						texture.group = new_group;
+						let track_group_changes = selected_textures.some(t => t.group != new_group);
+						Undo.initEdit({texture_order: true, textures: track_group_changes ? selected_textures : null});
+						let item_at_index = Texture.all[index];
+						selected_textures.forEach(t => Texture.all.remove(t));
+						index = item_at_index ? Texture.all.indexOf(item_at_index) : index;
+						selected_textures.forEach((texture, i) => {
+							Texture.all.splice(index+i, 0, texture);
+							texture.group = new_group;
+						});
 						Canvas.updateLayeredTextures();
 						Undo.finishEdit('Rearrange textures');
 
@@ -3078,7 +3096,7 @@ Interface.definePanels(function() {
 						<div class="tool_wrapper"></div>
 						<div id="texture_animation_timeline" ref="timeline" @mousedown="slideTimelinePointer" @wheel="scrollTimeline($event)">
 							<div class="texture_animation_frame" v-for="i in maxFrameCount()"></div>
-							<div id="animated_texture_playhead" :style="{left: getPlayheadPos() + 'px'}"></div>
+							<div id="animated_texture_playhead" v-if="maxFrameCount()" :style="{left: getPlayheadPos() + 'px'}"></div>
 						</div>
 						<div class="tool_wrapper_2"></div>
 					</div>

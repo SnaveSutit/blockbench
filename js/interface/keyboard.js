@@ -534,8 +534,9 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 					all_visible_inputs.push(input);
 				}
 			})
-			var index = all_visible_inputs.indexOf(input_focus)+1;
+			var index = all_visible_inputs.indexOf(input_focus) + (e.shiftKey ? -1 : 1);
 			if (index >= all_visible_inputs.length) index = 0;
+			if (index < 0) index = all_visible_inputs.length-1;
 			var next = $(all_visible_inputs[index])
 
 			if (next.length) {

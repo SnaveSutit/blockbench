@@ -789,6 +789,7 @@ export class Cube extends OutlinerElement {
 				let texture = face.getTexture();
 				let uv_width = Project.getUVWidth(texture);
 				let uv_height = Project.getUVHeight(texture);
+				let clamp = UVEditor.isUVClamped(texture);
 
 				//Match To Rotation
 				if (rot === 90 || rot === 270) {
@@ -800,9 +801,12 @@ export class Cube extends OutlinerElement {
 					world_directions[0] *= -1;
 					world_directions[1] *= -1;
 				}
-				//Limit Input to 16
-				size[0] = Math.clamp(size[0], -uv_width, uv_width) * (Math.sign(previous_size[0]) || 1);
-				size[1] = Math.clamp(size[1], -uv_height, uv_height) * (Math.sign(previous_size[1]) || 1);
+				if (clamp) {
+					size[0] = Math.clamp(size[0], -uv_width, uv_width);
+					size[1] = Math.clamp(size[1], -uv_height, uv_height);
+				}
+				size[0] *= Math.sign(previous_size[0]) || 1;
+				size[1] *= Math.sign(previous_size[1]) || 1;
 
 				if (options && typeof options.axis == 'number') {
 					if (options.axis == dimension_axes[0] && options.direction == world_directions[0]) {
@@ -813,18 +817,19 @@ export class Cube extends OutlinerElement {
 					}
 				}
 
+
 				//Prevent Negative
-				if (sx < 0) sx = 0
-				if (sy < 0) sy = 0
+				if (clamp && sx < 0) sx = 0
+				if (clamp && sy < 0) sy = 0
 				//Calculate End Points
 				let endx = sx + size[0];
 				let endy = sy + size[1];
 				//Prevent overflow
-				if (endx > uv_width) {
+				if (clamp && endx > uv_width) {
 					sx = uv_width - (endx - sx)
 					endx = uv_width
 				}
-				if (endy > uv_height) {
+				if (clamp && endy > uv_height) {
 					sy = uv_height - (endy - sy)
 					endy = uv_height
 				}

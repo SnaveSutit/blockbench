@@ -161,6 +161,10 @@ declare global {
 		condition?: ConditionResolvable
 		category?: string
 		keybind?: Keybind
+		/**
+		 * If set to true, the item can only be used in private context and does not appear in keybindings, action control, or toolbar customization
+		 */
+		private?: true
 	}
 	/**
 	 * Anything that can go into a toolbar, including actions, tools, toggles, widgets etc.
@@ -454,7 +458,8 @@ declare global {
 	interface ToolOptions extends ActionOptions {
 		selectFace?: boolean
 		selectElements?: boolean
-		transformerMode?: 'translate' | ''
+		transformerMode?: 'translate' | 'hidden' | ''
+		cursor?: string,
 		animation_channel?: string
 		toolbar?: string
 		alt_tool?: string
@@ -462,6 +467,10 @@ declare global {
 		allowed_view_modes?: ViewMode
 		paintTool?: boolean
 		brush?: BrushOptions
+		onCanvasClick?(raycast_data: any): void
+		onSelect?(): void
+		onUnselect?(): void
+		click?(): void
 	}
 	interface WidgetOptions extends BarItemOptions {
 		id?: string
@@ -523,18 +532,20 @@ declare global {
 		get(): number
 	}
 	interface BarSelectOptions<T> extends WidgetOptions {
-		value?: T
+		value?: string
 		options: Record<string, T>
+		onChange?(self: BarSelect, event?: Event): void
 	}
 	class BarSelect<T> extends Widget {
 		constructor(id: string, options: BarSelectOptions<T>)
 		open(event: Event): void
 		trigger(event: Event): boolean | undefined
-		change(value: T, event: Event): this
+		change(value: string, event: Event): this
 		getNameFor(key: string): string
 		set(key: string): this
 		get(): string
-		value: T
+		onChange?(self: BarSelect, event?: Event): void
+		value: string
 	}
 	class BarText extends Widget {
 		constructor(

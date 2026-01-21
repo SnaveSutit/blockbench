@@ -153,7 +153,8 @@ interface PluginOptions {
 	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
 	 */
 	contributes?: {
-		formats: string[]
+		formats?: string[]
+		open_extensions?: string[]
 	}
 	creation_date?: string
 	has_changelog?: boolean
@@ -221,7 +222,13 @@ export class Plugin {
 	bug_tracker: string
 	source: PluginSource
 	creation_date: string|number
-	contributes: {}
+	/**
+	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
+	 */
+	contributes?: {
+		formats?: string[]
+		open_extensions?: string[]
+	}
 	await_loading: boolean
 	has_changelog: boolean
 	changelog: null|PluginChangelog
@@ -345,10 +352,11 @@ export class Plugin {
 			}
 			this.#runPluginFile(path).then((content) => {
 				if (cb) cb.bind(scope)()
-				if (first && scope.oninstall) {
-					scope.oninstall()
+				if (first) {
+					scope.oninstall?.()
+					Blockbench.dispatchEvent('installed_plugin', {plugin: scope});
+					Blockbench.showQuickMessage(tl('message.installed_plugin', [this.title]));
 				}
-				if (first) Blockbench.showQuickMessage(tl('message.installed_plugin', [this.title]));
 				resolve()
 			}).catch((error) => {
 				if (isApp) {
@@ -581,9 +589,8 @@ export class Plugin {
 	uninstall() {
 		try {
 			this.unload();
-			if (this.onuninstall) {
-				this.onuninstall();
-			}
+			this.onuninstall?.();
+			Blockbench.dispatchEvent('uninstalled_plugin', {plugin: this});
 		} catch (err) {
 			console.error(`Error in unload or uninstall method of "${this.id}": `, err);
 		}
@@ -834,8 +841,8 @@ export class Plugin {
 			}
 		}
 
-		let trackDate = (input_date, key) => {
-			let date = getDateDisplay(input_date);
+		let trackDate = (input_date: number | string, key: string, display_time: boolean) => {
+			let date = getDateDisplay(input_date, display_time);
 			this.details[key] = date.short;
 			this.details[key + '_full'] = date.full;
 		}
@@ -855,16 +862,16 @@ export class Plugin {
 				if (!response) return;
 				let commits = await response.json().catch(err => console.error(err));
 				if (!commits || !commits.length) return;
-				trackDate(Date.parse(commits[0].commit.committer.date), 'last_modified');
+				trackDate(Date.parse(commits[0].commit.committer.date), 'last_modified', true);
 
 				if (!this.creation_date) {
-					trackDate(Date.parse(commits.last().commit.committer.date), 'creation_date');
+					trackDate(Date.parse(commits.last().commit.committer.date), 'creation_date', false);
 				}
 			});
 
 		}
 		if (this.creation_date) {
-			trackDate(this.creation_date, 'creation_date');
+			trackDate(this.creation_date, 'creation_date', false);
 		}
 		return this.details;
 	}
@@ -1168,8 +1175,22 @@ BARS.defineActions(function() {
 		resizable: 'xy',
 		onOpen() {
 			if (!actions_setup) {
-				BarItems.load_plugin.toElement(document.getElementById('plugins_list_main_bar'));
-				BarItems.load_plugin_from_url.toElement(document.getElementById('plugins_list_main_bar'));
+				let bar = document.getElementById('plugins_list_main_bar');
+				let menu_action = new Action('plugins_window_menu', {
+					private: true,
+					icon: 'more_vert',
+					click(e) {
+						let target = ('target' in e && e.target) as HTMLElement | undefined;
+						new Menu('apply_display_preset', this.children).open(target);
+					},
+					children: [
+						'copy_installed_plugins',
+					]
+				})
+
+				BarItems.load_plugin.toElement(bar);
+				BarItems.load_plugin_from_url.toElement(bar);
+				menu_action.toElement(bar);
 				actions_setup = true;
 			}
 		},
@@ -1333,7 +1354,7 @@ BARS.defineActions(function() {
 					return getDateDisplay(input_date).short;
 				},
 				printDateFull(input_date: number) {
-					return getDateDisplay(input_date).full;
+					return getDateDisplay(input_date, false).full;
 				},
 				formatChangelogLine(line) {
 					let content = [];
@@ -1897,6 +1918,34 @@ BARS.defineActions(function() {
 			})
 		}
 	})
+	new Action('copy_installed_plugins', {
+		icon: 'assignment',
+		category: 'blockbench',
+		click() {
+			function getList(details: boolean): string {
+				let plugins = Plugins.all.filter(p => p.installed);
+				if (details) {
+					return plugins.map(p => 
+						(`${p.id}@${p.version}${p.source == 'store' ? '' : ('('+p.source+')')}`)
+					).join(', ');
+				} else {
+					return plugins.map(p => p.id).join(', ');
+				}
+			}
+			new Dialog({
+				title: 'action.copy_installed_plugins',
+				form: {
+					output: {type: 'text', value: getList(true), readonly: true, share_text: true},
+					details: {type: 'checkbox', label: 'Include Details', value: true},
+				},
+				onFormChange(result) {
+					Dialog.open.form.setValues({
+						output: getList(result.details as boolean)
+					}, false);
+				}
+			}).show();
+		}
+	})
 	new Action('add_plugin', {
 		icon: 'add',
 		category: 'blockbench',
@@ -1913,9 +1962,15 @@ BARS.defineActions(function() {
 	})
 })
 
-
-Object.assign(window, {
+declare global {
+}
+const global = {
 	Plugins,
 	Plugin,
 	BBPlugin
-});
+};
+declare global {
+	const BBPlugin: typeof Plugin;
+	const Plugins: typeof global.Plugins
+}
+Object.assign(window, global);

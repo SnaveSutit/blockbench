@@ -318,6 +318,10 @@ BARS.defineActions(function() {
 	})
 })
 
-Object.assign(window, {
+const global = {
 	Armature
-})
+};
+declare global {
+	const Armature: typeof global.Armature
+}
+Object.assign(window, global);
