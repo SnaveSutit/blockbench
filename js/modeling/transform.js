@@ -801,13 +801,19 @@ BARS.defineActions(function() {
 				obj.preview_controller.updateGeometry(obj);
 
 			} else if (obj.getTypeBehavior('movable')) {
-				let main_pos = obj.from || obj.position;
-				var val = modify(main_pos[axis]);
-
-				var before = main_pos[axis];
-				main_pos[axis] = val;
-				if (obj.to) {
-					obj.to[axis] += (val - before);
+				if (settings.transform_cube_from_center.value && obj.from && obj.to) {
+					let before = Math.lerp(obj.from[axis], obj.to[axis], 0.5);
+					var val = modify(before);
+					obj.from[axis] += val - before;
+					obj.to[axis] += val - before;
+				} else {
+					let main_pos = obj.from || obj.position;
+					var val = modify(main_pos[axis]);
+					var before = main_pos[axis];
+					main_pos[axis] = val;
+					if (obj.to) {
+						obj.to[axis] += (val - before);
+					}
 				}
 				if (obj instanceof Cube) {
 					if (Format.cube_size_limiter && !settings.deactivate_size_limit.value) {
@@ -829,6 +835,8 @@ BARS.defineActions(function() {
 			vertices.forEach(vkey => sum += element.vertices[vkey][axis]);
 			return sum / vertices.length;
 
+		} else if (element.from && settings.transform_cube_from_center.value) {
+			return Math.lerp(element.from[axis], element.to[axis], 0.5);
 		} else if (element.from) {
 			return element.from[axis];
 		} else {
@@ -905,7 +913,15 @@ BARS.defineActions(function() {
 	function resizeOnAxis(modify, axis) {
 		Outliner.selected.forEach(function(obj, i) {
 			if (obj.getTypeBehavior('resizable')) {
-				obj.resize(modify, axis, false, true, obj instanceof Mesh)
+				let bidirectional = obj instanceof Mesh;
+				let center = (obj.from && obj.to) && Math.lerp(obj.from[axis], obj.to[axis], 0.5);
+				obj.resize(modify, axis, false, true, bidirectional);
+				if (obj.from && obj.to && settings.transform_cube_from_center.value) {
+					let offset = Math.lerp(obj.from[axis], obj.to[axis], 0.5) - center;
+					obj.from[axis] -= offset;
+					obj.to[axis] -= offset;
+					obj.preview_controller.updateGeometry(obj);
+				}
 			} else if (obj.getTypeBehavior('scalable')) {
 				obj.scale[axis] = modify(obj.scale[axis]);
 				obj.preview_controller.updateTransform(obj);

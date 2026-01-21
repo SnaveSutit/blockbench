@@ -156,6 +156,7 @@ function setupSettings() {
 	new Setting('allow_display_slot_mirror', {category: 'edit', value: false, onChange(value) {
 		DisplayMode.vue.allow_mirroring = value;
 	}})
+	new Setting('transform_cube_from_center',{category: 'edit', value: false});
 	new Setting('deactivate_size_limit',	{category: 'edit', value: false});
 	new Setting('modded_entity_integer_size',{category:'edit', value: true});
 	new Setting('vertex_merge_distance',	{category: 'edit', value: 0.1, step: 0.01, type: 'number', min: 0});
