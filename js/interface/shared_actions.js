@@ -81,6 +81,11 @@ BARS.defineActions(() => {
 			SharedActions.run('rename');
 		}
 	})
+	Blockbench.onUpdateTo('5.1.0-beta.0', () => {
+		const isMac = window.SystemInfo?.platform == 'darwin' || navigator.userAgent.includes('Mac OS');
+		if (!isMac) return;
+		delete Keybinds.stored.delete;
+	})
 	new Action('delete', {
 		icon: 'delete',
 		category: 'edit',

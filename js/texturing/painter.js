@@ -185,7 +185,7 @@ export const Painter = {
 		//Called directly by startPaintToolCanvas and startBrushUV
 
 		delete Painter.paint_stroke_canceled;
-		if (settings.paint_with_stylus_only.value && !(event.touches && event.touches[0] && event.touches[0].touchType == 'stylus')) {
+		if (settings.paint_with_stylus_only.value && !(event.pointerType == 'pen' || event.touches?.[0]?.touchType == 'stylus')) {
 			Painter.paint_stroke_canceled = true;
 			return;
 		}

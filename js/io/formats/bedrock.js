@@ -441,8 +441,11 @@ window.BedrockBlockManager = class BedrockBlockManager {
 				let main = c && c['minecraft:block'];
 				if (!main || !main.components) return;
 
-				let isThisGeo = id => {
-					return typeof id == 'string' && id.replace(/^geometry\./, '') == this.project.geometry_name;
+				let isThisGeo = (geo_component) => {
+					if (typeof geo_component == 'object') {
+						return isThisGeo(geo_component.identifier);
+					}
+					return typeof geo_component == 'string' && geo_component.replace(/^geometry\./, '') == this.project.geometry_name;
 				}
 				if (isThisGeo(main.components['minecraft:geometry'])) {
 					main.type = 'block';

@@ -1,9 +1,8 @@
 /// <reference types="./blockbench"/>
-type ConditionResolvable =
+type ConditionResolvable<Context extends any = any> =
 	| undefined
 	| boolean
-	| any
-	| ((context: any) => any)
+	| ((context: Context) => boolean)
 	| Partial<{
 			modes: string[]
 			formats: string[]
@@ -23,21 +22,18 @@ type ConditionResolvable =
 				null_any?: boolean
 				texture_mesh?: boolean
 				outliner?: boolean
+				spline?: boolean
 			}
 			project: boolean
-			method(context: any): boolean
+			method(context: Context): boolean
 	  }>
 
 /**
- * Tests if a condition is truthy of falsy. Returns true if the condition is unspecified
+ * Tests if a condition is truthy or falsy. Returns true if the condition is unspecified
  * @param condition Boolean, function, any or anything else
  */
-declare function Condition(condition: ConditionResolvable): boolean
+declare function Condition<Context extends any = any>(condition: ConditionResolvable<Context>, context?: Context): boolean
 
-/**
- * Wrapper for anys that tells the custom JSON exporter to write in one line
- */
-const oneLiner: new <T>(data?: T) => T
 
 /**
  * If the input event is a touch event, convert touch event to a compatible mouse event
@@ -72,7 +68,7 @@ declare function convertTouchEvent(event: TouchEvent | MouseEvent): MouseEvent
 declare function guid(): string
 declare function isUUID(s: any): any
 declare function bbuid(l: any): string
-declare function trimFloatNumber(value: number): string
+declare function trimFloatNumber(value: number, decimal_places: number = 4): string
 declare function getAxisLetter(axisNumber: number): string
 declare function getAxisNumber(axisLetter: string): number
 declare function limitNumber(number: any, min: any, max: any): any
@@ -98,7 +94,6 @@ declare function get(options: any, name: any, defaultValue: any): any
 declare function getKeyByValue(any: any, value: any): any
 declare function onVueSetup(func: any): void
 declare function capitalizeFirstLetter(string: any): any
-declare function autoStringify(any: any): string
 declare function pluralS(arr: any): '' | 's'
 declare function pathToName(path: string, extension: boolean = false): string | ''
 declare function pathToExtension(path: string): string | ''

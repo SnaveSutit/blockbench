@@ -44,11 +44,11 @@ declare class Menu extends Deletable {
 	 * @param position Position where to open the menu. Can be a mouse event, or a node that the menu is spawned below.
 	 * @param context Context for the click events inside the menu
 	 */
-	open(position: MouseEvent | HTMLElement, context?: any): this
+	open(position: MouseEvent | HTMLElement | 'mouse', context?: any): this
 	/**
 	 * Alias for .open()
 	 */
-	show(position: MouseEvent | HTMLElement, context?: any): this
+	show(position: MouseEvent | HTMLElement | 'mouse', context?: any): this
 	/**
 	 * Closes the menu if it's open
 	 */

@@ -5,11 +5,12 @@ import { dragHelper } from '../util/drag_helper';
 import { PointerTarget } from './pointer_target';
 import { BARS } from './toolbars';
 
-window.KeymapPresets = {
+const KeymapPresets = {
 	blender,
 	cinema4d,
 	maya,
 }
+const isMac = window.SystemInfo?.platform == 'darwin' || navigator.userAgent.includes('Mac OS');
 
 export const Keybinds = {
 	actions: [],
@@ -22,8 +23,10 @@ export const Keybinds = {
 }
 if (localStorage.getItem('keybindings')) {
 	try {
-		Keybinds.stored = JSON.parse(localStorage.getItem('keybindings'))
-	} catch (err) {}
+		Keybinds.stored = JSON.parse(localStorage.getItem('keybindings'));
+	} catch (err) {
+		console.error(err);
+	}
 }
 
 export class Keybind {
@@ -45,9 +48,14 @@ export class Keybind {
 		this.label = '';
 		this.conflict = false;
 		if (keys) {
-			if (isApp && Blockbench.platform == 'darwin' && keys.ctrl && !keys.meta) {
-				keys.meta = true;
-				keys.ctrl = undefined;
+			if (isMac) {
+				if (keys.ctrl && !keys.meta) {
+					keys.meta = true;
+					keys.ctrl = undefined;
+				}
+				if (keys.key == 46) {
+					keys.key = 8;
+				}
 			}
 			if (typeof keys.key == 'string') {
 				keys.key = keys.key.toUpperCase().charCodeAt(0)
@@ -604,8 +612,9 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 					all_visible_inputs.push(input);
 				}
 			})
-			var index = all_visible_inputs.indexOf(input_focus)+1;
+			var index = all_visible_inputs.indexOf(input_focus) + (e.shiftKey ? -1 : 1);
 			if (index >= all_visible_inputs.length) index = 0;
+			if (index < 0) index = all_visible_inputs.length-1;
 			var next = $(all_visible_inputs[index])
 
 			if (next.length) {
@@ -877,6 +886,7 @@ document.addEventListener('pointerdown', (e1) => {
 
 Object.assign(window, {
 	Keybind,
+	KeymapPresets,
 	updateKeybindConflicts,
 	getFocusedTextInput
 });

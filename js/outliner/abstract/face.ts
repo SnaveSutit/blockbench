@@ -88,6 +88,10 @@ export abstract class Face {
 	}
 	static properties: Record<string, Property<any>>
 }
-Object.assign(window, {
+const global = {
 	Face,
-});
+};
+declare global {
+	const Face: typeof global.Face
+}
+Object.assign(window, global);

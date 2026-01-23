@@ -483,7 +483,7 @@ new Property(Collection, 'string', 'model_identifier', {
 });
 new Property(Collection, 'string', 'export_codec');
 new Property(Collection, 'string', 'export_path', {
-	condition: (collection: Collection) => (isApp && collection.export_codec),
+	condition: (collection: Collection) => (isApp && !!collection.export_codec),
 	inputs: {
 		dialog: {
 			input: {
@@ -841,7 +841,10 @@ Interface.definePanels(function() {
 		])
 	})
 })
-
-Object.assign(window, {
+const global = {
 	Collection
-});
+};
+declare global {
+	const Collection: typeof global.Collection
+}
+Object.assign(window, global);

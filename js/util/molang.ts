@@ -67,7 +67,12 @@ function testInvertMolang(input: string) {
 	}
 }
 
-Object.assign(window, {
+const global = {
 	invertMolang,
 	testInvertMolang
-})
+};
+declare global {
+	const invertMolang: typeof global.invertMolang
+	const testInvertMolang: typeof global.testInvertMolang
+}
+Object.assign(window, global);
