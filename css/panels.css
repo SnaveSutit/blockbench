@@ -1100,14 +1100,14 @@
 		border: 2px dashed var(--color-accent);
 		font-style: italic;
 	}
-	.texture_layer .layer_icon_wrapper {
+	.layer_icon_wrapper {
 		height: 40px;
 		width: 40px;
 		flex-grow: 0;
 		flex-shrink: 0;
 		overflow: hidden;
 	}
-	.texture_layer canvas {
+	.layer_icon_wrapper canvas {
 		width: 100%;
 	}
 	.texture_layer > label {
@@ -1122,6 +1122,20 @@
 	}
 	.texture_layer.drag_hover[order]::before {
 		left: -6px;
+	}
+	#layers_list > .activate_layers_button {
+		display: flex;
+		height: 40px;
+		width: 100%;
+		margin: auto;
+		margin-top: 0;
+		align-items: center;
+		cursor: pointer;
+		text-align: center;
+		justify-content: center;
+	}
+	#layers_list > .activate_layers_button:hover {
+		text-decoration: underline;
 	}
 
 /*Animations*/

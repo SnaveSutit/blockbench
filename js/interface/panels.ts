@@ -1038,6 +1038,7 @@ export class Panel extends EventSystem {
 			this.tab_bar.firstElementChild.textContent = '';
 			let tab_amount = 0;
 			for (let panel of tabs) {
+				if (!Condition(panel.condition)) continue;
 				this.tab_bar.firstElementChild.append(panel.handle);
 				panel.handle.classList.toggle('selected', this.open_attached_panel == panel);
 				tab_amount++;
@@ -1215,6 +1216,9 @@ try {
 		for (let panel_id in data) {
 			StoredPanelData[panel_id] = data[panel_id];
 		}
+		Blockbench.onUpdateTo('5.1.0-beta.0', () => {
+			delete StoredPanelData.layers;
+		});
 	}
 } catch (err) {}
 
