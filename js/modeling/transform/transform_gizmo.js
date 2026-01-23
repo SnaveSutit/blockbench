@@ -3,7 +3,7 @@
  * modified for Blockbench by jannisx11
  */
 
-import { PointerTarget } from "../interface/pointer_target";
+import { PointerTarget } from "../../interface/pointer_target";
 import { getRotationObjects } from "../transform";
 import { TransformerModule } from "./transform_modules";
 

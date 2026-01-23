@@ -869,7 +869,7 @@ document.addEventListener('pointerdown', (e1) => {
 				let distance = Math.abs(context.delta.x) > Math.abs(context.delta.y)
 					? context.delta.x
 					: context.delta.y;
-				slider.slide(distance, context.event);
+				slider.slide(distance * 2, context.event);
 				Preview.selected.mousemove(e1);
 			},
 			onEnd(context) {
