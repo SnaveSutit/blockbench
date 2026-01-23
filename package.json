@@ -134,7 +134,7 @@
 		"electron": "electron .",
 		"build-web": "node ./build.js --target=web",
 		"build-electron": "node ./build.js --target=electron",
-		"build-test-portable": "npm run build-electron && electron-builder --windows portable",
+		"build-test-portable": "npm run build-electron && electron-builder --windows portable --publish=never",
 		"publish-windows": "npm run build-electron && electron-builder -w --publish=onTagOrDraft && node ./scripts/rename_portable.js && electron-builder --windows portable --publish=onTagOrDraft",
 		"publish-mac": "npm uninstall electron-color-picker && npm run build-electron && electron-builder --publish=always",
 		"publish-linux": "npm uninstall electron-color-picker && npm run build-electron && electron-builder --linux --publish=onTagOrDraft",
