@@ -1,4 +1,3 @@
-import { flipNameOnAxis } from "../modeling/transform";
 import { clipboard } from "../native_apis";
 import { invertMolang } from "../util/molang";
 import { openMolangEditor } from "./molang_editor";

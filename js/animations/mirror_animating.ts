@@ -4,17 +4,25 @@ import { Animation } from "./animation";
 import { Keyframe } from "./keyframe";
 import { BoneAnimator } from "./timeline_animators";
 
-
+type TKeyframe = Keyframe | _Keyframe;
 interface FlipCopyKeyframesOptions {
-	keyframes: (Keyframe|_Keyframe)[]
+	keyframes: TKeyframe[]
+	animators?: BoneAnimator[]
+	live_flip?: boolean
 	offset: boolean
 	show_in_timeline?: boolean
 }
-function flipCopyKeyframes(options: FlipCopyKeyframesOptions): {added_keyframes: Keyframe[]} {
-	let added_keyframes: Keyframe[] = [];
+function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
+	{added_keyframes: TKeyframe[], removed_keyframes: TKeyframe[]}
+{
+	let added_keyframes: TKeyframe[] = [];
+	let removed_keyframes: TKeyframe[] = [];
 	let animators = [];
 	let original_keyframes = options.keyframes.slice();
 	original_keyframes.forEach(kf => animators.safePush(kf.animator));
+	if (options.animators) {
+		options.animators.forEach(ba => animators.safePush(ba));
+	}
 	let channels = ['rotation', 'position', 'scale'];
 	let all_animatable_nodes: any[] = [
 		...Group.all,
@@ -26,7 +34,12 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions): {added_keyframes:
 		let opposite_animator: BoneAnimator;
 		channels.forEach(channel => {
 			if (!animator[channel]) return;
-			let kfs = original_keyframes.filter(kf => kf.channel == channel && kf.animator == animator);
+			let kfs: TKeyframe[];
+			if (options.live_flip) {
+				kfs = animator[channel].slice();;
+			} else {
+				kfs = original_keyframes.filter(kf => kf.channel == channel && kf.animator == animator);
+			}
 			if (!kfs.length) return;
 			if (!opposite_animator) {
 				let name = flipNameOnAxis({name: animator.name}, 0, null, animator.name);
@@ -37,11 +50,20 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions): {added_keyframes:
 				}
 				opposite_animator = animation.getBoneAnimator(opposite_bone);
 			}
+			if (opposite_animator == animator) return;
 
-			let center_keyframe;
-			if (options.offset && !kfs.find(kf => Math.epsilon(kf.time, Timeline.snapTime(animation.length/2), 0.004))) {
-				center_keyframe = animator.createKeyframe(null, Timeline.snapTime(animation.length/2), channel, false, false);
-				kfs.push(center_keyframe);
+			if (options.live_flip) {
+				for (let kf of opposite_animator[channel].slice() as Keyframe[]) {
+					removed_keyframes.push(kf);
+					kf.remove();
+				}
+			}
+
+			let temp_center_keyframe: Keyframe | undefined;
+			let center_time = Timeline.snapTime(animation.length/2);
+			if (options.offset && !kfs.find(kf => Math.epsilon(kf.time, center_time, 0.004))) {
+				temp_center_keyframe = animator.createKeyframe(null, center_time, channel, false, false);
+				kfs.push(temp_center_keyframe);
 			}
 			kfs.sort((a, b) => a.time - b.time);
 			let occupied_times = [];
@@ -74,29 +96,55 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions): {added_keyframes:
 					added_keyframes.push(new_kf);
 				}
 			}
-			if (center_keyframe) center_keyframe.remove();
+			if (temp_center_keyframe) {
+				temp_center_keyframe.remove();
+			}
 		})
 		if (options.show_in_timeline && opposite_animator) {
 			opposite_animator.addToTimeline();
 		}
 	})
 	return {
-		added_keyframes
+		added_keyframes,
+		removed_keyframes
 	}
 }
 
-Blockbench.on('finish_edit', (args) => {
-	if (!args.aspects.keyframes?.length) return;
+let initial_keyframes: TKeyframe[] | undefined;
+Blockbench.on('init_edit', (args) => {
+	initial_keyframes = undefined;
+	let toggle = BarItems.mirror_animating as Toggle;
+	if (!toggle.value) return;
 
-	console.log(args)
-	let {added_keyframes} = flipCopyKeyframes({
+	if (args.aspects.keyframes instanceof Array)  {
+		initial_keyframes = args.aspects.keyframes.slice();
+	}
+})
+Blockbench.on('finish_edit', (args) => {
+	let toggle = BarItems.mirror_animating as Toggle;
+	if (!toggle.value) return;
+
+	if (!args.aspects.keyframes?.length && !initial_keyframes?.length) return;
+
+	let animators: BoneAnimator[] = [];
+	if (initial_keyframes?.length) {
+		initial_keyframes.forEach(kf => animators.safePush(kf.animator));
+	}
+	let options = toggle.tool_config.options;
+	let {added_keyframes, removed_keyframes} = flipCopyKeyframes({
 		keyframes: args.aspects.keyframes,
-		offset: false,
+		animators,
+		live_flip: true,
+		offset: options.offset,
 		show_in_timeline: false,
 	});
+	if (removed_keyframes.length) {
+		Undo.addKeyframeCasualties(removed_keyframes as _Keyframe[]);
+	}
+	let original_keyframes = args.aspects.keyframes.filter(kf => !removed_keyframes.includes(kf));
 	args.aspects.keyframes = [
-		args.aspects.keyframes,
-		added_keyframes
+		...original_keyframes,
+		...added_keyframes
 	]
 
 })
@@ -118,7 +166,7 @@ BARS.defineActions(function() {
 			title: 'action.mirror_animating',
 			form: {
 				enabled: {type: 'checkbox', label: 'menu.mirror_painting.enabled', value: false},
-				mirror_uv: {type: 'checkbox', label: 'menu.mirror_animating.mirror_uv', value: true}
+				offset: {type: 'checkbox', label: 'dialog.flip_animation.phase_offset', value: true},
 			},
 			onFormChange(formResult) {
 				if (toggle.value != formResult.enabled) {
@@ -146,7 +194,7 @@ BARS.defineActions(function() {
 				title: 'action.flip_animation',
 				form: {
 					info: {type: 'info', text: 'dialog.flip_animation.info'},
-					offset: {label: 'dialog.flip_animation.offset', type: 'checkbox', value: false},
+					offset: {label: 'dialog.flip_animation.phase_offset', type: 'checkbox', value: false},
 					show_in_timeline: {label: 'dialog.flip_animation.show_in_timeline', type: 'checkbox', value: true},
 				},
 				onConfirm(formResult: {offset: boolean, show_in_timeline: boolean}) {
