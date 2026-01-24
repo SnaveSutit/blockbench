@@ -37,6 +37,7 @@ export class ModelProject {
 		this.display_uv = settings.show_only_selected_uv.value ? 'selected_faces' :'selected_elements';
 		this.exploded_view = false;
 		this.mirror_modeling_enabled = false;
+		this.mirror_animating_enabled = false;
 		this.previews = {};
 		this.uv_viewport = {
 			zoom: 1,
@@ -253,6 +254,7 @@ export class ModelProject {
 		BarItems.lock_motion_trail.set(!!Project.motion_trail_lock);
 
 		BarItems.mirror_modeling.set(!!Project.mirror_modeling_enabled);
+		BarItems.mirror_animating.set(!!Project.mirror_animating_enabled);
 
 		Blockbench.dispatchEvent('load_editor_state', {project: this});
 		return this;

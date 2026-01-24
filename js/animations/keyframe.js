@@ -1,4 +1,3 @@
-import { flipNameOnAxis } from "../modeling/transform";
 import { clipboard } from "../native_apis";
 import { invertMolang } from "../util/molang";
 import { openMolangEditor } from "./molang_editor";
@@ -53,7 +52,8 @@ export class Keyframe {
 	constructor(data, uuid, animator) {
 		this.type = 'keyframe'
 		this.uuid = (uuid && isUUID(uuid)) ? uuid : guid();
-		this.channel == 'rotation'
+		this.time = 0;
+		this.channel = 'rotation'
 		this.selected = false;
 		this.has_expressions = false;
 		this.display_value = 0;
@@ -1190,106 +1190,6 @@ BARS.defineActions(function() {
 			updateKeyframeSelection();
 		}
 	})
-
-	let flip_action = new Action('flip_animation', {
-		icon: 'transfer_within_a_station',
-		category: 'animation',
-		condition: {modes: ['animate'], method: () => Animation.selected},
-		click() {
-
-			if (!Animation.selected) {
-				Blockbench.showQuickMessage('message.no_animation_selected')
-				return;
-			}
-
-			let original_keyframes = (Timeline.selected.length ? Timeline.selected : Timeline.keyframes).slice();
-			if (!original_keyframes.length) return;
-
-			new Dialog({
-				id: 'flip_animation',
-				title: 'action.flip_animation',
-				form: {
-					info: {type: 'info', text: 'dialog.flip_animation.info'},
-					offset: {label: 'dialog.flip_animation.offset', type: 'checkbox', value: false},
-					show_in_timeline: {label: 'dialog.flip_animation.show_in_timeline', type: 'checkbox', value: true},
-				},
-				onConfirm(formResult) {
-					this.hide()
-					
-					let new_keyframes = [];
-					Undo.initEdit({keyframes: new_keyframes});
-					let animators = [];
-					original_keyframes.forEach(kf => animators.safePush(kf.animator));
-					let channels = ['rotation', 'position', 'scale'];
-					let all_animatable_nodes = Group.all.concat(Outliner.elements.filter(el => el.constructor.animator));
-
-					animators.forEach(animator => {
-						let opposite_animator;
-						channels.forEach(channel => {
-							if (!animator[channel]) return;
-							let kfs = original_keyframes.filter(kf => kf.channel == channel && kf.animator == animator);
-							if (!kfs.length) return;
-							if (!opposite_animator) {
-								let name = flipNameOnAxis({name: animator.name}, 0, null, animator.name);
-								let opposite_bone = all_animatable_nodes.find(g => g.name == name);
-								if (!opposite_bone) {
-									console.log(`Animation Flipping: Unable to find opposite bone for ${animator.name}`)
-									return;
-								}
-								opposite_animator = Animation.selected.getBoneAnimator(opposite_bone);
-							}
-
-							let center_keyframe;
-							if (formResult.offset && !kfs.find(kf => Math.epsilon(kf.time, Timeline.snapTime(Animation.selected.length/2), 0.004))) {
-								center_keyframe = animator.createKeyframe(null, Timeline.snapTime(Animation.selected.length/2), channel, false, false);
-								kfs.push(center_keyframe);
-							}
-							kfs.sort((a, b) => a.time - b.time);
-							let occupied_times = [];
-							kfs.forEach(old_kf => {
-								let time = old_kf.time;
-								if (formResult.offset) {
-									time = (time + Animation.selected.length/2) % (Animation.selected.length + 0.001);
-								}
-								time = Timeline.snapTime(time);
-								if (Math.epsilon(time, Animation.selected.length, 0.004) && formResult.offset && !occupied_times.includes(0)) {
-									// Copy keyframe to start
-									occupied_times.push(0);
-									let new_kf = opposite_animator.createKeyframe(old_kf, 0, channel, false, false)
-									if (new_kf) {
-										new_kf.flip(0);
-										new_keyframes.push(new_kf);
-									}
-								}
-								if (occupied_times.includes(time)) return;
-								occupied_times.push(time);
-								let new_kf = opposite_animator.createKeyframe(old_kf, time, channel, false, false)
-								if (new_kf) {
-									new_kf.flip(0);
-									new_keyframes.push(new_kf);
-								}
-							})
-							if (formResult.offset && !occupied_times.includes(0)) {
-								let new_kf = opposite_animator.createKeyframe(new_keyframes.last(), 0, channel, false, false)
-								if (new_kf) {
-									new_keyframes.push(new_kf);
-								}
-							}
-							if (center_keyframe) center_keyframe.remove();
-						})
-						if (formResult.show_in_timeline && opposite_animator) {
-							opposite_animator.addToTimeline();
-						}
-					})
-					updateKeyframeSelection();
-					Animator.preview();
-
-					Undo.finishEdit('Copy and flip keyframes');
-				}
-			}).show()
-		}
-	})
-	MenuBar.addAction(flip_action, 'animation')
 })
 
 Interface.definePanels(function() {

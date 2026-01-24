@@ -1175,6 +1175,7 @@ export class ToolConfig extends ConfigDialog {
 	show(anchor?: HTMLElement): this {
 		super.show(anchor);
 		this.setFormValues(this.options, false);
+		this.form.updateValues({cause: 'setup'});
 		this.form.on('input', ({result, cause}) => {
 			this.changeOptions(result)
 		})
