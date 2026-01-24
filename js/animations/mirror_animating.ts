@@ -9,7 +9,7 @@ type TKeyframe = Keyframe | _Keyframe;
 interface FlipCopyKeyframesOptions {
 	keyframes: TKeyframe[]
 	animators?: BoneAnimator[]
-	live_flip?: boolean
+	clear_opposite?: boolean
 	offset: number
 	show_in_timeline?: boolean
 }
@@ -36,7 +36,7 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 		channels.forEach(channel => {
 			if (!animator[channel]) return;
 			let kfs: TKeyframe[];
-			if (options.live_flip) {
+			if (options.clear_opposite) {
 				kfs = animator[channel].slice();;
 			} else {
 				kfs = original_keyframes.filter(kf => kf.channel == channel && kf.animator == animator);
@@ -59,7 +59,7 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 			}
 			if (opposite_animator == animator) return;
 
-			if (options.live_flip) {
+			if (options.clear_opposite) {
 				for (let kf of opposite_animator[channel].slice() as Keyframe[]) {
 					removed_keyframes.push(kf);
 					kf.remove();
@@ -145,7 +145,7 @@ Blockbench.on('finish_edit', (args) => {
 	let {added_keyframes, removed_keyframes} = flipCopyKeyframes({
 		keyframes: args.aspects.keyframes,
 		animators,
-		live_flip: true,
+		clear_opposite: true,
 		offset,
 		show_in_timeline: false,
 	});
@@ -229,9 +229,10 @@ BARS.defineActions(function() {
 				form: {
 					info: {type: 'info', text: 'dialog.flip_animation.info'},
 					...COMMON_FORM_ELEMENTS,
+					clear_opposite: {label: 'dialog.flip_animation.clear_opposite', type: 'checkbox', value: false},
 					show_in_timeline: {label: 'dialog.flip_animation.show_in_timeline', type: 'checkbox', value: true},
 				},
-				onConfirm(options: {offset: string, custom_offset: number, show_in_timeline: boolean}) {
+				onConfirm(options: {offset: string, custom_offset: number, show_in_timeline: boolean, clear_opposite: boolean}) {
 					this.hide()
 					
 					let new_keyframes = [];
@@ -240,11 +241,15 @@ BARS.defineActions(function() {
 
 					let offset = options.offset == '180' ? 180 : 0;
 					if (options.offset == 'custom') offset = options.custom_offset;
-					let {added_keyframes} = flipCopyKeyframes({
+					let {added_keyframes, removed_keyframes} = flipCopyKeyframes({
 						keyframes: original_keyframes,
+						clear_opposite: options.clear_opposite,
 						show_in_timeline: options.show_in_timeline,
 						offset
 					});
+					if (removed_keyframes.length) {
+						Undo.addKeyframeCasualties(removed_keyframes as _Keyframe[]);
+					}
 					new_keyframes.replace(added_keyframes);
 
 					updateKeyframeSelection();

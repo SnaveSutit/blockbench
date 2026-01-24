@@ -842,6 +842,7 @@
 	"dialog.flip_animation.phase_offset": "Phase Offset",
 	"dialog.flip_animation.phase_offset.off": "Off",
 	"dialog.flip_animation.phase_offset.custom": "Custom",
+	"dialog.flip_animation.clear_opposite": "Overwrite opposite",
 	"dialog.flip_animation.show_in_timeline": "Show modified bones in timeline",
 
 	"dialog.predicate_overrides.model": "Model",
