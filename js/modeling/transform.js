@@ -188,7 +188,7 @@ export function flipNameOnAxis(node, axis, check, original_name) {
 			REAR: 'FRONT',
 		}
 	};
-	function matchAndReplace(a, b) {
+	function matchAndReplace(a, b, order) {
 		if (!node.name.includes(a)) return false;
 		let name = original_name ?? node.name;
 		let regex_filter = a;
@@ -201,15 +201,15 @@ export function flipNameOnAxis(node, axis, check, original_name) {
 		if (!original_name) {
 			name = name.replace(/2$/, '');
 		}
-		if (!check || check(name)) node.name = name;
+		if (!check || check(name, order)) node.name = name;
 		return node.name;
 	}
 	let pairs = flip_pairs[axis];
 	Blockbench.dispatchEvent('flip_node_name', {pairs, node, axis, original_name});
 	for (let a in pairs) {
 		let b = pairs[a];
-		if (matchAndReplace(a, b)) break;
-		if (matchAndReplace(b, a)) break;
+		if (matchAndReplace(a, b, 0)) break;
+		if (matchAndReplace(b, a, 1)) break;
 	}
 	return node.name;
 }

@@ -1,4 +1,5 @@
 import { Blockbench } from "../api";
+import { FormElementOptions } from "../interface/form";
 import { flipNameOnAxis } from "../modeling/transform";
 import { Animation } from "./animation";
 import { Keyframe } from "./keyframe";
@@ -9,7 +10,7 @@ interface FlipCopyKeyframesOptions {
 	keyframes: TKeyframe[]
 	animators?: BoneAnimator[]
 	live_flip?: boolean
-	offset: boolean
+	offset: number
 	show_in_timeline?: boolean
 }
 function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
@@ -41,8 +42,14 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 				kfs = original_keyframes.filter(kf => kf.channel == channel && kf.animator == animator);
 			}
 			if (!kfs.length) return;
+			let order: 0|1 = 0;;
 			if (!opposite_animator) {
-				let name = flipNameOnAxis({name: animator.name}, 0, null, animator.name);
+				let name = flipNameOnAxis(
+					{name: animator.name},
+					0,
+					(name: string, _order: 0|1) => {order = _order; return true;},
+					animator.name
+				);
 				let opposite_bone = all_animatable_nodes.find(g => g.name == name);
 				if (!opposite_bone) {
 					console.log(`Animation Flipping: Unable to find opposite bone for ${animator.name}`)
@@ -59,21 +66,23 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 				}
 			}
 
-			let temp_center_keyframe: Keyframe | undefined;
-			let center_time = Timeline.snapTime(animation.length/2);
-			if (options.offset && !kfs.find(kf => Math.epsilon(kf.time, center_time, 0.004))) {
-				temp_center_keyframe = animator.createKeyframe(null, center_time, channel, false, false);
-				kfs.push(temp_center_keyframe);
+			let offset_factor = (4 + (options.offset/360) * (order ? 1 : -1)) % 1;
+			let offset_time = Timeline.snapTime(offset_factor * animation.length);
+
+			let temp_wrap_keyframe: Keyframe | undefined;
+			if (offset_time && !kfs.find(kf => Math.epsilon(kf.time, offset_time, 0.004))) {
+				temp_wrap_keyframe = animator.createKeyframe(null, animation.length-offset_time, channel, false, false);
+				kfs.push(temp_wrap_keyframe);
 			}
 			kfs.sort((a, b) => a.time - b.time);
 			let occupied_times = [];
 			kfs.forEach(old_kf => {
 				let time = old_kf.time;
-				if (options.offset) {
-					time = (time + animation.length/2) % (animation.length + 0.001);
+				if (offset_time) {
+					time = (time + offset_time) % (animation.length + 0.001);
 				}
 				time = Timeline.snapTime(time);
-				if (Math.epsilon(time, animation.length, 0.004) && options.offset && !occupied_times.includes(0)) {
+				if (Math.epsilon(time, animation.length, 0.004) && offset_time && !occupied_times.includes(0)) {
 					// Copy keyframe to start
 					occupied_times.push(0);
 					let new_kf = opposite_animator.createKeyframe(old_kf, 0, channel, false, false)
@@ -90,14 +99,14 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 					added_keyframes.push(new_kf);
 				}
 			})
-			if (options.offset && !occupied_times.includes(0)) {
+			if (offset_time && !occupied_times.includes(0)) {
 				let new_kf = opposite_animator.createKeyframe(added_keyframes.last(), 0, channel, false, false)
 				if (new_kf) {
 					added_keyframes.push(new_kf);
 				}
 			}
-			if (temp_center_keyframe) {
-				temp_center_keyframe.remove();
+			if (temp_wrap_keyframe) {
+				temp_wrap_keyframe.remove();
 			}
 		})
 		if (options.show_in_timeline && opposite_animator) {
@@ -131,11 +140,13 @@ Blockbench.on('finish_edit', (args) => {
 		initial_keyframes.forEach(kf => animators.safePush(kf.animator));
 	}
 	let options = toggle.tool_config.options;
+	let offset = options.offset == '180' ? 180 : 0;
+	if (options.offset == 'custom') offset = options.custom_offset;
 	let {added_keyframes, removed_keyframes} = flipCopyKeyframes({
 		keyframes: args.aspects.keyframes,
 		animators,
 		live_flip: true,
-		offset: options.offset,
+		offset,
 		show_in_timeline: false,
 	});
 	if (removed_keyframes.length) {
@@ -150,6 +161,29 @@ Blockbench.on('finish_edit', (args) => {
 })
 
 BARS.defineActions(function() {
+	const COMMON_FORM_ELEMENTS = {
+		offset: {
+			label: 'dialog.flip_animation.phase_offset',
+			type: 'inline_select',
+			value: '180',
+			options: {
+				'0': 'dialog.flip_animation.phase_offset.off',
+				'180': '180°',
+				'custom': 'dialog.flip_animation.phase_offset.custom',
+			}
+		} as FormElementOptions,
+		custom_offset: {
+			type: 'range',
+			editable_range_label: true,
+			full_width: true,
+			step: 5,
+			min: -180,
+			max: 180,
+			value: 0,
+			condition: (form) => form.offset == 'custom',
+		} as FormElementOptions,
+	}
+
 	let icon = Blockbench.getIconNode('vertical_align_center');
 	icon.style.transform = 'rotate(90deg)';
 	let toggle = new Toggle('mirror_animating', {
@@ -166,7 +200,7 @@ BARS.defineActions(function() {
 			title: 'action.mirror_animating',
 			form: {
 				enabled: {type: 'checkbox', label: 'menu.mirror_painting.enabled', value: false},
-				offset: {type: 'checkbox', label: 'dialog.flip_animation.phase_offset', value: true},
+				...COMMON_FORM_ELEMENTS
 			},
 			onFormChange(formResult) {
 				if (toggle.value != formResult.enabled) {
@@ -194,19 +228,22 @@ BARS.defineActions(function() {
 				title: 'action.flip_animation',
 				form: {
 					info: {type: 'info', text: 'dialog.flip_animation.info'},
-					offset: {label: 'dialog.flip_animation.phase_offset', type: 'checkbox', value: false},
+					...COMMON_FORM_ELEMENTS,
 					show_in_timeline: {label: 'dialog.flip_animation.show_in_timeline', type: 'checkbox', value: true},
 				},
-				onConfirm(formResult: {offset: boolean, show_in_timeline: boolean}) {
+				onConfirm(options: {offset: string, custom_offset: number, show_in_timeline: boolean}) {
 					this.hide()
 					
 					let new_keyframes = [];
 					Undo.initEdit({keyframes: new_keyframes});
 					let original_keyframes = Timeline.selected.length ? Timeline.selected : Timeline.keyframes;
 
+					let offset = options.offset == '180' ? 180 : 0;
+					if (options.offset == 'custom') offset = options.custom_offset;
 					let {added_keyframes} = flipCopyKeyframes({
 						keyframes: original_keyframes,
-						...formResult
+						show_in_timeline: options.show_in_timeline,
+						offset
 					});
 					new_keyframes.replace(added_keyframes);
 
