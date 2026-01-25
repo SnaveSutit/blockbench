@@ -399,9 +399,11 @@ export const Extruder = {
 
 		//Scale Index
 		var scale_i = 1;
-		scale_i = 16 / Extruder.width;
-		let uv_scale_x = Project.texture_width / Extruder.width;
-		let uv_scale_y = Project.texture_height / Extruder.height;
+		if (Format.cube_size_limiter && !Format.integer_size) {
+			scale_i = 16 / Extruder.width;
+		}
+		let uv_scale_x = Project.getUVWidth(texture) / Extruder.width;
+		let uv_scale_y = Project.getUVHeight(texture) / Extruder.height;
 
 		function isOpaquePixel(px_x, px_y) {
 			var opacity = image_data[(px_x + ctx.canvas.width * px_y) * 4 + 3]
