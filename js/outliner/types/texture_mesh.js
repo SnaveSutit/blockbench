@@ -80,15 +80,6 @@ export class TextureMesh extends OutlinerElement {
 	TextureMesh.prototype.menu = new Menu([
 		...Outliner.control_menu_group,
 		new MenuSeparator('settings'),
-		{name: 'menu.texture_mesh.texture_name', icon: 'collections', condition: () => !Format.single_texture, click(context) {
-			Blockbench.textPrompt('menu.texture_mesh.texture_name', context.texture_name, value => {
-				Undo.initEdit({elements: TextureMesh.all}),
-				TextureMesh.all.forEach(element => {
-					element.texture_name = value;
-				});
-				Undo.finishEdit('Change texture mesh texture name')
-			})
-		}},
 		new MenuSeparator('manage'),
 		'rename',
 		'toggle_visibility',
@@ -101,7 +92,18 @@ export class TextureMesh extends OutlinerElement {
 	];
 
 new Property(TextureMesh, 'string', 'name', {default: 'texture_mesh'})
-new Property(TextureMesh, 'string', 'texture_name')
+new Property(TextureMesh, 'string', 'texture_name', {
+	inputs: {
+		element_panel: {
+			input: {label: 'texture_mesh.texture_name', type: 'text'},
+			onChange() {
+				Cube.selected.forEach(element => {
+					element.preview_controller.updateRenderOrder(element);
+				});
+			}
+		}
+	}
+})
 new Property(TextureMesh, 'vector', 'origin');
 new Property(TextureMesh, 'vector', 'local_pivot');
 new Property(TextureMesh, 'vector', 'rotation');
