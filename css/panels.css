@@ -1464,6 +1464,9 @@
 	.timeline_marker:hover > i {
 		top: -3px;
 	}
+	#timeline_time.holding_ctrl .timeline_marker {
+		cursor: ew-resize;
+	}
 	#timeline_playhead {
 		position: absolute;
 		z-index: 3;

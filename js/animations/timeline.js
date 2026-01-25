@@ -1,5 +1,8 @@
+import { dragHelper } from "../util/drag_helper";
+
 export class TimelineMarker {
 	constructor(data) {
+		this.uuid = guid();
 		this.time = 0;
 		this.color = 0;
 		if (data) {
@@ -326,7 +329,19 @@ export const Timeline = {
 		let timeline_time = Panels.timeline.node.querySelector('#timeline_time');
 		addEventListeners(timeline_time, 'mousedown touchstart', e => {
 			if (e.which !== 1 && !event.changedTouches) return;
-			if (e.target.classList.contains('timeline_marker')) return;
+			if (e.target.classList.contains('timeline_marker')) {
+				let marker_uuid = e.target.getAttribute('uuid');
+				let marker = Animation.selected.markers.find(m => m.uuid == marker_uuid);
+				if (marker && (Pressing.overrides.ctrl || e.ctrlOrCmd)) {
+					let initial_time = marker.time;
+					dragHelper(e, {
+						onMove(arg) {
+							marker.time = Math.max(0, initial_time + arg.delta.x / Timeline.vue.$data.size);
+						}
+					})
+				}
+				return;
+			}
 
 			if (e.target.id == 'timeline_endbracket') {
 
@@ -544,6 +559,13 @@ export const Timeline = {
 			Timeline.updateSize()
 			event.preventDefault();
 		});
+
+		Blockbench.on('update_pressed_modifier_keys', (keys) => {
+			if (!Modes.animate) return;
+			let timeline_time = document.getElementById('timeline_time');
+			if (!timeline_time) return;
+			timeline_time.classList.toggle('holding_ctrl', keys.now.ctrl);
+		})
 
 		BarItems.slider_animation_speed.update()
 		Timeline.is_setup = true
@@ -1684,7 +1706,8 @@ Interface.definePanels(() => {
 								<div
 									v-for="marker in markers"
 									class="timeline_marker"
-									v-bind:style="{left: (marker.time * size) + 'px', '--color': getColor(marker.color)}"
+									:style="{left: (marker.time * size) + 'px', '--color': getColor(marker.color)}"
+									:uuid="marker.uuid"
 									@contextmenu.prevent="marker.showContextMenu($event)"
 									v-on:click="marker.callPlayhead()"
 								>
