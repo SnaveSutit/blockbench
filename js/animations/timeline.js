@@ -2173,10 +2173,27 @@ BARS.defineActions(function() {
 			let on = 'fas.fa-check-square';
 			let off = 'far.fa-square';
 			let {channels} = Timeline.vue._data;
+			let menu_list = [];
+			let used_animator_types = [BoneAnimator];
+			for (let animator of Timeline.animators) {
+				used_animator_types.safePush(animator.constructor);
+			}
+			for (let type of used_animator_types) {
+				for (let id in type.prototype.channels) {
+					if (menu_list.find(e => e.id == id)) continue;
+					let channel = type.prototype.channels[id];
+					menu_list.push({
+						id,
+						name: channel.name ?? `timeline.${id}`,
+						icon: channels[id] != false ? on : off,
+						click() {
+							Vue.set(channels, id, channels[id] == false);
+						}
+					})
+				}
+			}
 			return [
-				{name: 'timeline.rotation',	icon: channels.rotation ? on : off, click() {channels.rotation = !channels.rotation}},
-				{name: 'timeline.position',	icon: channels.position ? on : off, click() {channels.position = !channels.position}},
-				{name: 'timeline.scale', 	icon: channels.scale 	? on : off, click() {channels.scale	 = !channels.scale}},
+				...menu_list,
 				'_',
 				{name: 'action.timeline_focus.hide_empty', icon: channels.hide_empty ? on : off, click() {channels.hide_empty	 = !channels.hide_empty}},
 			]
