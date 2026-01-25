@@ -1,3 +1,5 @@
+import { shell } from "../native_apis";
+
 //Import
 export function setupDragHandlers() {
 	Blockbench.addDragHandler(
@@ -270,12 +272,11 @@ export async function loadImages(files, event) {
 	}
 }
 
-export function unsupportedFileFormatMessage(file_name) {
-	let extension = pathToExtension(file_name).toLowerCase();
+export function unsupportedFileFormatMessage(file_path) {
+	let extension = pathToExtension(file_path).toLowerCase();
 	let supported_plugins = Plugins.all.filter(plugin => {
 		return plugin.contributes?.open_extensions?.includes(extension);
 	})
-	console
 	let commands = {};
 	for (let plugin of supported_plugins) {
 		commands[plugin.id] = {
@@ -283,11 +284,20 @@ export function unsupportedFileFormatMessage(file_name) {
 			text: tl('message.invalid_format.install_plugin', [plugin.title])
 		}
 	}
+	if (isApp && file_path.match(/[\\\/]/)) {
+		commands.open_in_default_program = {
+			icon: 'open_in_new',
+			text: 'message.unsupported_file_extension.open_in_default_program'
+		}
+	}
 	Blockbench.showMessageBox({
 		translateKey: 'unsupported_file_extension',
-		message: tl('message.unsupported_file_extension.message', [extension]),
+		message: tl('message.unsupported_file_extension.message', ['`' + pathToName(file_path, true) + '`']),
 		commands,
 	}, (plugin_id) => {
+		if (plugin_id == 'open_in_default_program') {
+			return shell.openPath(file_path);
+		}
 		let plugin = plugin_id && supported_plugins.find(p => p.id == plugin_id);
 		if (plugin) {
 			BarItems.plugins_window.click();
