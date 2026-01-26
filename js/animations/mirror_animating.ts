@@ -67,10 +67,10 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 			}
 
 			let offset_factor = (4 + (options.offset/360) * (order ? 1 : -1)) % 1;
-			let offset_time = Timeline.snapTime(offset_factor * animation.length);
+			let offset_time = offset_factor * animation.length;
 
 			let temp_wrap_keyframe: Keyframe | undefined;
-			if (offset_time && !kfs.find(kf => Math.epsilon(kf.time, offset_time, 0.004))) {
+			if (offset_time && !kfs.find(kf => Math.epsilon(kf.time, offset_time, 0.005)) && !Format.animation_loop_wrapping) {
 				temp_wrap_keyframe = animator.createKeyframe(null, animation.length-offset_time, channel, false, false);
 				kfs.push(temp_wrap_keyframe);
 			}
@@ -80,6 +80,9 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 				let time = old_kf.time;
 				if (offset_time) {
 					time = (time + offset_time) % (animation.length + 0.001);
+				}
+				if (old_kf == temp_wrap_keyframe) {
+					time = animation.length;
 				}
 				time = Timeline.snapTime(time);
 				if (Math.epsilon(time, animation.length, 0.004) && offset_time && !occupied_times.includes(0)) {
@@ -99,7 +102,7 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 					added_keyframes.push(new_kf);
 				}
 			})
-			if (offset_time && !occupied_times.includes(0)) {
+			if (offset_time && !occupied_times.includes(0) && temp_wrap_keyframe) {
 				let new_kf = opposite_animator.createKeyframe(added_keyframes.last(), 0, channel, false, false)
 				if (new_kf) {
 					added_keyframes.push(new_kf);
