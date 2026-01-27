@@ -3267,7 +3267,7 @@ BARS.defineActions(function() {
 	})
 	new NumSlider('slider_brush_opacity', {
 		category: 'paint',
-		condition: () => (Toolbox && ((Toolbox.selected.brush?.opacity == true) || ['fill_tool', 'draw_shape_tool', 'gradient_tool'].includes(Toolbox.selected.id))),
+		condition: () => (Toolbox && ((Toolbox.selected.brush?.opacity == true) || ['color_picker', 'fill_tool', 'draw_shape_tool', 'gradient_tool'].includes(Toolbox.selected.id))),
 		tool_setting: 'brush_opacity',
 		settings: {
 			min: 0, max: 255, default: 255,
