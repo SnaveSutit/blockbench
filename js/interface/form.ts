@@ -135,6 +135,12 @@ export interface FormElementOptions {
 	 */
 	linked_ratio?: boolean
 	/**
+	 * Extra actions that display as icon buttons next to the input
+	 */
+	extra_actions?: {
+		icon: string, name: string, click: (event: Event) => void
+	}[]
+	/**
 	 * Set the return type of files on file inputs
 	 */
 	return_as?: 'file'
@@ -821,6 +827,7 @@ FormElement.types.vector = class FormElementVector extends FormElement {
 			let numeric_input = new Interface.CustomElements.NumericInput(this.id + '_' + i, {
 				value: this.options.value ? this.options.value[i] : 0,
 				min: this.options.min, max: this.options.max, step: this.options.step,
+				readonly: this.options.readonly,
 				onChange() {
 					if (scope.linked_ratio) {
 						updateInputs(numeric_input);
@@ -850,6 +857,16 @@ FormElement.types.vector = class FormElementVector extends FormElement {
 			})
 			updateState();
 			group.append(linked_ratio_toggle)
+		}
+		for (let action of this.options.extra_actions ?? []) {
+			let icon = Blockbench.getIconNode(action.icon);
+			let extra_action = Interface.createElement('div', {class: 'tool form_extra_action', title: action.name}, icon);
+			extra_action.addEventListener('click', event => {
+				if (action.click) {
+					action.click(event);
+				}
+			})
+			group.append(extra_action);
 		}
 	}
 	getValue(): number[] {

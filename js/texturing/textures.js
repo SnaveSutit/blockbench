@@ -5,6 +5,7 @@ import { Blockbench } from '../api';
 import { clipboard, fs, ipcRenderer, nativeImage, openFileInEditor } from '../native_apis';
 import { Filesystem } from '../file_system';
 import { isImageEditorValid } from '../desktop';
+import { editUVSizeDialog } from '../uv/uv_size';
 
 let tex_version = 1;
 
@@ -1116,7 +1117,7 @@ export class Texture {
 		Prop.active_panel = 'textures'
 		this.menu.open(event, this)
 	}
-	openMenu() {
+	propertiesDialog() {
 		this.select();
 
 		let title = `${this.name} (${this.width} x ${this.height})`;
@@ -1163,7 +1164,21 @@ export class Texture {
 			});
 		}
 		if (Format.per_texture_uv_size) {
-			form.uv_size = {type: 'vector', label: 'dialog.texture.uv_size', value: [this.uv_width, this.uv_height], dimensions: 2, step: 1, min: 1, linked_ratio: false};
+			form.uv_size = {
+				type: 'vector',
+				label: 'dialog.texture.uv_size',
+				value: [this.uv_width, this.uv_height],
+				dimensions: 2,
+				readonly: true,
+				extra_actions: [{
+					icon: 'edit',
+					name: 'Change',
+					click: (event) => {
+						Dialog.open.close();
+						editUVSizeDialog(this);
+					}
+				}]
+			};
 		}
 		if (Format.texture_mcmeta) {
 			Object.assign(form, {
@@ -2117,7 +2132,7 @@ export class Texture {
 			{
 				icon: 'list',
 				name: 'menu.texture.properties',
-				click(texture) { texture.openMenu()}
+				click(texture) { texture.propertiesDialog()}
 			}
 	])
 	Texture.prototype.offset = [0, 0];
@@ -2282,14 +2297,14 @@ Clipbench.pasteTextures = function() {
 		var texture = new Texture({name: 'pasted', folder: 'block' }).fillParticle().convertToInternal(dataUrl)
 		texture.load().add(true);
 		setTimeout(function() {
-			texture.openMenu();
+			texture.propertiesDialog();
 		}, 40)
 	}
 
 	if (Clipbench.texture) {
 		var texture = new Texture(Clipbench.texture).convertToInternal(Clipbench.texture.source).fillParticle().load().add(true);
 		setTimeout(function() {
-			texture.openMenu();
+			texture.propertiesDialog();
 		}, 40)
 		Clipbench.texture = null;
 
@@ -2732,7 +2747,7 @@ Interface.definePanels(function() {
 				@click.stop="closeContextMenu();texture.select($event)"
 				@mousedown="highlightTexture($event)"
 				@mouseup="unhighlightTexture($event)"
-				@dblclick="texture.openMenu($event)"
+				@dblclick="texture.propertiesDialog($event)"
 				@mousedown.stop="dragTexture($event)" @touchstart.stop="dragTexture($event)"
 				@contextmenu.prevent.stop="texture.showContextMenu($event)"
 			>

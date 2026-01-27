@@ -655,68 +655,6 @@ export function updateTabBarVisibility() {
 }
 
 // Resolution
-export function setProjectResolution(width, height, modify_uv) {
-	if (Project.texture_width / width != Project.texture_width / height) {
-		modify_uv = false;
-	}
-
-	let textures = Format.per_texture_uv_size ? Texture.all : undefined;
-
-	Undo.initEdit({uv_mode: true, elements: Cube.all, uv_only: true, textures});
-
-	let old_res = {
-		x: Project.texture_width,
-		y: Project.texture_height
-	}
-	Project.texture_width = width;
-	Project.texture_height = height;
-
-	if (modify_uv) {
-		var multiplier = [
-			Project.texture_width/old_res.x,
-			Project.texture_height/old_res.y
-		]
-		function shiftElement(element, axis) {
-			if (!element.faces) return;
-			if (element instanceof Mesh) {
-
-				for (let key in element.faces) {
-					let face = element.faces[key];
-					face.vertices.forEach(vertex_key => {
-						if (face.uv[vertex_key]) {
-							face.uv[vertex_key][axis] *= multiplier[axis];
-						}
-					})
-				}
-
-			} else if (element.box_uv) {
-				element.uv_offset[axis] = Math.floor(element.uv_offset[axis] * multiplier[axis]);
-			} else {
-				for (let face in element.faces) {
-					let {uv} = element.faces[face];
-					uv[axis] *= multiplier[axis];
-					uv[axis+2] *= multiplier[axis];
-				}
-			}
-		}
-		if (old_res.x != Project.texture_width && Math.areMultiples(old_res.x, Project.texture_width)) {
-			Outliner.elements.forEach(element => shiftElement(element, 0));
-		}
-		if (old_res.y != Project.texture_height &&  Math.areMultiples(old_res.x, Project.texture_width)) {
-			Outliner.elements.forEach(element => shiftElement(element, 1));
-		}
-	}
-	textures && textures.forEach(tex => {
-		tex.uv_width = Project.texture_width;
-		tex.uv_height = Project.texture_height;
-	});
-
-	Undo.finishEdit('Changed project resolution')
-	Canvas.updateAllUVs()
-	if (selected.length) {
-		UVEditor.loadData()
-	}
-}
 export function updateProjectResolution() {
 	if (!Format.per_texture_uv_size) {
 		if (Interface.Panels.uv) {
@@ -1037,13 +975,28 @@ BARS.defineActions(function() {
 			};
 
 			form.texture_size = {
-				label: 'dialog.project.texture_size',
+				label: 'dialog.project.uv_size',
 				type: 'vector',
 				dimensions: 2,
 				linked_ratio: false,
 				value: [Project.texture_width, Project.texture_height],
 				min: 1
+				
 			};
+			if (!(Format.per_texture_uv_size && Format.single_texture)) {
+				Object.assign(form.texture_size, {
+					linked_ratio: undefined,
+					readonly: true,
+					extra_actions: [{
+						icon: 'edit',
+						name: 'Change',
+						click: (event) => {
+							Dialog.open.close();
+							editUVSizeDialog(this);
+						}
+					}]
+				});
+			}
 
 			var dialog = new Dialog({
 				id: 'project',
@@ -1315,7 +1268,6 @@ Object.assign(window, {
 	newProject,
 	selectNoProject,
 	updateTabBarVisibility,
-	setProjectResolution,
 	updateProjectResolution,
 	setStartScreen,
 });

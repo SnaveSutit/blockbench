@@ -1,3 +1,5 @@
+import { editUVSizeDialog } from "../uv/uv_size";
+
 export const UVEditor = {
 	face: 'north',
 	size: 320,
@@ -2557,11 +2559,7 @@ Interface.definePanels(function() {
 			methods: {
 				tl,
 				projectResolution() {
-					if (Format.per_texture_uv_size && UVEditor.texture) {
-						UVEditor.texture.openMenu();
-					} else {
-						BarItems.project_window.trigger();
-					}
+					editUVSizeDialog(Format.per_texture_uv_size ? UVEditor.texture : undefined);
 				},
 				updateSize() {
 					if (!this.$refs.viewport) return;
