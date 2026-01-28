@@ -53,10 +53,12 @@ BARS.defineActions(() => {
 
 			interface GenerateOptions{
 				visible_only: boolean
+				approach: 'grow' | 'shrink'
 				complexity: number
 			}
 			let default_options: GenerateOptions = {
 				visible_only: false,
+				approach: 'grow',
 				complexity: 40
 			}
 			function generate(amended: boolean, options: GenerateOptions) {
@@ -105,7 +107,6 @@ BARS.defineActions(() => {
 				}
 
 				// Simplify voxels to boxes
-				// TODO: Test shrink-wrapping algorithm instead of expand
 
 				type MBox = [number, number, number, number, number, number];
 				let boxes: MBox[] = [];
@@ -175,9 +176,11 @@ BARS.defineActions(() => {
 					return true;
 				}
 
-				if (typeof 'shrink' == 'string') {
+				let grow_iterations = 256;
+				if (options.approach == 'shrink') {
+					grow_iterations = Math.pow((options.complexity/25), 2) - 2;
 					let stick_index = 0;
-					for (let _i = 0; _i < 80; _i++) {
+					for (let _i = 0; _i < Math.max(1, options.complexity); _i++) {
 						let box: MBox = [0, 0, 0, 15, 23, 15];
 						let directions = [true, true, true, true, true, true];
 
@@ -225,31 +228,30 @@ BARS.defineActions(() => {
 							}
 						}
 					}
-				} else {
-					for (let _i = 0; _i < 256; _i++) {
-						let keys = Object.keys(matrix.values);
-						let key = keys.findLast(key => matrix.values[key] == true);
-						if (!key) break;
-						let start_coords = matrix.getVectorFromKey(parseInt(key));
-						let box: MBox = [...start_coords, ...start_coords];
-						let directions = [true, true, true, true, true, true];
+				}
+				for (let _i = 0; _i < grow_iterations; _i++) {
+					let keys = Object.keys(matrix.values);
+					let key = keys.findLast(key => matrix.values[key] == true);
+					if (!key) break;
+					let start_coords = matrix.getVectorFromKey(parseInt(key));
+					let box: MBox = [...start_coords, ...start_coords];
+					let directions = [true, true, true, true, true, true];
 
-						for (let i = 0; i < 16; i++) {
-							if (directions[0]) directions[0] = expand(box, 0, 1);
-							if (directions[1]) directions[1] = expand(box, 0, -1);
-							if (directions[2]) directions[2] = expand(box, 2, 1);
-							if (directions[3]) directions[3] = expand(box, 2, -1);
-						}
-						for (let i = 0; i < 24; i++) {
-							if (directions[4]) directions[4] = expand(box, 1, 1);
-							if (directions[5]) directions[5] = expand(box, 1, -1);
-						}
-						boxes.push(box);
-						for (let x = box[0]; x <= box[3]; x++) {
-							for (let y = box[1]; y <= box[4]; y++) {
-								for (let z = box[2]; z <= box[5]; z++) {
-									matrix.delete(x, y, z);
-								}
+					for (let i = 0; i < 16; i++) {
+						if (directions[0]) directions[0] = expand(box, 0, 1);
+						if (directions[1]) directions[1] = expand(box, 0, -1);
+						if (directions[2]) directions[2] = expand(box, 2, 1);
+						if (directions[3]) directions[3] = expand(box, 2, -1);
+					}
+					for (let i = 0; i < 24; i++) {
+						if (directions[4]) directions[4] = expand(box, 1, 1);
+						if (directions[5]) directions[5] = expand(box, 1, -1);
+					}
+					boxes.push(box);
+					for (let x = box[0]; x <= box[3]; x++) {
+						for (let y = box[1]; y <= box[4]; y++) {
+							for (let z = box[2]; z <= box[5]; z++) {
+								matrix.delete(x, y, z);
 							}
 						}
 					}
@@ -272,6 +274,10 @@ BARS.defineActions(() => {
 
 			Undo.amendEdit({
 				visible_only: {label: 'Visible Elements Only', type: 'checkbox', value: default_options.visible_only},
+				approach: {label: 'Approach', type: 'inline_select', value: 'grow', options: {
+					grow: 'Grow',
+					shrink: 'Shrink',
+				}},
 				complexity: {label: 'Complexity', type: 'range', min: 0, max: 100, value: default_options.complexity},
 			}, result => {
 				generate(true, result);
