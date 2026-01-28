@@ -110,70 +110,151 @@ BARS.defineActions(() => {
 				type MBox = [number, number, number, number, number, number];
 				let boxes: MBox[] = [];
 				let miss_factor = (options.complexity/100)**2; // Square curve to distribute along slider more nicely
-				let _i = 0;
-				while (_i < 256) {
-					_i++;
-					let keys = Object.keys(matrix.values);
-					let key = keys.findLast(key => matrix.values[key] == true);
-					if (!key) break;
-					let start_coords = matrix.getVectorFromKey(parseInt(key));
-					let box: MBox = [...start_coords, ...start_coords];
-					let directions = [true, true, true, true, true, true];
-					function expand(axis: 0|1|2, direction: 1 | -1): boolean {
-						let axisa = (axis+1)%3;
-						let axisb = (axis+2)%3;
-						let cursor = box.slice(0, 3);
-						if (direction == 1) {
-							cursor[axis] = box[axis+3] + 1;
-						} else {
-							cursor[axis] -= 1;
+				let match_factor = (options.complexity/100); // Square curve to distribute along slider more nicely
+				
+				
+				function expand(box: MBox, axis: 0|1|2, direction: 1 | -1, max_misses?: number): boolean {
+					let axisa = (axis+1)%3;
+					let axisb = (axis+2)%3;
+					let cursor = box.slice(0, 3);
+					if (direction == 1) {
+						cursor[axis] = box[axis+3] + 1;
+					} else {
+						cursor[axis] -= 1;
+					}
+					if (cursor[axis] >= (axis == 1 ? 24 : 16) || cursor[axis] < 0) return false;
+					let surface_size = (box[axisa+3]-box[axisa]+1) * (box[axisb+3]-box[axisb]+1);
+					max_misses = max_misses ?? (surface_size * (1-miss_factor));
+					let misses = 0;
+					for (let a = box[axisa]; a <= box[axisa+3]; a++) {
+						cursor[axisa] = a;
+						for (let b = box[axisb]; b <= box[axisb+3]; b++) {
+							cursor[axisb] = b;
+							let value = matrix.get(cursor[0], cursor[1], cursor[2]);
+							if (value == null) return false; // Already occupied by box
+							if (!value) {
+								misses++;
+								if (misses > max_misses) return false;
+							}
 						}
-						if (cursor[axis] >= (axis == 1 ? 24 : 16) || cursor[axis] < 0) return false;
-						let surface_size = (box[axisa+3]-box[axisa]+1) * (box[axisb+3]-box[axisb]+1);
+					}
+					if (direction == 1) {
+						box[axis+3] += 1;
+					} else {
+						box[axis] -= 1;
+					}
+					return true;
+				}
+				function shrink(box: MBox, axis: 0|1|2, direction: 1 | -1, min_matches?: number): boolean {
+					if (box[axis] == box[axis+3]) return false;
+					let axisa = (axis+1)%3;
+					let axisb = (axis+2)%3;
+					let cursor = box.slice(0, 3);
+					if (direction == 1) {
+						cursor[axis] = box[axis+3];
+					}
+					let surface_size = (box[axisa+3]-box[axisa]+1) * (box[axisb+3]-box[axisb]+1);
+					min_matches = min_matches ?? (surface_size * match_factor);
+					let matches = 0;
+					for (let a = box[axisa]; a <= box[axisa+3]; a++) {
+						cursor[axisa] = a;
+						for (let b = box[axisb]; b <= box[axisb+3]; b++) {
+							cursor[axisb] = b;
+							let value = matrix.get(cursor[0], cursor[1], cursor[2]);
+							if (value) {
+								matches++;
+								if (matches >= min_matches) return false;
+							}
+						}
+					}
+					if (direction == 1) {
+						box[axis+3] -= 1;
+					} else {
+						box[axis] += 1;
+					}
+					return true;
+				}
 
-						let max_misses = surface_size * (1-miss_factor);
-						let misses = 0;
-						for (let a = box[axisa]; a <= box[axisa+3]; a++) {
-							cursor[axisa] = a;
-							for (let b = box[axisb]; b <= box[axisb+3]; b++) {
-								cursor[axisb] = b;
-								let value = matrix.get(cursor[0], cursor[1], cursor[2]);
-								if (value == null) return false; // Already occupied by box
-								if (!value) {
-									misses++;
-									if (misses > max_misses) {
-										return false;
-									}
+				if (typeof 'shrink' == 'string') {
+					let stick_index = 0;
+					for (let _i = 0; _i < 80; _i++) {
+						let box: MBox = [0, 0, 0, 15, 23, 15];
+						let directions = [true, true, true, true, true, true];
+
+						let stick = stick_index % 7;
+						for (let j = 0; j < 4; j++) {
+							for (let i = 0; i < 4; i++) {
+								if (directions[0]) directions[0] = shrink(box, 0, 1, stick == 1 ? 1 : undefined);
+								if (directions[1]) directions[1] = shrink(box, 0, -1, stick == 2 ? 1 : undefined);
+								if (directions[2]) directions[2] = shrink(box, 2, 1, stick == 3 ? 1 : undefined);
+								if (directions[3]) directions[3] = shrink(box, 2, -1, stick == 4 ? 1 : undefined);
+							}
+							for (let i = 0; i < 6; i++) {
+								if (directions[4]) directions[4] = shrink(box, 1, 1, stick == 5 ? 1 : undefined);
+								if (directions[5]) directions[5] = shrink(box, 1, -1, stick == 6 ? 1 : undefined);
+							}
+						}
+						directions = [true, true, true, true, true, true];
+						for (let i = 0; i < 16; i++) {
+							if (directions[0]) directions[0] = expand(box, 0, 1, 0);
+							if (directions[1]) directions[1] = expand(box, 0, -1, 0);
+							if (directions[2]) directions[2] = expand(box, 2, 1, 0);
+							if (directions[3]) directions[3] = expand(box, 2, -1, 0);
+							if (directions[4]) directions[4] = expand(box, 1, 1, 0);
+							if (directions[5]) directions[5] = expand(box, 1, -1, 0);
+						}
+
+						if (box[0] == box[3] && box[1] == box[4] && box[2] == box[5]) {
+							let value_at_box = matrix.get(box[0], box[1], box[2]);
+							if (!value_at_box) {
+								// At the end and no collision found
+								if (stick_index > 16) {
+									break;
+								} else {
+									stick_index++;
+									continue;
 								}
 							}
 						}
-						if (direction == 1) {
-							box[axis+3] += 1;
-						} else {
-							box[axis] -= 1;
+						boxes.push(box);
+						for (let x = box[0]; x <= box[3]; x++) {
+							for (let y = box[1]; y <= box[4]; y++) {
+								for (let z = box[2]; z <= box[5]; z++) {
+									matrix.delete(x, y, z);
+								}
+							}
 						}
-						return true;
 					}
+				} else {
+					for (let _i = 0; _i < 256; _i++) {
+						let keys = Object.keys(matrix.values);
+						let key = keys.findLast(key => matrix.values[key] == true);
+						if (!key) break;
+						let start_coords = matrix.getVectorFromKey(parseInt(key));
+						let box: MBox = [...start_coords, ...start_coords];
+						let directions = [true, true, true, true, true, true];
 
-					for (let i = 0; i < 16; i++) {
-						if (directions[0]) directions[0] = expand(0, 1);
-						if (directions[1]) directions[1] = expand(0, -1);
-						if (directions[2]) directions[2] = expand(2, 1);
-						if (directions[3]) directions[3] = expand(2, -1);
-					}
-					for (let i = 0; i < 24; i++) {
-						if (directions[4]) directions[4] = expand(1, 1);
-						if (directions[5]) directions[5] = expand(1, -1);
-					}
-					boxes.push(box);
-					for (let x = box[0]; x <= box[3]; x++) {
-						for (let y = box[1]; y <= box[4]; y++) {
-							for (let z = box[2]; z <= box[5]; z++) {
-								matrix.delete(x, y, z);
+						for (let i = 0; i < 16; i++) {
+							if (directions[0]) directions[0] = expand(box, 0, 1);
+							if (directions[1]) directions[1] = expand(box, 0, -1);
+							if (directions[2]) directions[2] = expand(box, 2, 1);
+							if (directions[3]) directions[3] = expand(box, 2, -1);
+						}
+						for (let i = 0; i < 24; i++) {
+							if (directions[4]) directions[4] = expand(box, 1, 1);
+							if (directions[5]) directions[5] = expand(box, 1, -1);
+						}
+						boxes.push(box);
+						for (let x = box[0]; x <= box[3]; x++) {
+							for (let y = box[1]; y <= box[4]; y++) {
+								for (let z = box[2]; z <= box[5]; z++) {
+									matrix.delete(x, y, z);
+								}
 							}
 						}
 					}
 				}
+
 				let i = 0;
 				for (let box of boxes) {
 					i++
