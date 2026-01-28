@@ -65,6 +65,7 @@ declare class Menu extends Deletable {
 	 */
 	removeAction(path: string | Action): void
 	structure: MenuItem[]
+	static open: Menu | null
 }
 
 /**

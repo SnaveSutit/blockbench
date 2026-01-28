@@ -896,6 +896,10 @@ export interface MessageBoxOptions {
 	 */
 	cancel?: number
 	buttons?: string[]
+	/**
+	 * Unless set to false, clicking on the darkened area outside of the dialog will cancel the dialog.
+	 */
+	cancel_on_click_outside?: boolean
 	translateKey?: string
 	title?: string
 	message?: string
