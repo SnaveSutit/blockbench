@@ -1,6 +1,7 @@
 import { settings, Settings } from "../../interface/settings";
 import { flipNameOnAxis } from "../../modeling/transform";
 import { fastWorldPosition } from "../../util/three_custom";
+import { lineIntersectsReactangle } from "../../util/util";
 import { OutlinerElement } from "../abstract/outliner_element";
 import { Vue } from './../../lib/libs';
 
@@ -351,13 +352,14 @@ new Property(BoundingBox, 'boolean', 'locked');
 
 OutlinerElement.registerType(BoundingBox, 'bounding_box');
 
-const line_material = new THREE.LineBasicMaterial({color: 0xffbd2e});
+const line_material = new THREE.LineBasicMaterial({color: 0xdd9b1d});
+const line_selected_material = new THREE.LineBasicMaterial({color: 0xfff270});
 
 new NodePreviewController(BoundingBox, {
 	setup(element: BoundingBox) {
 		let mesh = new THREE.LineSegments(
 			new THREE.BufferGeometry(),
-			new THREE.LineBasicMaterial({color: 0xffbd2e})
+			line_material
 		)
 		Project.nodes_3d[element.uuid] = mesh;
 		mesh.name = element.uuid;
@@ -422,6 +424,62 @@ new NodePreviewController(BoundingBox, {
 		mesh.geometry.computeBoundingSphere()
 
 		this.dispatchEvent('update_geometry', {element});
+	},
+	updateSelection(element: BoundingBox) {
+		let mesh = element.mesh as THREE.LineSegments;
+		if (mesh) {
+			if (Modes.paint) {
+				mesh.visible = false;
+			} else {
+				mesh.visible = true;
+				mesh.material = element.selected ? line_selected_material : line_material;
+			}
+		}
+
+		this.dispatchEvent('update_selection', {element});
+	},
+	viewportRectangleOverlap(element, {projectPoint, rect_start, rect_end, preview}) {
+		if ((BarItems.selection_mode as BarSelect).value != 'object' && Format.meshes && preview.selection.old_selected.find(el => el instanceof Mesh)) return;
+
+		let vector = Reusable.vec2;
+		var adjustedFrom = element.from;
+		var adjustedTo = element.to;
+
+		let vertices = [
+			[adjustedFrom[0] , adjustedFrom[1] , adjustedFrom[2] ],
+			[adjustedFrom[0] , adjustedFrom[1] , adjustedTo[2]   ],
+			[adjustedFrom[0] , adjustedTo[1]   , adjustedTo[2]   ],
+			[adjustedFrom[0] , adjustedTo[1]   , adjustedFrom[2] ],
+			[adjustedTo[0]   , adjustedFrom[1] , adjustedFrom[2] ],
+			[adjustedTo[0]   , adjustedFrom[1] , adjustedTo[2]   ],
+			[adjustedTo[0]   , adjustedTo[1]   , adjustedTo[2]   ],
+			[adjustedTo[0]   , adjustedTo[1]   , adjustedFrom[2] ],
+		].map(coords => {
+			//coords.V3_subtract(element.origin);
+			vector.fromArray(coords);
+			//mesh.localToWorld(vector);
+			return projectPoint(vector);
+		})
+		let is_on_screen = vertices.find(vertex => {
+			return (vertex[0] >= 0 && vertex[0] <= preview.width
+					&& vertex[1] >= 0 && vertex[1] <= preview.height);
+		})
+		return is_on_screen && (
+				lineIntersectsReactangle(vertices[0], vertices[1], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[1], vertices[2], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[2], vertices[3], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[3], vertices[0], rect_start, rect_end)
+
+			|| lineIntersectsReactangle(vertices[4], vertices[5], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[5], vertices[6], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[6], vertices[7], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[7], vertices[4], rect_start, rect_end)
+
+			|| lineIntersectsReactangle(vertices[0], vertices[4], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[1], vertices[5], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[2], vertices[6], rect_start, rect_end)
+			|| lineIntersectsReactangle(vertices[3], vertices[7], rect_start, rect_end)
+		);
 	}
 })
 

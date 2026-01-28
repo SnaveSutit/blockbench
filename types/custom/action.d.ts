@@ -536,7 +536,7 @@ declare global {
 		options: Record<string, T>
 		onChange?(self: BarSelect, event?: Event): void
 	}
-	class BarSelect<T> extends Widget {
+	class BarSelect<T = string> extends Widget {
 		constructor(id: string, options: BarSelectOptions<T>)
 		open(event: Event): void
 		trigger(event: Event): boolean | undefined
