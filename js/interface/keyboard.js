@@ -218,6 +218,7 @@ export class Keybind {
 			case  36: return 'pos1';
 			case  44: return 'printscreen';
 			case  19: return 'pause';
+			case  91: return 'meta';
 			case 1001: return 'mousewheel';
 
 			case 106: return tl('keys.numpad', ['*']);
