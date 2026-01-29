@@ -302,7 +302,7 @@ export type FormatOptions = FormatFeatures & {
 	format_page?: FormatPage
 	onFormatPage?(): void
 	onStart?(): void
-	onSetup?(project: ModelProjectType, newModel?: boolean): void
+	onSetup?(project: ModelProject, newModel?: boolean): void
 	convertTo?(): void
 	new?(): boolean
 
@@ -328,7 +328,7 @@ export class ModelFormat implements FormatOptions {
 	format_page?: FormatPage
 	onFormatPage?(): void
 	onStart?(): void
-	onSetup?(project: ModelProjectType, newModel?: boolean): void
+	onSetup?(project: ModelProject, newModel?: boolean): void
 	
 
 

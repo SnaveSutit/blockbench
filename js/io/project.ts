@@ -275,7 +275,7 @@ export class ModelProject {
 			this.on_next_upen.push(callback);
 		}
 	}
-	saveEditorState() {
+	saveEditorState(): this {
 		UVEditor.saveViewportOffset();
 		
 		Preview.all.forEach(preview => {
@@ -291,7 +291,7 @@ export class ModelProject {
 		Blockbench.dispatchEvent('save_editor_state', {project: this});
 		return this;
 	}
-	loadEditorState() {
+	loadEditorState(): this {
 		Blockbench.Project = this;
 		this.selected = true;
 		this.format.select();
@@ -1449,7 +1449,7 @@ const global = {
 	setStartScreen,
 };
 declare global {
-	type ModelProjectType = ModelProject
+	type ModelProject = import('./project').ModelProject
 	const ModelProject: typeof global.ModelProject
 	const ProjectData: typeof global.ProjectData
 	const setupProject: typeof global.setupProject
