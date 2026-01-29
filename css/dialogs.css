@@ -246,6 +246,14 @@
 	.dialog_bar.form_bar .tool > .tooltip {
 		display: none !important;
 	}
+	.dialog_bar .form_overlay_tools {
+		position: absolute;
+		top: 2px;
+		right: 10px;
+		background-color: color-mix(in srgb, var(--color-back) 60%, transparent);
+		border-radius: 5px;
+		padding: 0 5px;
+	}
 	.dialog_bar.small_text li {
 		list-style: auto;
 		margin-left: 20px;
@@ -2580,6 +2588,10 @@
 		padding-top: 2px;
 		color: var(--color-subtle_text);
 		user-select: text;
+	}
+/* Export Collision */
+	dialog#generate_bedrock_collision_box textarea.code {
+		color: #a2ebff;
 	}
 
 /* Predicate Overrides */

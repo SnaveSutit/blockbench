@@ -467,6 +467,7 @@ export const MenuBar = {
 			'auto_set_cullfaces',
 			'remove_blank_faces',
 			'generate_voxel_shapes',
+			'generate_bedrock_collision_box',
 		], {icon: 'handyman'})
 		MenuBar.menus.filter = MenuBar.menus.tools;
 

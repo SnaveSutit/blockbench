@@ -135,4 +135,50 @@ BARS.defineActions(function() {
 			})
 		}
 	})
+	// TODO: Add a way to import this back via paste text and drag-drop text
+	new Action('generate_bedrock_collision_box', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block']},
+		click() {
+			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
+				let bounding_boxes = BoundingBox.all as BoundingBox[];
+				let box_data = bounding_boxes.map(bb => {
+					return {
+						origin: [-bb.to[0], bb.from[1], bb.from[2]],
+						size: bb.size()
+					}
+				});
+				if (type == 'selection_box') box_data.length = 1;
+				let data = box_data.length == 1 ? box_data[0] : box_data;
+				let key = `"minecraft:${type}": `;
+				return key + compileJSON(data, {small: minify})
+			}
+			new Dialog({
+				id: 'generate_bedrock_collision_box',
+				title: 'action.generate_bedrock_collision_box',
+				form: {
+					// Todo: translations
+					type: {label: 'Type', type: 'inline_select', options: {
+						collision_box: 'Collision',
+						selection_box: 'Selection Box'
+					}},
+					minify: {type: 'checkbox', label: 'Minify'},
+					output: {
+						type: 'textarea',
+						style: 'code',
+						value: generate('collision_box', false),
+						full_width: true,
+						readonly: true,
+						share_text: true
+					}
+				},
+				onFormChange(result) {
+					let text = generate(result.type as 'collision_box' | 'selection_box', result.minify as boolean);
+					Dialog.open.setFormValues({output: text}, false);
+				},
+				singleButton: true,
+			}).show();
+		}
+	})
 })
