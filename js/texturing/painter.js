@@ -119,10 +119,8 @@ export const Painter = {
 
 		Painter.startPaintTool(texture, x, y, data.element.faces[data.face].uv, e, data)
 
-		if (Toolbox.selected.id !== 'color_picker') {
-			addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
-			addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
-		}
+		addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+		addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 	},
 	movePaintToolCanvas(event, data) {
 		convertTouchEvent(event);
@@ -203,6 +201,7 @@ export const Painter = {
 
 		if (Toolbox.selected.id === 'color_picker') {
 			Painter.colorPicker(texture, x, y, event);
+			Painter.paint_stroke_canceled = true;
 			return;
 		}
 		
@@ -296,7 +295,7 @@ export const Painter = {
 		Painter.current.y = y;
 	},
 	stopPaintTool() {
-		//Called directly by stopPaintToolCanvas and stopBrushUV
+		PointerTarget.endTarget();
 		if (Painter.paint_stroke_canceled) {
 			delete Painter.paint_stroke_canceled;
 			return;
@@ -327,7 +326,6 @@ export const Painter = {
 		delete Painter.current.uv_rects;
 		delete Painter.current.uv_islands;
 		delete Painter.current.dynamic_brush_size;
-		PointerTarget.endTarget();
 		Painter.currentPixel = [-1, -1];
 	},
 	// Tools

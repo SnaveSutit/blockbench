@@ -680,6 +680,8 @@ constructor ( object, preview ) {
 
 		if ( scope.isEnabled() === false ) return;
 
+		PointerTarget.endTarget(PointerTarget.types.navigate);
+
 		handleMouseUp( event );
 
 		document.removeEventListener( 'mousemove', onMouseMove, false );
