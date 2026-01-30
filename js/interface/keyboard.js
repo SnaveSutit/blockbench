@@ -315,12 +315,16 @@ export class Keybind {
 			scope.clear().stopRecording();
 		}}, tl('keybindings.clear'));
 
+		let key_list = Interface.createElement('div', {id: 'keybind_record_key_list', class: 'keybindslot'});
+		key_list.innerHTML = this.getText(true);
+
 		let ui = Interface.createElement('div', {id: 'overlay_message_box'}, [
 			Interface.createElement('div', {}, [
 				Interface.createElement('h3', {}, [
 					Blockbench.getIconNode('keyboard'), tl('keybindings.recording')
 				]),
 				Interface.createElement('p', {}, tl('keybindings.press')),
+				key_list,
 				button_cancel, ' ', button_empty,
 			])
 		]);
@@ -332,32 +336,66 @@ export class Keybind {
 				'slide_rmb_horizontal': 1012,
 				'slide_rmb_vertical': 1013,
 			};
-			let list = Interface.createElement('div');
-			button_cancel.parentElement.insertBefore(list, button_cancel);
+			function setGesture(event, key) {
+				clearListeners();
 
-			for (let key in slide_options) {
-				let button = Interface.createElement('button', { class: 'minor', '@click'(event) {
+				scope.key = slide_options[key];
+				scope.ctrl 	= event.ctrlKey;
+				scope.shift = event.shiftKey;
+				scope.alt 	= event.altKey;
+				scope.meta 	= event.metaKey;
 
-					clearListeners();
+				scope.label = scope.getText();
+				scope.save(true);
+				Blockbench.showQuickMessage(scope.label);
 
-					scope.key = slide_options[key];
-					scope.ctrl 	= event.ctrlKey;
-					scope.shift = event.shiftKey;
-					scope.alt 	= event.altKey;
-					scope.meta 	= event.metaKey;
-
-					scope.label = scope.getText();
-					scope.save(true);
-					Blockbench.showQuickMessage(scope.label);
-
-					scope.stopRecording();
-
-				}}, [
-					Blockbench.getIconNode(key.endsWith('horizontal') ? 'arrow_range' : 'height'),
-					tl('keys.' + key)
-				]);
-				list.append(button);
+				scope.stopRecording();
 			}
+			let list = Interface.createElement('div', {
+				class: 'mouse_gesture_keybind_menu'
+			}, [
+				Interface.createElement('h3', {}, 'Mouse Gesture'),
+				Interface.createElement('div', {}, [
+					Interface.createElement('label', {}, 'Left click'),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_lmb_horizontal'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_lmb_horizontal')
+						},
+						Blockbench.getIconNode('arrow_range')
+					),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_lmb_vertical'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_lmb_vertical')
+						},
+						Blockbench.getIconNode('height')
+					),
+				]),
+				Interface.createElement('div', {}, [
+					Interface.createElement('label', {}, 'Right click'),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_rmb_horizontal'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_rmb_horizontal')
+						},
+						Blockbench.getIconNode('arrow_range')
+					),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_rmb_vertical'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_rmb_vertical')
+						},
+						Blockbench.getIconNode('height')
+					),
+				]),
+			]);
+			button_cancel.parentElement.append(list);
+
 		}
 
 		document.getElementById('dialog_wrapper').append(ui);
@@ -372,6 +410,7 @@ export class Keybind {
 			overlay.off('mousedown', onActivate)
 			overlay.off('wheel', onActivate)
 			overlay.off('keydown keypress keyup click click dblclick mouseup mousewheel', preventDefault)
+			removeEventListeners(document, 'keydown mousedown', onUpdate);
 		}
 
 		function onActivate(event) {
@@ -379,7 +418,9 @@ export class Keybind {
 
 			clearListeners();
 
-			if (event instanceof KeyboardEvent == false && event.target && event.target.tagName === 'BUTTON') return;
+			if (event instanceof KeyboardEvent == false && event.target) {
+				if (event.target.tagName === 'BUTTON' || event.target.classList.contains('mouse_gesture_option')) return;
+			}
 
 			if (event instanceof WheelEvent) {
 				scope.key = 1001
@@ -405,6 +446,22 @@ export class Keybind {
 		function preventDefault(event) {
 			event.preventDefault();
 		}
+		function onUpdate(event) {
+			let modifiers = [];
+			if (event.ctrlKey) 	modifiers.push(tl('keys.ctrl'))	
+			if (event.shiftKey)	modifiers.push(tl('keys.shift'))	
+			if (event.altKey) 	modifiers.push(tl('keys.alt'))	
+			if (event.metaKey) 	modifiers.push(tl('keys.meta'))	
+
+			modifiers.forEach((text, i) => {
+				let type = i !== modifiers.length-1
+						? text.match(/\[\w+\]/) ? 'optional' : 'modifier'
+						: 'key'
+				modifiers[i] = `<span class="${type}">${text}</span>`;
+			})
+			key_list.innerHTML = modifiers.join(`<span class="punctuation"> + </span>`);
+		}
+		addEventListeners(document, 'keydown mousedown', onUpdate);
 
 		document.addEventListener('keyup', onActivate)
 		document.addEventListener('keydown', onActivateDown)
