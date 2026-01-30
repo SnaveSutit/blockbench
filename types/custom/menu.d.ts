@@ -100,6 +100,12 @@ declare namespace MenuBar {
 		[id: string]: Menu
 	}
 	/**
+	 * Add a new menu to the menu bar
+	 * @param menu The BarMenu to add
+	 * @param position Specify the position in the menu list where to add insert the menu. Can either be an index in the list of all menus, or the ID of the menu to insert right from.
+	 */
+	function addMenu(menu: BarMenu, position?: number | string): void
+	/**
 	 * Adds an action to the menu structure
 	 * @param action Action to add
 	 * @param path Path pointing to the location. Use the ID of each level of the menu, or index or group within a level, separated by a point. For example, `file.export.0` places the action at the top position of the Export submenu in the File menu.
