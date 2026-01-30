@@ -309,7 +309,7 @@ var codec = new Codec('fbx', {
 				if (mesh.faces[key].vertices.length >= 3) {
 					let face = mesh.faces[key];
 					let vertices = face.getSortedVertices();
-					let tex = mesh.faces[key].getTexture();
+					let tex = mesh.faces[key].getTexture() || undefined;
 					textures.push(tex);
 
 					vertices.forEach(vkey => {
@@ -713,7 +713,7 @@ var codec = new Codec('fbx', {
 			for (let fkey in cube.faces) {
 				let face = cube.faces[fkey];
 				if (face.texture === null) continue;
-				let texture = face.getTexture();
+				let texture = face.getTexture() || undefined;
 				textures.push(texture);
 				normals.push(...cube_face_normals[fkey]);
 
