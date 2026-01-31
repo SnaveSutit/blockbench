@@ -1,3 +1,5 @@
+import { PointerTarget } from "../interface/pointer_target";
+
 export const UVEditor = {
 	face: 'north',
 	size: 320,
@@ -137,6 +139,7 @@ export const UVEditor = {
 		}
 	},
 	movePaintTool(event) {
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) return;
 		if (event.pointerType === 'pen' && event.pressure === 0) {
 			return;
 		}
@@ -2667,6 +2670,7 @@ Interface.definePanels(function() {
 				updateMouseCoords(event) {					
 					convertTouchEvent(event);
 					if (!this.texture) return;
+					if (PointerTarget.active) return;
 
 					var {x, y} = UVEditor.getBrushCoordinates(event, this.texture);
 					this.mouse_coords.active = true;
@@ -3008,6 +3012,7 @@ Interface.definePanels(function() {
 					}
 				},
 				onMouseLeave(event) {
+					if (PointerTarget.active == PointerTarget.types.global_drag_slider) return;
 					if (this.mode == 'paint') {
 						this.mouse_coords.active = false;
 					}

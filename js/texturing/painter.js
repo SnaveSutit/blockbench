@@ -1,3 +1,4 @@
+import { PointerTarget } from "../interface/pointer_target";
 import { clipboard, nativeImage } from "../native_apis";
 import { Dynamic2DMap } from "../util/dynamic_2d_map";
 
@@ -118,10 +119,8 @@ export const Painter = {
 
 		Painter.startPaintTool(texture, x, y, data.element.faces[data.face].uv, e, data)
 
-		if (Toolbox.selected.id !== 'color_picker') {
-			addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
-			addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
-		}
+		addEventListeners(document, 'pointermove', Painter.movePaintToolCanvas, false );
+		addEventListeners(document, 'pointerup', Painter.stopPaintToolCanvas, false );
 	},
 	movePaintToolCanvas(event, data) {
 		convertTouchEvent(event);
@@ -188,6 +187,10 @@ export const Painter = {
 			Painter.paint_stroke_canceled = true;
 			return;
 		}
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) {
+			Painter.paint_stroke_canceled = true;
+			return;
+		}
 		if (Toolbox.selected.brush && Toolbox.selected.brush.onStrokeStart) {
 			let result = Toolbox.selected.brush.onStrokeStart({texture, x, y, uv: uvTag, event, raycast_data: data});
 			if (result == false) {
@@ -198,6 +201,7 @@ export const Painter = {
 
 		if (Toolbox.selected.id === 'color_picker') {
 			Painter.colorPicker(texture, x, y, event);
+			Painter.paint_stroke_canceled = true;
 			return;
 		}
 		
@@ -210,7 +214,6 @@ export const Painter = {
 		Undo.initEdit(undo_aspects);
 		Painter.current.start_event = event;
 		Painter.brushChanges = false;
-		Painter.painting = true;
 		
 		if (Toolbox.selected.id === 'draw_shape_tool' || Toolbox.selected.id === 'gradient_tool') {
 			Painter.current = {
@@ -259,6 +262,7 @@ export const Painter = {
 	movePaintTool(texture, x, y, event, new_face, uv) {
 		// Called directly from movePaintToolCanvas and moveBrushUV
 		if (Painter.paint_stroke_canceled) return;
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) return;
 		
 		if (Toolbox.selected.brush && Toolbox.selected.brush.onStrokeMove) {
 			let result = Toolbox.selected.brush.onStrokeMove({texture, x, y, uv, event, raycast_data: data});
@@ -291,7 +295,7 @@ export const Painter = {
 		Painter.current.y = y;
 	},
 	stopPaintTool() {
-		//Called directly by stopPaintToolCanvas and stopBrushUV
+		PointerTarget.endTarget();
 		if (Painter.paint_stroke_canceled) {
 			delete Painter.paint_stroke_canceled;
 			return;
@@ -322,7 +326,6 @@ export const Painter = {
 		delete Painter.current.uv_rects;
 		delete Painter.current.uv_islands;
 		delete Painter.current.dynamic_brush_size;
-		Painter.painting = false;
 		Painter.currentPixel = [-1, -1];
 	},
 	// Tools
@@ -3243,6 +3246,14 @@ BARS.defineActions(function() {
 		category: 'paint',
 		settings: {
 			min: 1, max: 1024, interval: 1, default: 1,
+		},
+		onChange(value, event) {
+			// Update preview outline
+			if (UVEditor.vue._data.mouse_coords.active) {
+				UVEditor.vue.$forceUpdate();
+			} else {
+				Preview.selected.mousemove(event);
+			}
 		}
 	})
 	new NumSlider('slider_brush_softness', {
@@ -3251,6 +3262,7 @@ BARS.defineActions(function() {
 		tool_setting: 'brush_softness',
 		settings: {
 			min: 0, max: 100, default: 0,
+			gesture_speed: 2,
 			show_bar: true,
 			interval: function(event) {
 				if (event.shiftKey && event.ctrlOrCmd) {
@@ -3271,6 +3283,7 @@ BARS.defineActions(function() {
 		tool_setting: 'brush_opacity',
 		settings: {
 			min: 0, max: 255, default: 255,
+			gesture_speed: 4,
 			show_bar: true,
 			interval: function(event) {
 				if (event.shiftKey && event.ctrlOrCmd) {
