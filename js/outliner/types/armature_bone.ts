@@ -568,13 +568,15 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 'e', shift: true}),
 		condition: {modes: ['edit'], selected: {mesh: false, spline: false}, method: () => ((ArmatureBone.hasSelected() || Armature.hasSelected()))},
 		click: function () {
-			Undo.initEdit({outliner: true, elements: []});
+			Undo.initEdit({outliner: true, elements: [], selection: true});
 			let add_to_node = Outliner.selected[0] || Group.first_selected;
 			if (!add_to_node && selected.length) {
 				add_to_node = selected.last();
 			}
 			let new_instance = new ArmatureBone({
 				origin: add_to_node instanceof ArmatureBone ? [0, add_to_node.length??8, 0] : undefined,
+				width: add_to_node instanceof ArmatureBone ? add_to_node.width : undefined,
+				length: add_to_node instanceof ArmatureBone ? add_to_node.length : undefined,
 			})
 			new_instance.addTo(add_to_node)
 			new_instance.isOpen = true
@@ -583,7 +585,7 @@ BARS.defineActions(function() {
 				new_instance.createUniqueName()
 			}
 			new_instance.init().select()
-			Undo.finishEdit('Add armature bone', {outliner: true, elements: [new_instance]});
+			Undo.finishEdit('Add armature bone', {outliner: true, elements: [new_instance], selection: true});
 			Vue.nextTick(function() {
 				updateSelection()
 				if (settings.create_rename.value) {

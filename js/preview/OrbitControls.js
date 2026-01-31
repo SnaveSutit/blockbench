@@ -1,3 +1,5 @@
+import { PointerTarget } from "../interface/pointer_target";
+
 /**
  * Original source: https://github.com/mrdoob/three.js, MIT
  * Modified for Blockbench
@@ -606,7 +608,7 @@ constructor ( object, preview ) {
 
 	function onMouseDown( event ) {
 
-		if (scope.isEnabled() === false || Transformer.dragging) return;
+		if (scope.isEnabled() === false || !PointerTarget.requestTarget(PointerTarget.types.navigate)) return;
 
 		event.preventDefault();
 		scope.hasMoved = false
@@ -652,7 +654,7 @@ constructor ( object, preview ) {
 
 	function onMouseMove( event ) {
 
-		if (scope.isEnabled() === false || Transformer.dragging) return;
+		if (scope.isEnabled() === false || !PointerTarget.requestTarget(PointerTarget.types.navigate)) return;
 		event.preventDefault();
 		scope.hasMoved = true
 
@@ -677,6 +679,8 @@ constructor ( object, preview ) {
 	function onMouseUp( event ) {
 
 		if ( scope.isEnabled() === false ) return;
+
+		PointerTarget.endTarget(PointerTarget.types.navigate);
 
 		handleMouseUp( event );
 
@@ -754,7 +758,7 @@ constructor ( object, preview ) {
 	function onTouchMove( event ) {
 
 		if ( scope.isEnabled() === false ) return;
-		if ( Transformer.dragging || Painter.painting ) return;
+		if ( !PointerTarget.requestTarget(PointerTarget.types.navigate) ) return;
 
 		event.preventDefault();
 		event.stopPropagation();
