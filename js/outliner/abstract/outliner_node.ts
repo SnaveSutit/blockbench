@@ -214,14 +214,16 @@ export abstract class OutlinerNode {
 	 * Marks the name of the group or element in the outliner for renaming.
 	 */
 	rename() {
-		this.showInOutliner()
-		var obj = $('#'+this.uuid+' > div.outliner_object > input.cube_name')
-		obj.attr('disabled', 'false');
-		obj.select()
-		obj.focus()
-		obj.addClass('renaming')
-		Blockbench.addFlag('renaming')
-		this.old_name = this.name
+		this.showInOutliner();
+		let node = document.getElementById(this.uuid);
+		let input_element = node?.querySelector('div.outliner_object > input.cube_name') as HTMLInputElement;
+		if (!input_element) return this;
+		input_element.removeAttribute('disabled');
+		input_element.classList.add('renaming');
+		input_element.select();
+		input_element.focus();
+		Blockbench.addFlag('renaming');
+		this.old_name = this.name;
 		return this;
 	}
 	/**
