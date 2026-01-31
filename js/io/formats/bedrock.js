@@ -1662,6 +1662,113 @@ BARS.defineActions(function() {
 			codec.export()
 		}
 	})
+
+	const player_geo = {
+		"description": {
+			"identifier": "geometry.default_player",
+			"texture_width": 64,
+			"texture_height": 64,
+			"visible_bounds_width": 5,
+			"visible_bounds_height": 4.5,
+			"visible_bounds_offset": [0, 1.75, 0]
+		},
+		"bones": [
+			{
+				"name": "root",
+				"pivot": [0, 0, 0]
+			},
+			{
+				"name": "waist",
+				"parent": "root",
+				"pivot": [0, 12, 0]
+			},
+			{
+				"name": "body",
+				"parent": "waist",
+				"pivot": [0, 24, 0],
+				"cubes": [
+					{"origin": [-4, 12, -2], "size": [8, 12, 4], "uv": [16, 16]}
+				]
+			},
+			{
+				"name": "cape",
+				"parent": "body",
+				"pivot": [0, 24, 2],
+				"cubes": [
+					{"origin": [-4, 10, 2], "size": [8, 14, 1], "uv": [-5, 1]}
+				]
+			},
+			{
+				"name": "head",
+				"parent": "body",
+				"pivot": [0, 24, 0],
+				"cubes": [
+					{"origin": [-4, 24, -4], "size": [8, 8, 8], "uv": [0, 0]}
+				]
+			},
+			{
+				"name": "helmet",
+				"parent": "head",
+				"pivot": [0, 0, 0]
+			},
+			{
+				"name": "rightArm",
+				"parent": "body",
+				"pivot": [-5, 22, 0],
+				"cubes": [
+					{"origin": [-8, 12, -2], "size": [4, 12, 4], "uv": [40, 16]}
+				]
+			},
+			{
+				"name": "rightItem",
+				"parent": "rightArm",
+				"pivot": [-6, 14, 0],
+				"rotation": [-35, 0, 0],
+			},
+			{
+				"name": "leftArm",
+				"parent": "body",
+				"pivot": [5, 22, 0],
+				"cubes": [
+					{"origin": [4, 12, -2], "size": [4, 12, 4], "uv": [32, 48]}
+				]
+			},
+			{
+				"name": "leftItem",
+				"parent": "leftArm",
+				"pivot": [6, 14, 0],
+				"cubes": [
+				]
+			},
+			{
+				"name": "rightLeg",
+				"parent": "root",
+				"pivot": [-1.9, 12, 0],
+				"cubes": [
+					{"origin": [-3.9, 0, -2], "size": [4, 12, 4], "uv": [0, 16]}
+				]
+			},
+			{
+				"name": "leftLeg",
+				"parent": "root",
+				"pivot": [1.9, 12, 0],
+				"cubes": [
+					{"origin": [-0.1, 0, -2], "size": [4, 12, 4], "uv": [16, 48]}
+				]
+			}
+		]
+	}
+	new ModelLoader('bedrock_player_model', {
+		name: 'Bedrock Player Model',
+		description: 'Default bedrock player model for making attachables and player animations',
+		show_on_start_screen: false,
+		icon: 'icon-player',
+		target: 'Minecraft: Bedrock Edition',
+		onStart() {
+			setupProject(entity_format);
+			parseGeometry({object: player_geo}, {});
+		}
+	})
 })
 
 new ValidatorCheck('bedrock_binding', {
