@@ -915,7 +915,7 @@ export class NumSlider extends Widget {
 
 		if (!difference) return;
 
-		this.change(n => n + difference);
+		this.change(n => n + difference, event);
 		this.update();
 		let display_offset = trimFloatNumber(this.value - this.last_value);
 		if (!Blockbench.isMobile) {
@@ -1040,7 +1040,7 @@ export class NumSlider extends Widget {
 		} 
 		return this;
 	}
-	change(modify) {
+	change(modify, event) {
 		//Solo sliders only, gets overwritten for most sliders
 		var num = modify(this.get());
 		if (this.settings && typeof this.settings.min === 'number' && this.settings.limit !== false) {
@@ -1051,7 +1051,7 @@ export class NumSlider extends Widget {
 			Toolbox.selected.tool_settings[this.tool_setting] = num;
 		}
 		if (typeof this.onChange === 'function') {
-			this.onChange(num);
+			this.onChange(num, event);
 		}
 		this.dispatchEvent('change', {number: num});
 	}

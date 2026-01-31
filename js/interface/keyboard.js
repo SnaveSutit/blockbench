@@ -904,36 +904,40 @@ $(document).keyup(function(e) {
 
 document.addEventListener('pointerdown', (e1) => {
 
-	let slider = Keybinds.actions.find(slider => {
+	let sliders = Keybinds.actions.filter(slider => {
 		if (slider instanceof NumSlider == false) return false;
 		if (!Condition(slider.condition)) return false;
 		return slider.keybind.isTriggered(e1, 'pointer_slide');
 	});
-	if (slider) {
+	if (sliders.length) {
 		let success = PointerTarget.requestTarget(PointerTarget.types.global_drag_slider);
 		if (!success) return;
 		dragHelper(e1, {
-
 			onStart(context) {
-				if (typeof slider.onBefore === 'function') {
-					slider.onBefore();
+				for (let slider of sliders) {
+					if (typeof slider.onBefore === 'function') {
+						slider.onBefore();
+					}
+					slider.sliding = true;
+					slider.pre = 0;
+					slider.sliding_start_pos = 0;
 				}
-				slider.sliding = true;
-				slider.pre = 0;
-				slider.sliding_start_pos = 0;
 			},
 			onMove(context) {
-				let distance = Math.abs(context.delta.x) > Math.abs(context.delta.y)
-					? context.delta.x
-					: context.delta.y;
-				slider.slide(distance * 2, context.event);
-				Preview.selected.mousemove(e1);
+				for (let slider of sliders) {
+					let orientation = slider.keybind.key == 1010 || slider.keybind.key ==  1012;
+					let distance = orientation ? context.delta.x : context.delta.y;
+					let factor = (orientation ? 2.4 : 2.6) * (slider.settings?.gesture_speed ?? 1);
+					slider.slide(distance * factor, e1);
+				}
 			},
 			onEnd(context) {
 				Blockbench.setStatusBarText();
-				delete slider.sliding;
-				if (typeof slider.onAfter === 'function') {
-					slider.onAfter(slider.value - slider.last_value)
+				for (let slider of sliders) {
+					delete slider.sliding;
+					if (typeof slider.onAfter === 'function') {
+						slider.onAfter(slider.value - slider.last_value)
+					}
 				}
 			}
 		})
