@@ -721,23 +721,26 @@ export const UVEditor = {
 		return 0;
 	},
 	slidePos(modify, axis) {
-		let limit = this.getResolution(axis);
+		let min = 0;
+		let max = this.getResolution(axis);
+		let clamped = UVEditor.isUVClamped();
 
 		Outliner.selected.forEach(function(obj) {
 			if (!obj.getTypeBehavior('cube_faces')) return;
 			if (obj.box_uv === true) {
-				let minimum = 0;
 				if (axis === 0) {
 					var size = (obj.size(0) + (obj.size(1) ? obj.size(2) : 0))*2
-					if (obj.size(1) == 0) minimum = -obj.size(2);
+					if (obj.size(1) == 0) min = -obj.size(2);
 				} else {
 					var size = obj.size(2) + obj.size(1)
-					if (obj.size(0) == 0) minimum = -obj.size(2);
+					if (obj.size(0) == 0) min = -obj.size(2);
 				}
 				var value = modify(obj.uv_offset[axis])
 
-				value = limitNumber(value, minimum, limit)
-				value = limitNumber(value + size, minimum, limit) - size
+				if (clamped) {
+					value = limitNumber(value, min, max);
+					value = limitNumber(value + size, min, max) - size;
+				}
 				obj.uv_offset[axis] = Math.round(value);
 			} else {
 				UVEditor.getSelectedFaces(obj).forEach(fkey => {
@@ -747,9 +750,10 @@ export const UVEditor = {
 	
 					var value = modify(uvTag[axis])
 	
-					value = limitNumber(value, 0, limit)
-					value = limitNumber(value + size, 0, limit) - size
-	
+					if (clamped) {
+						value = limitNumber(value, 0, max);
+						value = limitNumber(value + size, 0, max) - size;
+					}
 					uvTag[axis] = value
 					uvTag[axis+2] = value + size
 				})
