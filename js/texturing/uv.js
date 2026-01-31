@@ -2174,8 +2174,9 @@ BARS.defineActions(function() {
 				UVEditor.getFacePosition(1) + UVEditor.getFaceSize(1)/2,
 			];
 			let cursor_pos = [
-				UVEditor.vue.mouse_coords.x,
-				UVEditor.vue.mouse_coords.y,
+				// Previous mouse coords, convert from pixel space to UV space
+				UVEditor.vue.mouse_coords.x * (UVEditor.getUVWidth() / UVEditor.texture.width),
+				UVEditor.vue.mouse_coords.y * (UVEditor.getUVHeight() / UVEditor.texture.height),
 			];
 			UVEditor.slidePos((val) => val + cursor_pos[0] - center[0], 0);
 			UVEditor.slidePos((val) => val + cursor_pos[1] - center[1], 1);
