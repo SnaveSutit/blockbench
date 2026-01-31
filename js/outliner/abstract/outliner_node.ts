@@ -10,7 +10,10 @@ export abstract class OutlinerNode {
 	locked: boolean
 	parent: (OutlinerNode & OutlinerNodeParentTraits) | 'root'
 	selected: boolean
-	declare old_name?: string
+	readonly _static: {
+		properties: any
+		temp_data: Record<string, any>
+	}
 	declare children?: OutlinerNode[]
 	declare menu?: Menu
 	declare type: string
@@ -28,6 +31,11 @@ export abstract class OutlinerNode {
 		this.uuid = uuid || guid()
 		this.export = true;
 		this.locked = false;
+		
+		this._static = Object.freeze({
+			properties: {},
+			temp_data: {},
+		});
 	}
 	/**
 	 * Initializes the node. This should always be called when creating nodes that will be used in the outliner.
@@ -187,6 +195,9 @@ export abstract class OutlinerNode {
 	get scene_object(): THREE.Object3D {
 		return Project.nodes_3d[this.uuid];
 	}
+	get temp_data(): Record<string, any> {
+		return this._static.temp_data;
+	}
 	getDepth() {
 		var d = 0;
 		function it(p) {
@@ -223,16 +234,16 @@ export abstract class OutlinerNode {
 		input_element.select();
 		input_element.focus();
 		Blockbench.addFlag('renaming');
-		this.old_name = this.name;
+		this.temp_data.old_name = this.name;
 		return this;
 	}
 	/**
 	 * Saves the changed name of the element by creating an undo point and making the name unique if necessary.
 	 */
 	saveName(save: boolean = true): this {
-		if (save !== false && this.name.trim().length > 0 && this.name != this.old_name) {
+		if (save !== false && this.name.trim().length > 0 && this.name != this.temp_data.old_name) {
 			let name = this.name.trim();
-			this.name = this.old_name;
+			this.name = this.temp_data.old_name;
 			if (this instanceof OutlinerElement) {
 				Undo.initEdit({elements: [this], mirror_modeling: false});
 			} else if (this instanceof Group) {
@@ -248,14 +259,14 @@ export abstract class OutlinerNode {
 			}
 			this.name = name
 			this.sanitizeName();
-			delete this.old_name
+			delete this.temp_data.old_name
 			if (Condition(this.getTypeBehavior('unique_name'))) {
 				this.createUniqueName()
 			}
 			Undo.finishEdit('Rename element')
 		} else {
-			this.name = this.old_name
-			delete this.old_name
+			this.name = this.temp_data.old_name
+			delete this.temp_data.old_name
 		}
 		return this;
 	}
