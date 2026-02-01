@@ -395,3 +395,11 @@ export abstract class OutlinerNode {
 	}
 }
 
+const global = {
+	OutlinerNode
+}
+declare global {
+	type OutlinerNode = import('./outliner_node').OutlinerNode
+	const OutlinerNode: typeof global.OutlinerNode
+}
+Object.assign(window, global);

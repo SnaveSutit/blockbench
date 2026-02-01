@@ -317,3 +317,12 @@ Object.defineProperty(OutlinerElement, 'selected', {
 		console.warn('You cannot modify this')
 	}
 })
+
+const global = {
+	OutlinerElement
+}
+declare global {
+	type OutlinerElement = import('./outliner_element').OutlinerElement
+	const OutlinerElement: typeof global.OutlinerElement
+}
+Object.assign(window, global);

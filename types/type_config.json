@@ -25,7 +25,6 @@
 		"preview/preview_scenes",
 		"preview/preview",
 		"preview/canvas",
-		"io/project",
 		"io/codec",
 		"io/io",
 		"preview/screenshot",
