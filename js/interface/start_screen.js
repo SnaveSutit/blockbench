@@ -1,4 +1,5 @@
 import { Filesystem } from "../file_system";
+import { ModelLoader } from "../io/model_loader";
 import { documentReady } from "../misc";
 import { app, fs } from "../native_apis";
 import { pureMarked } from "../util/util";
@@ -530,40 +531,6 @@ onVueSetup(async function() {
 });
 
 
-export class ModelLoader {
-	constructor(id, options) {
-		this.id = id;
-		this.name = tl(options.name);
-		this.description = options.description ? tl(options.description) : '';
-		this.icon = options.icon || 'arrow_forward';
-		this.category = options.category || 'loaders';
-		this.target = options.target || '';
-		this.show_on_start_screen = true;
-		this.confidential = options.confidential || false;
-		this.condition = options.condition;
-		this.plugin = options.plugin || (typeof Plugins != 'undefined' ? Plugins.currently_loading : '');
-
-		this.format_page = options.format_page;
-		this.onFormatPage = options.onFormatPage;
-		this.onStart = options.onStart;
-
-		Vue.set(ModelLoader.loaders, id, this);
-		if (this.format_page && this.format_page.component) {
-			Vue.component(`format_page_${this.id}`, this.format_page.component)
-		}
-		Blockbench.dispatchEvent('construct_model_loader', {loader: this});
-	}
-	new() {
-		this.onStart();
-	}
-	delete() {
-		Vue.delete(ModelLoader.loaders, this.id);
-		Blockbench.dispatchEvent('delete_model_loader', {loader: this});
-	}
-}
-ModelLoader.loaders = {};
-
-
 (function() {
 	/*$.getJSON('./content/news.json').then(data => {
 		addStartScreenSection('new_version', data.new_version)
@@ -747,5 +714,4 @@ ModelLoader.loaders = {};
 Object.assign(window, {
 	StartScreen,
 	addStartScreenSection,
-	ModelLoader,
 });
