@@ -602,6 +602,12 @@ export class ModelFormat implements FormatOptions {
 			})
 		}
 
+		if (Format.per_texture_wrap_mode == false) {
+			Texture.all.forEach(texture => {
+				texture.wrap_mode = Texture.properties.wrap_mode.getDefault()
+			})
+		}
+
 		//Animation Mode
 		if (!this.animation_mode && old_format.animation_mode) {
 			Animator.animations.length = 0;

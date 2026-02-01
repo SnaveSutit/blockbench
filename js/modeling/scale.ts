@@ -1,3 +1,6 @@
+/**
+ * Module to scale the selected elements uniformly
+ */
 export const ModelScaler = {
 	dialog: new Dialog({
 		id: 'scale',
@@ -25,7 +28,7 @@ export const ModelScaler = {
 				}
 			},
 			box_uv_warning: {
-				condition: (data) => data.scale !== 1 && Project.box_uv && Texture.all.length,
+				condition: (data) => (data.scale !== 1 && Project.box_uv && Texture.all.length > 0),
 				type: 'info',
 				text: 'dialog.scale.box_uv_warning'
 			}
@@ -49,8 +52,8 @@ export const ModelScaler = {
 			ModelScaler.cancel();
 		}
 	}),
-	overflow: null,
-	getScaleGroups() {
+	overflow: null as (null | OutlinerElement[]),
+	getScaleGroups(): Group[] {
 		if (!Format.bone_rig) return [];
 		if (Group.first_selected) {
 			return Group.all.filter(g => g.selected);
@@ -59,7 +62,7 @@ export const ModelScaler = {
 		}
 		return [];
 	},
-	scaleAll(save, size) {
+	scaleAll(save?: boolean, size?: number) {
 		let data = ModelScaler.dialog.getFormResult();
 		if (size === undefined) size = data.scale;
 		let {origin} = data;
@@ -67,59 +70,65 @@ export const ModelScaler = {
 		let scale_groups = ModelScaler.getScaleGroups();
 		
 		Outliner.selected.forEach(function(obj) {
-			obj.autouv = 0;
+			if (obj instanceof Cube) obj.autouv = 0;
+
+			let inflate = obj instanceof Cube ? obj.inflate : 0;
+			let before = (obj as any).before as {from: ArrayVector3, to: ArrayVector3, origin: ArrayVector3, vertices: Record<string, ArrayVector3>};
+
 			origin.forEach(function(ogn, i) {
 				if (data.axis[getAxisLetter(i)]) {
 
-					if (obj.from) {
-						obj.from[i] = (obj.before.from[i] - obj.inflate - ogn) * size;
-						obj.from[i] = obj.from[i] + obj.inflate + ogn;
+
+					if ('from' in obj) {
+						obj.from[i] = (before.from[i] - inflate - ogn) * size;
+						obj.from[i] = obj.from[i] + inflate + ogn;
 					}
 
-					if (obj.to) {
-						obj.to[i] = (obj.before.to[i] + obj.inflate - ogn) * size;
-						obj.to[i] = obj.to[i] - obj.inflate + ogn;
+					if ('to' in obj && 'from' in obj) {
+						obj.to[i] = (before.to[i] + inflate - ogn) * size;
+						obj.to[i] = obj.to[i] - inflate + ogn;
 						if (Format.integer_size) {
 							obj.to[i] = obj.from[i] + Math.round(obj.to[i] - obj.from[i])
 						}
 					}
 
-					if (obj.origin) {
-						obj.origin[i] = (obj.before.origin[i] - ogn) * size;
+					if ('origin' in obj) {
+						obj.origin[i] = (before.origin[i] - ogn) * size;
 						obj.origin[i] = obj.origin[i] + ogn;
 					}
 
 					if (obj instanceof Mesh) {
 						for (let key in obj.vertices) {
-							obj.vertices[key][i] = obj.before.vertices[key][i] * size;
+							obj.vertices[key][i] = before.vertices[key][i] * size;
 						}
 					}
 				} else {
 
-					if (obj.from) obj.from[i] = obj.before.from[i];
-					if (obj.to) obj.to[i] = obj.before.to[i];
+					if ('from' in obj) obj.from[i] = before.from[i];
+					if ('to' in obj) obj.to[i] = before.to[i];
 
-					if (obj.origin) obj.origin[i] = obj.before.origin[i];
+					if ('origin' in obj) obj.origin[i] = before.origin[i];
 
 					if (obj instanceof Mesh) {
 						for (let key in obj.vertices) {
-							obj.vertices[key][i] = obj.before.vertices[key][i];
+							obj.vertices[key][i] = before.vertices[key][i];
 						}
 					}
 				}
 			})
 			if (obj.getTypeBehavior('cube_size_limit') && Format.cube_size_limiter) {
-				if (Format.cube_size_limiter.test(obj)) {
+				if (Format.cube_size_limiter.test(obj as Cube)) {
 					overflow.push(obj);
 				}
 				if (!settings.deactivate_size_limit.value) {
-					Format.cube_size_limiter.clamp(obj);
+					Format.cube_size_limiter.clamp(obj as Cube);
 				}
 			}
 			if (save === true) {
-				delete obj.before
+				// @ts-ignore
+				delete obj.before;
 			}
-			if (obj.getTypeBehavior('cube_faces') && obj.box_uv) {
+			if (obj.getTypeBehavior('cube_faces') && 'box_uv' in obj && obj.box_uv) {
 				obj.preview_controller.updateUV(obj);
 			}
 		})
@@ -150,15 +159,17 @@ export const ModelScaler = {
 	cancel() {
 		Outliner.selected.forEach(function(obj) {
 			if (obj === undefined) return;
-			if (obj.from) obj.from.V3_set(obj.before.from);
-			if (obj.to) obj.to.V3_set(obj.before.to);
-			if (obj.origin) obj.origin.V3_set(obj.before.origin);
+			let before = (obj as any).before;
+			if ('from' in obj && obj.from instanceof Array) obj.from.V3_set(before.from);
+			if ('to' in obj && obj.to instanceof Array) obj.to.V3_set(before.to);
+			if ('origin' in obj && obj.origin instanceof Array) obj.origin.V3_set(before.origin);
 			if (obj instanceof Mesh) {
 				for (let key in obj.vertices) {
-					obj.vertices[key].V3_set(obj.before.vertices[key]);
+					obj.vertices[key].V3_set(before.vertices[key]);
 				}
 			}
-			delete obj.before
+			// @ts-ignore
+			delete obj.before;
 			if (obj instanceof Cube && obj.box_uv) {
 				obj.preview_controller.updateUV(obj)
 			}
@@ -177,8 +188,8 @@ export const ModelScaler = {
 			selection: true
 		})
 	},
-	setPivot(mode) {
-		let center;
+	setPivot(mode: 'pivot' | 'selection') {
+		let center: ArrayVector3;
 		if (mode === 'selection') {
 			center = getSelectionCenter()
 		} else {
@@ -204,32 +215,34 @@ BARS.defineActions(function() {
 	new Action('scale', {
 		icon: 'settings_overscan',
 		category: 'transform',
-		condition: () => (Modes.edit && Outliner.elements.length),
+		condition: () => (Modes.edit && Outliner.elements.length > 0),
 		click() {
 			if (Outliner.selected.length == 0) {
-				Prop.active_panel = 'preview';
-				BarItems.select_all.click();
+				setActivePanel('preview');
+				(BarItems.select_all as Action).click();
 			}
-			let scale_groups = ModelScaler.getScaleGroups();
+			let scale_groups: Group[] = ModelScaler.getScaleGroups();
 
 			Undo.initEdit({elements: Outliner.selected, outliner: Format.bone_rig, groups: scale_groups});
 
 			Outliner.selected.forEach((obj) => {
-				obj.before = {
-					from: obj.from ? obj.from.slice() : undefined,
-					to: obj.to ? obj.to.slice() : undefined,
-					origin: obj.origin ? obj.origin.slice() : undefined
-				}
+				const before = {
+					from: ('from' in obj && obj.from instanceof Array) ? obj.from.slice() : undefined,
+					to: ('to' in obj && obj.to instanceof Array) ? obj.to.slice() : undefined,
+					origin: ('origin' in obj && obj.origin instanceof Array) ? obj.origin.slice() : undefined,
+					vertices: undefined as undefined | Record<string, any>
+				};
 				if (obj instanceof Mesh) {
-					obj.before.vertices = {};
+					before.vertices = {};
 					for (let key in obj.vertices) {
-						obj.before.vertices[key] = obj.vertices[key].slice();
+						before.vertices[key] = obj.vertices[key].slice();
 					}
 				}
+				(obj as any).before = before;
 			})
-			scale_groups.forEach((g) => {
+			scale_groups.forEach((g: Group) => {
 				g.old_origin = g.origin.slice();
-			}, Group, true)
+			});
 			
 			ModelScaler.dialog.show();
 
@@ -244,4 +257,12 @@ BARS.defineActions(function() {
 			ModelScaler.scaleAll(false, 1);
 		}
 	})
-})
+});
+
+const global = {
+	ModelScaler
+}
+declare global {
+	const ModelScaler: typeof global.ModelScaler
+}
+Object.assign(window, global);

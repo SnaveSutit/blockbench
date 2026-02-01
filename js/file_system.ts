@@ -662,13 +662,10 @@ export namespace Filesystem {
 			Blockbench.dispatchEvent('drop_text', {text});
 		}
 
-		let handled = false;
-		forDragHandlers(event, function(handler, el) {
-			let fileNames = event.dataTransfer.files
-
-			let paths: string[] | FileList = [];
+		function getFilePaths(file_names: FileList): string[] {
+			let paths: string[] = [];
 			if (isApp) {
-				for (let file of fileNames) {
+				for (let file of file_names) {
 					if ('path' in file) {
 						// @ts-ignore
 						paths.push(file.path)
@@ -679,8 +676,14 @@ export namespace Filesystem {
 					}
 				}
 			} else {
-				paths = fileNames;
+				paths = [...file_names] as unknown as string[];
 			}
+			return paths;
+		}
+
+		let handled = false;
+		forDragHandlers(event, function(handler, el) {
+			let paths = getFilePaths(event.dataTransfer.files)
 			if (!paths.length) return;
 
 			let read_options = {
@@ -694,9 +697,9 @@ export namespace Filesystem {
 			})
 		})
 		if (!handled) {
-			let file_name = event.dataTransfer.files[0]?.name;
-			if (file_name) {
-				unsupportedFileFormatMessage(file_name);
+			let file_path = getFilePaths(event.dataTransfer.files)[0];
+			if (file_path) {
+				unsupportedFileFormatMessage(file_path);
 			}
 
 		}

@@ -215,6 +215,10 @@
 	"keys.printscreen": "Print Screen",
 	"keys.pause": "Pause",
 	"keys.mousewheel": "Mousewheel",
+	"keys.slide_lmb_horizontal": "Left-click slide horizontal",
+	"keys.slide_lmb_vertical": "Left-click slide vertical",
+	"keys.slide_rmb_horizontal": "Right-click slide horizontal",
+	"keys.slide_rmb_vertical": "Right-click slide vertical",
 
 	"status_bar.saved":"Model is saved",
 	"status_bar.recording":"Recording Timelapse",
@@ -275,7 +279,8 @@
 	"message.invalid_format.message": "This model was made in the format '%0', which is not available in your Blockbench installation. You most likely need a specific plugin to open it correctly.",
 	"message.invalid_format.install_plugin": "Install plugin '%0'",
 	"message.unsupported_file_extension.title": "File format not supported",
-	"message.unsupported_file_extension.message": "Cannot open file, the format '%0' is not supported. You might need a plugin for this file type.",
+	"message.unsupported_file_extension.message": "Cannot open file %0, the format is not supported. You might need a plugin for this file type.",
+	"message.unsupported_file_extension.open_in_default_program": "Open in default program",
 	"message.cannot_re_import.title": "Model cannot be re-imported",
 	"message.cannot_re_import.message": "The exported model format cannot be imported into Blockbench again. Please make sure to save your model as a project file.",
 	"message.outdated_client.title": "Outdated client",
@@ -844,7 +849,10 @@
 	"dialog.convert_skin.adjust_texture": "Adjust Texture",
 
 	"dialog.flip_animation.info": "Opposite bones are identified by the keywords 'left' and 'right' within their name.",
-	"dialog.flip_animation.offset": "Offset by half the animation length",
+	"dialog.flip_animation.phase_offset": "Phase Offset",
+	"dialog.flip_animation.phase_offset.off": "Off",
+	"dialog.flip_animation.phase_offset.custom": "Custom",
+	"dialog.flip_animation.clear_opposite": "Overwrite opposite",
 	"dialog.flip_animation.show_in_timeline": "Show modified bones in timeline",
 
 	"dialog.predicate_overrides.model": "Model",
@@ -1115,6 +1123,8 @@
 	"settings.highlight_cubes.desc": "Highlight elements when you hover over them or select them",
 	"settings.outliner_reveal_on_select": "Reveal Elements on Select",
 	"settings.outliner_reveal_on_select.desc": "Reveal elements in the ouliner when selected",
+	"settings.transform_cube_from_center": "Transform Cubes from Center",
+	"settings.transform_cube_from_center.desc": "Edit the cube position values from the center instead of the corner",
 	"settings.deactivate_size_limit": "Deactivate Size Limit",
 	"settings.deactivate_size_limit.desc": "Deactivate the size limit for specific model formats. WARNING: This can cause invalid models.",
 	"settings.modded_entity_integer_size": "Modded Entity Integer Size",
@@ -1339,7 +1349,7 @@
 	"action.image_tiled_view.description": "Enable the tiled view in the 2D editor",
 	"action.image_onion_skin_view": "Image Editor Onion Skin",
 	"action.image_onion_skin_view.description": "Enable the onion skin view in the 2D editor",
-	"action.slider_brush_size": "Size",
+	"action.slider_brush_size": "Brush Size",
 	"action.slider_brush_size.desc": "Radius of the brush in pixels",
 	"action.slider_brush_opacity": "Opacity",
 	"action.slider_brush_opacity.desc": "Opacity of the brush from 0 to 255",
@@ -2049,6 +2059,8 @@
 	"action.face_tint.desc": "Enables the tint option for the current face",
 	"action.slider_face_tint": "Tint Index",
 	"action.slider_face_tint.desc": "Set the tint index of the current face. -1 means unset.",
+	"action.move_uv_to_cursor": "Move UV to Cursor",
+	"action.move_uv_to_cursor.desc": "Move the selected UV faces to the mouse cursor position",
 	"action.connect_uv_faces": "Connect UV Faces",
 	"action.connect_uv_faces.desc": "Connect the selected UV faces to the last selected UV face",
 	"action.merge_uv_vertices": "Merge UV Vertices",
@@ -2190,6 +2202,8 @@
 	"action.set_ik_source.desc": "Select the root bone of the chain that should be moved by this null object via Inverse Kinematics",
 	"action.lock_motion_trail": "Lock Motion Trail",
 	"action.lock_motion_trail.desc": "Lock the motion trail to the currently selected group",
+	"action.mirror_animating": "Mirror Animating",
+	"action.mirror_animating.desc": "Mirror animation edits to the opposite side",
 	"action.animation_onion_skin": "Animation Onion Skin",
 	"action.animation_onion_skin.desc": "Display an wireframe view of a different frame in the animation for reference",
 	"action.looped_animation_playback": "Looped Playback",
@@ -2303,7 +2317,6 @@
 	"menu.cube.texture.default": "Default",
 	"menu.locator.ignore_inherited_scale": "Ignore Inherited Scale",
 	"menu.null_object.lock_ik_target_rotation": "Lock IK Target Rotation",
-	"menu.texture_mesh.texture_name": "Texture Name...",
 
 	"menu.group.sort": "Sort",
 
@@ -2547,6 +2560,8 @@
 	"billboard.facing_mode.rotate_y": "Rotate Y",
 
 	"armature_bone.connected": "Connected",
+
+	"texture_mesh.texture_name": "Texture Name",
 
 	"switches.visibility": "Visibility",
 	"switches.lock": "Lock",

@@ -103,7 +103,7 @@ export abstract class OutlinerElement extends OutlinerNode {
 			copy.name = copy.name.split((number).toString()).join((number+1).toString())
 		}
 		if (Condition(this.getTypeBehavior('unique_name'))) {
-			copy.old_name = this.name;
+			copy.temp_data.old_name = this.name;
 		}
 		//Rest
 		let last_selected = this.getParentArray().findLast(el => el.selected || el == this);

@@ -16,9 +16,6 @@ interface BoundingBoxOptions {
 }
 
 export class BoundingBox extends OutlinerElement {
-	old_size?: ArrayVector3
-	oldCenter?: ArrayVector3
-
 	public title = tl('data.bounding_box');
 	public type = 'bounding_box';
 	public icon = 'activity_zone';
@@ -51,7 +48,6 @@ export class BoundingBox extends OutlinerElement {
 
 	visibility: boolean
 	color: number
-	private _static: {properties: any}
 
 
 	constructor(data?: BoundingBoxOptions, uuid?: string) {
@@ -63,12 +59,10 @@ export class BoundingBox extends OutlinerElement {
 		for (let key in BoundingBox.properties) {
 			BoundingBox.properties[key].reset(this);
 		}
-		this._static = Object.freeze({
-			properties: {
-				from: [0, 0, 0],
-				to: [size, size, size],
-			}
-		})
+		this._static.properties = {
+			from: [0, 0, 0],
+			to: [size, size, size],
+		}
 
 		if (data) {
 			this.extend(data)
@@ -289,7 +283,7 @@ export class BoundingBox extends OutlinerElement {
 		return in_box;
 	}
 	resize(val: number | ((offset: number) => number), axis: AxisNumber, negative?: boolean, allow_negative?: boolean, bidirectional?: boolean) {
-		let before = this.old_size != undefined ? this.old_size : this.size(axis);
+		let before = this.temp_data.old_size != undefined ? this.temp_data.old_size : this.size(axis);
 		if (before instanceof Array) before = before[axis];
 		let is_inverted = before < 0;
 		if (is_inverted && allow_negative == null) negative = !negative;
@@ -297,7 +291,7 @@ export class BoundingBox extends OutlinerElement {
 
 		if (bidirectional) {
 
-			let center = this.oldCenter[axis] || 0;
+			let center = this.temp_data.oldCenter[axis] || 0;
 			let difference = modify(before) - before;
 			if (negative) difference *= -1;
 

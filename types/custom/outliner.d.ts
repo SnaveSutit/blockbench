@@ -230,7 +230,7 @@ interface OutlinerToggle {
 }
 
 declare namespace Outliner {
-	const root: OutlinerNode[]
+	let root: OutlinerNode[]
 	const ROOT: 'root'
 	const elements: OutlinerElement[]
 	const selected: OutlinerElement[]

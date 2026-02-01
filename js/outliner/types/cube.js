@@ -149,21 +149,19 @@ export class Cube extends OutlinerElement {
 		for (var key in Cube.properties) {
 			Cube.properties[key].reset(this);
 		}
-		this._static = Object.freeze({
-			properties: {
-				faces: {
-					north: 	new CubeFace('north', null, this),
-					east: 	new CubeFace('east', null, this),
-					south: 	new CubeFace('south', null, this),
-					west: 	new CubeFace('west', null, this),
-					up: 	new CubeFace('up', null, this),
-					down: 	new CubeFace('down', null, this)
-				},
-				from: [0, 0, 0],
-				to: [size, size, size],
-				rotation: [0, 0, 0],
-				origin: [0, 0, 0],
-			}
+		Object.assign(this._static.properties, {
+			faces: {
+				north: 	new CubeFace('north', null, this),
+				east: 	new CubeFace('east', null, this),
+				south: 	new CubeFace('south', null, this),
+				west: 	new CubeFace('west', null, this),
+				up: 	new CubeFace('up', null, this),
+				down: 	new CubeFace('down', null, this)
+			},
+			from: [0, 0, 0],
+			to: [size, size, size],
+			rotation: [0, 0, 0],
+			origin: [0, 0, 0],
 		})
 
 		this.box_uv = Project.box_uv;
@@ -880,7 +878,7 @@ export class Cube extends OutlinerElement {
 		return in_box;
 	}
 	resize(val, axis, negative, allow_negative, bidirectional) {
-		let before = this.old_size != undefined ? this.old_size : this.size(axis);
+		let before = this.temp_data.old_size != undefined ? this.temp_data.old_size : this.size(axis);
 		if (before instanceof Array) before = before[axis];
 		let is_inverted = before < 0;
 		if (is_inverted && allow_negative == null) negative = !negative;
@@ -888,7 +886,7 @@ export class Cube extends OutlinerElement {
 
 		if (bidirectional) {
 
-			let center = this.oldCenter[axis] || 0;
+			let center = this.temp_data.oldCenter[axis] || 0;
 			let difference = modify(before) - before;
 			if (negative) difference *= -1;
 
@@ -934,12 +932,12 @@ export class Cube extends OutlinerElement {
 			if (axis == 2) {
 				let difference = before - this.size(axis);
 				if (!Format.box_uv_float_size) difference = Math.ceil(difference);
-				this.uv_offset[0] = (this.oldUVOffset ? this.oldUVOffset[0] : this.uv_offset[0]) + difference;
-				this.uv_offset[1] = (this.oldUVOffset ? this.oldUVOffset[1] : this.uv_offset[1]) + difference;
+				this.uv_offset[0] = (this.temp_data.oldUVOffset ? this.temp_data.oldUVOffset[0] : this.uv_offset[0]) + difference;
+				this.uv_offset[1] = (this.temp_data.oldUVOffset ? this.temp_data.oldUVOffset[1] : this.uv_offset[1]) + difference;
 			} else if (axis == 0 && (!negative || bidirectional)) {
 				let difference = before - this.size(axis);
 				if (!Format.box_uv_float_size) difference = Math.ceil(difference);
-				this.uv_offset[0] = (this.oldUVOffset ? this.oldUVOffset[0] : this.uv_offset[0]) + difference;
+				this.uv_offset[0] = (this.temp_data.oldUVOffset ? this.temp_data.oldUVOffset[0] : this.uv_offset[0]) + difference;
 			}
 			this.preview_controller.updateUV(this);
 		}

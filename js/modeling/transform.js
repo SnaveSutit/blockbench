@@ -189,7 +189,7 @@ export function flipNameOnAxis(node, axis, check, original_name) {
 			REAR: 'FRONT',
 		}
 	};
-	function matchAndReplace(a, b) {
+	function matchAndReplace(a, b, order) {
 		if (!node.name.includes(a)) return false;
 		let name = original_name ?? node.name;
 		let regex_filter = a;
@@ -202,15 +202,15 @@ export function flipNameOnAxis(node, axis, check, original_name) {
 		if (!original_name) {
 			name = name.replace(/2$/, '');
 		}
-		if (!check || check(name)) node.name = name;
+		if (!check || check(name, order)) node.name = name;
 		return node.name;
 	}
 	let pairs = flip_pairs[axis];
 	Blockbench.dispatchEvent('flip_node_name', {pairs, node, axis, original_name});
 	for (let a in pairs) {
 		let b = pairs[a];
-		if (matchAndReplace(a, b)) break;
-		if (matchAndReplace(b, a)) break;
+		if (matchAndReplace(a, b, 0)) break;
+		if (matchAndReplace(b, a, 1)) break;
 	}
 	return node.name;
 }
@@ -243,7 +243,7 @@ export function mirrorSelected(axis) {
 							group.rotation[i] *= -1
 						}
 					}
-					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group.old_name);
+					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group.temp_data.old_name);
 					Canvas.updateAllBones([group]);
 				}
 				flipGroup(group);
@@ -497,6 +497,53 @@ export function moveElementsInSpace(difference, axis) {
 		groups: Group.all.filter(g => g.selected),
 		group_aspects: {transform: true}
 	})
+}
+/**
+ * Apply local offset, including children
+ */
+function changeNodeLocalPosition(obj, vector) {
+	// Needs cleaning up
+
+	let absolute_position = Format.bone_rig &&
+		obj.parent instanceof OutlinerNode &&
+		obj.parent.getTypeBehavior('parent') &&
+		obj.parent.getTypeBehavior('use_absolute_position');
+	if (absolute_position) {
+		vector.x += obj.parent.origin[0];
+		vector.y += obj.parent.origin[1];
+		vector.z += obj.parent.origin[2];
+	}
+
+	let position_arr = vector.toArray();
+	
+	// Offset children
+	if ('forEachChild' in obj && obj.getTypeBehavior('use_absolute_position')) {
+		let difference = position_arr.slice().V3_subtract(obj.origin);
+		obj.forEachChild(child => {
+			if (child instanceof Mesh) {
+				for (let vkey in child.vertices) {
+					child.vertices[vkey].V3_add(difference);
+				}
+			}
+			if (child.from) child.from.V3_add(difference);
+			if (child.to) child.to.V3_add(difference);
+			if (child.origin) child.origin.V3_add(difference);
+		})
+	}
+
+	// Offset self
+	if (obj.getTypeBehavior('movable')) {
+		if (obj.from && obj.to) {
+			position_arr.V3_subtract(obj.origin);
+			obj.from.V3_add(position_arr);
+			obj.to.V3_add(position_arr);
+			if (obj.origin) obj.origin.V3_add(position_arr);
+		} else if (obj.position) {
+			obj.position.V3_set(position_arr);
+		} else if (obj.origin) {
+			obj.origin.V3_set(position_arr);
+		}
+	}
 }
 
 export function getSelectedMovingElements() {
@@ -801,13 +848,19 @@ BARS.defineActions(function() {
 				obj.preview_controller.updateGeometry(obj);
 
 			} else if (obj.getTypeBehavior('movable')) {
-				let main_pos = obj.from || obj.position;
-				var val = modify(main_pos[axis]);
-
-				var before = main_pos[axis];
-				main_pos[axis] = val;
-				if (obj.to) {
-					obj.to[axis] += (val - before);
+				if (settings.transform_cube_from_center.value && obj.from && obj.to) {
+					let before = Math.lerp(obj.from[axis], obj.to[axis], 0.5);
+					var val = modify(before);
+					obj.from[axis] += val - before;
+					obj.to[axis] += val - before;
+				} else {
+					let main_pos = obj.from || obj.position;
+					var val = modify(main_pos[axis]);
+					var before = main_pos[axis];
+					main_pos[axis] = val;
+					if (obj.to) {
+						obj.to[axis] += (val - before);
+					}
 				}
 				if (obj instanceof Cube) {
 					if (Format.cube_size_limiter && !settings.deactivate_size_limit.value) {
@@ -829,6 +882,8 @@ BARS.defineActions(function() {
 			vertices.forEach(vkey => sum += element.vertices[vkey][axis]);
 			return sum / vertices.length;
 
+		} else if (element.from && settings.transform_cube_from_center.value) {
+			return Math.lerp(element.from[axis], element.to[axis], 0.5);
 		} else if (element.from) {
 			return element.from[axis];
 		} else {
@@ -905,7 +960,15 @@ BARS.defineActions(function() {
 	function resizeOnAxis(modify, axis) {
 		Outliner.selected.forEach(function(obj, i) {
 			if (obj.getTypeBehavior('resizable')) {
-				obj.resize(modify, axis, false, true, obj instanceof Mesh)
+				let bidirectional = obj instanceof Mesh;
+				let center = (obj.from && obj.to) && Math.lerp(obj.from[axis], obj.to[axis], 0.5);
+				obj.resize(modify, axis, false, true, bidirectional);
+				if (obj.from && obj.to && settings.transform_cube_from_center.value) {
+					let offset = Math.lerp(obj.from[axis], obj.to[axis], 0.5) - center;
+					obj.from[axis] -= offset;
+					obj.to[axis] -= offset;
+					obj.preview_controller.updateGeometry(obj);
+				}
 			} else if (obj.getTypeBehavior('scalable')) {
 				obj.scale[axis] = modify(obj.scale[axis]);
 				obj.preview_controller.updateTransform(obj);
@@ -1913,6 +1976,7 @@ Object.assign(window, {
 	mirrorSelected,
 	centerElements,
 	moveElementsInSpace,
+	changeNodeLocalPosition,
 	getSpatialInterval,
 	getRotationInterval,
 	getRotationObjects,

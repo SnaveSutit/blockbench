@@ -339,7 +339,7 @@ export const Clipbench = {
 				if (obj.children) {
 					let copy = new Group(obj).addTo(parent).init();
 					new_groups.push(copy);
-					copy.old_name = copy.name;
+					copy.temp_data.old_name = copy.name;
 					copy.createUniqueName();
 					Property.resetUniqueValues(Group, copy);
 

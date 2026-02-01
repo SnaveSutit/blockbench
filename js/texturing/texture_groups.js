@@ -12,10 +12,8 @@ export class TextureGroup {
 		}
 		if (data) this.extend(data);
 
-		this._static = Object.freeze({
-			properties: {
-				material: null
-			}
+		Object.assign(this._static.properties, {
+			material: null
 		})
 	}
 	get material() {

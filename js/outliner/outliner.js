@@ -3,6 +3,7 @@ import StateMemory from "../util/state_memory"
 import { OutlinerNode } from "./abstract/outliner_node"
 import { OutlinerElement } from "./abstract/outliner_element"
 import { radToDeg } from "three/src/math/MathUtils"
+import { PointerTarget } from "../interface/pointer_target"
 
 export const Outliner = {
 	ROOT: 'root',
@@ -418,12 +419,12 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			outliner: true,
 			selection: true,
 			elements: options.adjust_position ? Outliner.selected : undefined,
-			groups: options.adjust_position ? Group.selected : undefined,
+			groups: options.adjust_position ? Group.all.filter(g => g.selected) : null,
 		}, options.amended);
 	}
-	function updatePosRecursive(item) {
+	function updateTransformRecursive(item) {
 		if (item.children && item.children.length) {
-			item.children.forEach(updatePosRecursive)
+			item.children.forEach(updateTransformRecursive)
 		}
 		if (item.preview_controller?.updateTransform) {
 			item.preview_controller.updateTransform(item);
@@ -448,10 +449,9 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 		} else {
 			obj.sortInBefore(target, order == 1 ? 1 : undefined);
 		}
-		updatePosRecursive(obj);
+		updateTransformRecursive(obj);
 
 		if (options.adjust_position) {
-			// FIXME: Supported dragging nested structures such as groups
 
 			// Calculate matrix
 			scene_object.parent.updateMatrixWorld(true);
@@ -464,34 +464,15 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			let scale_change = Reusable.vec2;
 			matrix2.decompose(position_change, quaternion, scale_change);
 
-			let absolute_position = Format.bone_rig &&
-				obj.parent instanceof OutlinerNode &&
-				obj.parent.getTypeBehavior('parent') &&
-				obj.parent.getTypeBehavior('use_absolute_position');
-			if (absolute_position) {
-				position_change.x += obj.parent.origin[0];
-				position_change.y += obj.parent.origin[1];
-				position_change.z += obj.parent.origin[2];
-			}
-
-			if (obj.getTypeBehavior('movable')) {
-				let arr = position_change.toArray();
-
-				if (obj.from && obj.to) {
-					arr.V3_subtract(obj.origin);
-					obj.from.V3_add(arr);
-					obj.to.V3_add(arr);
-					obj.origin.V3_add(arr);
-				} else if (obj.position) {
-					obj.position.V3_set(arr);
-				}
-			}
+			changeNodeLocalPosition(obj, position_change);
+			
 			if (obj.getTypeBehavior('rotatable')) {
 				let new_rotation = Reusable.euler1;
 				new_rotation.setFromQuaternion(quaternion, scene_object.rotation.order);
 				obj.rotation.V3_set(new_rotation.toArray().map(radToDeg));
 			}
-			updatePosRecursive(obj);
+			updateTransformRecursive(obj);
+
 		} else if (old_parent != obj.parent && !adjust_position_viable) {
 			scene_object.updateMatrixWorld(true);
 			let elements1 = scene_object.matrixWorld.elements;
@@ -521,11 +502,10 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 	if (Format.bone_rig) {
 		Canvas.updateAllBones()
 	}
+	updateSelection();
 	if (duplicate) {
-		updateSelection()
 		Undo.finishEdit('Duplicate selection', {elements: selected, outliner: true, selection: true, groups: Group.selected})
 	} else {
-		Transformer.updateSelection()
 		Undo.finishEdit('Move elements in outliner')
 	}
 	return adjust_position_viable;
@@ -1132,7 +1112,7 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 'i'}),
 		condition: {modes: ['edit', 'paint']},
 		click() {
-			if (Painter.painting) return;
+			if (PointerTarget.hasMinPriority(2)) return;
 			let enabled = !Project.only_hidden_elements;
 
 			if (Project.only_hidden_elements) {

@@ -1,3 +1,5 @@
+import { PointerTarget } from "../../interface/pointer_target";
+
 export class KnifeToolContext {
 	/**
 	 * Click
@@ -793,9 +795,9 @@ BARS.defineActions(() => {
 			if (!data || !data.type) return;
 			if (data.event instanceof TouchEvent) {
 				// Stop controls on mobile
-				Transformer.dragging = true;
+				PointerTarget.requestTarget(PointerTarget.types.gizmo_transform);
 				function onTouchEnd() {
-					Transformer.dragging = false;
+					PointerTarget.endTarget();
 					document.removeEventListener('touchend', onTouchEnd);
 				}
 				document.addEventListener('touchend', onTouchEnd);

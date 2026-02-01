@@ -438,10 +438,12 @@ BARS.defineActions(() => {
 	new Action('create_empty_layer', {
 		icon: 'new_window',
 		category: 'layers',
-		condition: () => Modes.paint && Texture.selected && Texture.selected.layers_enabled,
+		condition: () => Modes.paint && Texture.all[0],
 		click() {
+			if (!Texture.selected) Texture.all[0].select();
 			let texture = Texture.selected;
 			Undo.initEdit({textures: [texture], bitmap: true});
+			if (!texture.layers_enabled) texture.activateLayers(false);
 			let layer = new TextureLayer({
 				name: `layer #${texture.layers.length+1}`
 			}, texture);
@@ -454,8 +456,12 @@ BARS.defineActions(() => {
 	new Action('import_layer', {
 		icon: 'add_photo_alternate',
 		category: 'layers',
-		condition: () => Modes.paint && Texture.selected && Texture.selected.layers_enabled,
+		condition: () => Modes.paint && Texture.all[0],
 		click() {
+			if (!Texture.selected) Texture.all[0].select();
+			let texture = Texture.selected;
+			if (!texture.layers_enabled) texture.activateLayers(true);
+
 			let start_path;
 			if (!isApp) {} else
 			if (Texture.all.length > 0) {
@@ -509,12 +515,12 @@ BARS.defineActions(() => {
 	new Action('enable_texture_layers', {
 		icon: 'library_add_check',
 		category: 'layers',
-		condition: () => Texture.selected && !Texture.selected.layers_enabled,
+		condition: () => Texture.getDefault()?.layers_enabled == false,
 		click() {
 			if (!Modes.paint) {
 				Modes.options.paint.select();
 			}
-			let texture = Texture.selected;
+			let texture = Texture.getDefault();
 			texture.activateLayers(true);
 		}
 	})
@@ -664,8 +670,10 @@ Interface.definePanels(function() {
 		icon: 'layers',
 		growable: true,
 		resizable: true,
-		condition: () => Modes.paint && ((Texture.selected && Texture.selected.layers_enabled) || Format.image_editor),
+		condition: () => Modes.paint,
 		default_position: {
+			attached_to: 'textures',
+			attached_index: 1,
 			slot: 'left_bar',
 			float_position: [0, 0],
 			float_size: [300, 300],
@@ -802,6 +810,14 @@ Interface.definePanels(function() {
 
 					addEventListeners(document, 'mousemove touchmove', move, {passive: false});
 					addEventListeners(document, 'mouseup touchend', off, {passive: false});
+				},
+				activateLayers() {
+					let texture = Texture.selected || Texture.getDefault();
+					if (!texture) return;
+					if (!texture.selected) texture.select();
+					if (!texture.layers_enabled) {
+						BarItems.enable_texture_layers.trigger();
+					}
 				}
 			},
 			template: `
@@ -833,6 +849,9 @@ Interface.definePanels(function() {
 							<i v-else class="material-icons icon toggle_disabled">visibility_off</i>
 						</div>
 					</li>
+					<div v-if="layers.length == 0" class="activate_layers_button" @click="activateLayers()">
+						<span>${tl('action.enable_texture_layers')}</span>
+					</div>
 				</ul>
 			`
 		},

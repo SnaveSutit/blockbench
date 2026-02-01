@@ -5,6 +5,7 @@ import { ConfigDialog } from '../interface/dialog';
 import { toSnakeCase } from '../util/util';
 import { electron, ipcRenderer } from '../native_apis';
 import { Pressing } from '../misc';
+import { PointerTarget } from '../interface/pointer_target';
 
 window.scene = null;
 window.main_preview = null;
@@ -340,7 +341,7 @@ export class Preview {
 
 		this.raycaster = new THREE.Raycaster();
 		this.mouse = new THREE.Vector2();
-		addEventListeners(this.canvas, 'mousedown touchstart', 	event => { this.click(event)}, { passive: false })
+		addEventListeners(this.canvas, 'pointerdown',			event => { this.click(event)}, { passive: false })
 		addEventListeners(this.canvas, 'mousemove touchmove', 	event => {
 			if (!this.static_rclick) return;
 			convertTouchEvent(event);
@@ -349,7 +350,10 @@ export class Preview {
 				this.static_rclick = false;
 			}
 		}, false)
-		addEventListeners(this.canvas, 'mousemove touchmove',	event => { this.mousemove(event)}, false)
+		addEventListeners(this.canvas, 'mousemove touchmove',	event => {
+			if (PointerTarget.active == PointerTarget.types.global_drag_slider) return;
+			this.mousemove(event)
+		}, false)
 		addEventListeners(this.canvas, 'mouseup touchend',		event => { this.mouseup(event)}, false)
 		addEventListeners(this.canvas, 'dblclick', 				event => { if (settings.double_click_switch_tools.value) Toolbox.toggleTransforms(event); }, false)
 		addEventListeners(this.canvas, 'mouseenter touchstart', event => { this.occupyTransformer(event)}, false)
@@ -830,7 +834,7 @@ export class Preview {
 	}
 	//Controls
 	click(event) {
-		event.preventDefault();
+		//event.preventDefault();
 		$(':focus').blur();
 		if (open_menu) open_menu.hide();
 		unselectInterface(event);
@@ -847,7 +851,7 @@ export class Preview {
 			Transformer.dispatchPointerHover(event);
 		}
 		if (Transformer.hoverAxis !== null) return;
-		let is_canvas_click = Keybinds.extra.preview_select.keybind.key == event.which || event.which === 0 || (Modes.paint && Keybinds.extra.paint_secondary_color.keybind.isTriggered(event));
+		let is_canvas_click = Keybinds.extra.preview_select.keybind.key == event.which || event.button === 0 || (Modes.paint && Keybinds.extra.paint_secondary_color.keybind.isTriggered(event));
 
 		var data = is_canvas_click && this.raycast(event);
 		if (data) {

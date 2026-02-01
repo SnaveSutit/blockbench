@@ -733,10 +733,24 @@ export const MenuBar = {
 		}
 		return bar;
 	},
+	addMenu(menu, position) {
+		MenuBar.menus[menu.id] = menu;
+		if (position) {
+			let order = Object.keys(MenuBar.menus);
+			order.remove(menu.id);
+			let index = typeof position == 'number' ? position : order.indexOf(position)+1;
+			order.splice(index, 0, menu.id);
+
+			let menus = Object.assign({}, MenuBar.menus);
+			order.forEach(id => delete MenuBar.menus[id]);
+			order.forEach(id => MenuBar.menus[id] = menus[id]);
+		}
+		MenuBar.update();
+	},
 	update() {
 		if (!Blockbench.isMobile) {
-			let bar = $(document.getElementById('menu_bar'));
-			bar.children().detach();
+			let bar = document.getElementById('menu_bar');
+			bar.replaceChildren();
 			this.keys = [];
 			for (var menu in MenuBar.menus) {
 				if (MenuBar.menus.hasOwnProperty(menu)) {
