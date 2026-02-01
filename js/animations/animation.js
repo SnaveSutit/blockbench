@@ -287,7 +287,7 @@ export class Animation extends AnimationItem {
 		let last_time = Timeline.time;
 		let samples = {};
 
-		if (!NullObject.all.find(null_object => null_object.ik_target && this.getBoneAnimator(null_object).position.length)) return samples;
+		if (!NullObject.all.find(null_object => null_object.ik_target && this.getBoneAnimator(null_object)?.position.length)) return samples;
 
 		Timeline.time = 0;
 		while (Timeline.time <= this.length && Timeline.time <= 200) {
@@ -299,15 +299,16 @@ export class Animation extends AnimationItem {
 				Animator.animations.forEach(animation => {
 					let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
 					if (animation.playing) {
-						animation.getBoneAnimator(node).displayFrame(multiplier);
+						animation.getBoneAnimator(node)?.displayFrame(multiplier);
 					}
 				})
 			})
 			Outliner.elements.forEach(node => {
 				if (!node.constructor.animator) return;
 				Animator.resetLastValues();
-				let multiplier = this.blend_weight ? Math.clamp(Animator.MolangParser.parse(this.blend_weight), 0, Infinity) : 1;
 				let animator = this.getBoneAnimator(node);
+				if (!animator) return;
+				let multiplier = this.blend_weight ? Math.clamp(Animator.MolangParser.parse(this.blend_weight), 0, Infinity) : 1;
 				animator.displayPosition(animator.interpolate('position'), multiplier);
 				let bone_frame_rotation = animator.displayIK(true);
 				for (let uuid in bone_frame_rotation) {
@@ -578,7 +579,9 @@ export class Animation extends AnimationItem {
 			return;
 		}
 		if (!group.constructor.animator) return;
-		var uuid = group.uuid;
+		if (group.scope && group.scope != this.scope) return;
+
+		let uuid = group.uuid;
 		if (!this.animators[uuid]) {
 			let match;
 			for (let uuid2 in this.animators) {
@@ -1012,6 +1015,7 @@ export class Animation extends AnimationItem {
 	new Property(Animation, 'boolean', 'saved', {default: true, condition: () => Format.animation_files})
 	new Property(Animation, 'string', 'path', {condition: () => isApp && Format.animation_files})
 	new Property(Animation, 'string', 'group_name', {condition: () => Format.animation_grouping == 'custom'})
+	new Property(Animation, 'number', 'scope');
 	new Property(Animation, 'molang', 'anim_time_update', {default: ''});
 	new Property(Animation, 'molang', 'blend_weight', {default: ''});
 	new Property(Animation, 'molang', 'start_delay', {default: ''});
@@ -1349,18 +1353,18 @@ BARS.defineActions(function() {
 				let offset_rotation = [0, 0, 0];
 				let offset_position = [0, 0, 0];
 				Animator.animations.forEach(animation => {
-					if (animation.playing) {
-						let animator = animation.getBoneAnimator(node);
-						let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
-						
-						if (animator.channels.rotation) {
-							let rotation = animator.interpolate('rotation');
-							if (rotation instanceof Array) offset_rotation.V3_add(rotation.map(v => v * multiplier));
-						}
-						if (animator.channels.position) {
-							let position = animator.interpolate('position');
-							if (position instanceof Array) offset_position.V3_add(position.map(v => v * multiplier));
-						}
+					if (!animation.playing) return;
+					let animator = animation.getBoneAnimator(node);
+					if (!animator) return;
+					let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
+					
+					if (animator.channels.rotation) {
+						let rotation = animator.interpolate('rotation');
+						if (rotation instanceof Array) offset_rotation.V3_add(rotation.map(v => v * multiplier));
+					}
+					if (animator.channels.position) {
+						let position = animator.interpolate('position');
+						if (position instanceof Array) offset_position.V3_add(position.map(v => v * multiplier));
 					}
 				})
 				// Rotation
@@ -1511,6 +1515,7 @@ BARS.defineActions(function() {
 					}
 					target_animator = target_animation.animators.effects;
 				}
+				if (!target_animator) continue;
 				for (let channel in source_animator.channels) {
 					let channel_config = source_animator.channels[channel];
 					let source_kfs = source_animator[channel];

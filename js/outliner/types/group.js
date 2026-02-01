@@ -121,7 +121,12 @@ export class Group extends OutlinerNode {
 			})
 		}
 		if (Animator.open && Animation.selected) {
-			Animation.selected.getBoneAnimator(this).select(true);
+			let ba = Animation.selected.getBoneAnimator(this);
+			if (ba) {
+				ba.select(true);
+			} else {
+				Blockbench.showQuickMessage('Wrong scope')
+			}
 		}
 		updateSelection()
 		return this;
@@ -561,7 +566,7 @@ Group.addBehaviorOverride({
 			return Project.selected_groups?.[0]
 		},
 		set(group) {
-			Project.selected_groups.replace([groups]);
+			Project.selected_groups.replace([group]);
 		}
 	})
 
@@ -573,7 +578,12 @@ new Property(Group, 'string', 'bedrock_binding', {
 	condition: {formats: ['bedrock']},
 	inputs: {
 		element_panel: {
-			input: {label: 'group.bedrock_binding', description: 'action.edit_bedrock_binding.desc', type: 'text'}
+			input: {label: 'group.bedrock_binding', description: 'action.edit_bedrock_binding.desc', type: 'text'},
+			onChange() {
+				Group.selected.forEach(group => {
+					group.preview_controller.updateTransform(group);
+				});
+			}
 		}
 	}
 });
@@ -620,6 +630,31 @@ new NodePreviewController(Group, {
 	updateTransform(group) {
 		NodePreviewController.prototype.updateTransform.call(this, group);
 		let bone = group.scene_object;
+
+		if (group.bedrock_binding && group.scope) {
+			let base = 85000;
+			let bone_names = [];
+			let mapped_binding = group.bedrock_binding.replace(/'(\w+)'/g, (match, name) => {
+				bone_names.push(name.toLowerCase());
+				return base + bone_names.length-1;
+			})
+			let result = Animator.MolangParser.parse(mapped_binding, {
+				"query.item_slot_to_bone_name"(input) {
+					return 85070;
+				}
+			});
+			let bone_name = bone_names[result - base];
+			if (result == 85070) bone_name = 'rightitem';
+			let target_group = bone_name && Group.all.find(g => g.name.length == bone_name.length && g.name.toLowerCase() == bone_name);
+
+			if (target_group) {
+				bone.position.set(group.origin[0], group.origin[1], group.origin[2])
+				if (group.parent == Outliner.ROOT) bone.position.y -= 24;
+				target_group.mesh.add(bone);
+				bone.updateMatrixWorld();
+			}
+		}
+
 		bone.scale.x = bone.scale.y = bone.scale.z = 1;
 		bone.fix_position = bone.position.clone();
 		bone.fix_rotation = bone.rotation.clone();
@@ -836,6 +871,7 @@ BARS.defineActions(function() {
 						Undo.initEdit({groups: Group.multi_selected});
 						for (let group of Group.multi_selected) {
 							group.bedrock_binding = value;
+							group.preview_controller.updateTransform(group);
 						}
 						Undo.finishEdit('Edit group binding');
 					}

@@ -1,3 +1,4 @@
+import { ModelLoader } from "../io/model_loader";
 import { player_preview_model } from "../preview/preview_scenes";
 
 
@@ -317,9 +318,15 @@ BARS.defineActions(function() {
 		options: {
 			entity: true,
 			attachable_first: true,
-			attachable_third: true
+			attachable_third: true,
+			load_player: true,
 		},
 		onChange() {
+			if (this.value == 'load_player') {
+				this.set('entity');
+				ModelLoader.loaders.bedrock_player_model.onStart(Project);
+				return;
+			}
 			if (Project.bedrock_animation_mode == this.value) return;
 			Project.bedrock_animation_mode = this.value;
 

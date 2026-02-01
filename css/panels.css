@@ -545,6 +545,7 @@
 		padding-top: 1px;
 		overflow-y: scroll;
 		--indentation-offset: 16px;
+		--color-scope: transparent;
 	}
 	#cubes_list > li:last-child {
 		margin-bottom: 180px;
@@ -583,6 +584,7 @@
 	}
 	div.outliner_object { /* Higher prio to override older themes */
 		padding-left: calc(var(--indentation) * var(--indentation-offset));
+		border-left: 3px solid var(--color-scope);
 	}
 	.outliner_object:active {
 	    background-color: var(--color-ui);

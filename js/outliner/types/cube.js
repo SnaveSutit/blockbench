@@ -146,9 +146,6 @@ export class Cube extends OutlinerElement {
 		this.visibility = true;
 		this.autouv = 0;
 
-		for (var key in Cube.properties) {
-			Cube.properties[key].reset(this);
-		}
 		this._static = Object.freeze({
 			properties: {
 				faces: {
@@ -165,6 +162,10 @@ export class Cube extends OutlinerElement {
 				origin: [0, 0, 0],
 			}
 		})
+		
+		for (var key in Cube.properties) {
+			Cube.properties[key].reset(this);
+		}
 
 		this.box_uv = Project.box_uv;
 		if (data && typeof data === 'object') {

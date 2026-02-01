@@ -331,7 +331,7 @@ export const Animator = {
 					if (!mesh.pre_rotation) mesh.pre_rotation = new THREE.Euler();
 					mesh.pre_rotation.copy(mesh.rotation);
 				}
-				animation.getBoneAnimator(node).displayFrame(multiplier);
+				animation.getBoneAnimator(node)?.displayFrame(multiplier);
 			})
 		})
 

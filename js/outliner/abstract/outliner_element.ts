@@ -147,7 +147,7 @@ export abstract class OutlinerElement extends OutlinerNode {
 			var starting_point: boolean;
 			var last_selected = Outliner.selected.last();
 			this.getParentArray().forEach((s, i) => {
-				if (s === last_selected || s === this) {
+				if ((s as OutlinerElement) === last_selected || s === this) {
 					if (starting_point) {
 						starting_point = false
 					} else {
@@ -278,6 +278,12 @@ export abstract class OutlinerElement extends OutlinerNode {
 		OutlinerElement.types[id] = constructor;
 		constructor.prototype.type = id;
 		if (!constructor.behavior) constructor.behavior = {};
+		
+		new Property(constructor, 'string', 'name');
+		new Property(constructor, 'boolean', 'export', {default: true});
+		new Property(constructor, 'boolean', 'locked', {default: false});
+		new Property(constructor, 'number', 'scope');
+
 		Object.defineProperty(constructor, 'all', {
 			get() {
 				return (Project.elements?.length && Project.elements.find(element => element instanceof constructor))

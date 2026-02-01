@@ -69,8 +69,9 @@ declare class _Animation extends AnimationItem {
 	showContextMenu(event: any): this
 	/**
 	 * Returns (if necessary creates) the animator of a specific outliner node of this animation
+	 * May returns null if the node may not be animated due to being in a different scope
 	 */
-	getBoneAnimator(node?: OutlinerNode): BoneAnimator
+	getBoneAnimator(node?: OutlinerNode): BoneAnimator | null
 	removeAnimator(id: string): void
 	/**
 	 * Adds the animation to the current project and to the interface

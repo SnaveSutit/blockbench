@@ -8,6 +8,7 @@ export abstract class OutlinerNode {
 	uuid: UUID
 	export: boolean
 	locked: boolean
+	scope: number
 	parent: (OutlinerNode & OutlinerNodeParentTraits) | 'root'
 	selected: boolean
 	declare old_name?: string
@@ -28,6 +29,7 @@ export abstract class OutlinerNode {
 		this.uuid = uuid || guid()
 		this.export = true;
 		this.locked = false;
+		this.scope = 0;
 	}
 	/**
 	 * Initializes the node. This should always be called when creating nodes that will be used in the outliner.

@@ -1,6 +1,7 @@
 import { findExistingFile } from "../../desktop";
 import { currentwindow, dialog, fs } from "../../native_apis";
 import VersionUtil from '../../util/version_util'
+import { ModelLoader } from "../model_loader";
 
 if (isApp) {
 window.BedrockEntityManager = class BedrockEntityManager {
@@ -1764,9 +1765,26 @@ BARS.defineActions(function() {
 		show_on_start_screen: false,
 		icon: 'icon-player',
 		target: 'Minecraft: Bedrock Edition',
-		onStart() {
+		onStart(import_as_attachable) {
+			let import_bbmodel = import_as_attachable ? Codecs.project.compile() : null;
+
 			setupProject(entity_format);
 			parseGeometry({object: player_geo}, {});
+
+			let elements_before = Outliner.elements.slice();
+			let groups_before = Group.all.slice();
+			Outliner.nodes.forEach(node => {
+				node.scope = 1;
+			})
+
+			if (import_as_attachable) {
+				Codecs.project.merge(JSON.parse(import_bbmodel));
+				Outliner.nodes.forEach(node => {
+					if (!elements_before.includes(node) && !groups_before.includes(node)) {
+						node.scope = 2;
+					}
+				})
+			}
 		}
 	})
 })
