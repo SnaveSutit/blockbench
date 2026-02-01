@@ -77,6 +77,8 @@ type EventName =
 	| 'redo'
 	| 'load_undo_save'
 	| 'create_undo_save'
+	| 'drop_text'
+	| 'paste_text'
 	| 'change_color'
 	| 'select_mode'
 	| 'unselect_mode'

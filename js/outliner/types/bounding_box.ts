@@ -431,12 +431,17 @@ new NodePreviewController(BoundingBox, {
 			if (Modes.paint) {
 				mesh.visible = false;
 			} else {
-				mesh.visible = true;
+				mesh.visible = element.visibility;
 				mesh.material = element.selected ? line_selected_material : line_material;
 			}
 		}
 
 		this.dispatchEvent('update_selection', {element});
+	},
+	updateVisibility(element: BoundingBox) {
+		element.mesh.visible = Modes.paint ? false : element.visibility;
+
+		this.dispatchEvent('update_visibility', {element});
 	},
 	viewportRectangleOverlap(element, {projectPoint, rect_start, rect_end, preview}) {
 		if ((BarItems.selection_mode as BarSelect).value != 'object' && Format.meshes && preview.selection.old_selected.find(el => el instanceof Mesh)) return;

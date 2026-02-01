@@ -593,6 +593,16 @@ BARS.defineActions(function() {
 			}, {placeholder: 'https://blckbn.ch/123abc'});
 		}
 	})
+	Blockbench.on('drop_text', ({text}) => {
+		if (text && text.startsWith('https://blckbn.ch/')) {
+			let code = text.replace(/\/$/, '').split('/').last();
+			$.getJSON(`https://blckbn.ch/api/models/${code}`, (model) => {
+				Codecs.project.load(model, {path: ''});
+			}).fail(error => {
+				Blockbench.showQuickMessage('message.invalid_link')
+			})
+		}
+	})
 	new Action('extrude_texture', {
 		icon: 'eject',
 		category: 'file',

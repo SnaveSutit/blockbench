@@ -658,13 +658,8 @@ export namespace Filesystem {
 		event.preventDefault()
 		let text = event.dataTransfer.getData('text/plain');
 
-		if (text && text.startsWith('https://blckbn.ch/')) {
-			let code = text.replace(/\/$/, '').split('/').last();
-			$.getJSON(`https://blckbn.ch/api/models/${code}`, (model) => {
-				Codecs.project.load(model, {path: ''});
-			}).fail(error => {
-				Blockbench.showQuickMessage('message.invalid_link')
-			})
+		if (text) {
+			Blockbench.dispatchEvent('drop_text', {text});
 		}
 
 		let handled = false;
@@ -699,7 +694,7 @@ export namespace Filesystem {
 			})
 		})
 		if (!handled) {
-			let file_name = event.dataTransfer.files[0].name;
+			let file_name = event.dataTransfer.files[0]?.name;
 			if (file_name) {
 				unsupportedFileFormatMessage(file_name);
 			}

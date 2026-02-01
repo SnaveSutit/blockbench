@@ -135,6 +135,10 @@ BARS.defineActions(function() {
 			})
 		}
 	})
+	type CollisionBoxJSON = {
+		origin: ArrayVector3
+		size: ArrayVector3
+	}
 	// TODO: Add a way to import this back via paste text and drag-drop text
 	new Action('generate_bedrock_collision_box', {
 		icon: 'fa-cubes',
@@ -143,7 +147,7 @@ BARS.defineActions(function() {
 		click() {
 			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
 				let bounding_boxes = BoundingBox.all as BoundingBox[];
-				let box_data = bounding_boxes.map(bb => {
+				let box_data: CollisionBoxJSON[] = bounding_boxes.map(bb => {
 					return {
 						origin: [-bb.to[0], bb.from[1], bb.from[2]],
 						size: bb.size()
@@ -179,6 +183,34 @@ BARS.defineActions(function() {
 				},
 				singleButton: true,
 			}).show();
+		}
+	})
+	
+	// @ts-ignore
+	Blockbench.on('drop_text paste_text', (arg: {text: string}) => {
+		if (!Format || Format.id != 'bedrock_block') return;
+		let text = arg.text.replace(/\s+/g, '');
+		if (text.startsWith('"minecraft:selection_box"') || text.startsWith('"minecraft:collision_box"')) {
+			let data = text.replace(/^"[^"]*"\s*:\s*/, '').replace(/[,\s]+$/, '');
+			let json = autoParseJSON(data, true) as (CollisionBoxJSON | CollisionBoxJSON[]);
+			if (!json) return;
+			let name = /minecraft:(\w+)/.exec(text)?.[1] ?? 'box';
+			if (json instanceof Array == false) json = [json];
+			let bounding_boxes: OutlinerElement[] = [];
+			for (let box of json) {
+				if (box.origin instanceof Array == false || box.size instanceof Array == false) return;
+				if (bounding_boxes.length == 0) {
+					Undo.initEdit({elements: bounding_boxes, outliner: true});
+				}
+				let bb = new BoundingBox({
+					name,
+					from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
+					to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
+				});
+				bb.addTo().init();
+				bounding_boxes.push(bb);
+			}
+			if (bounding_boxes.length) Undo.finishEdit('Paste bounding boxes')
 		}
 	})
 })
