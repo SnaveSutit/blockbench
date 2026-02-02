@@ -29,7 +29,7 @@ export const TextureAnimator = {
 	},
 	playAnimationFrame(anim_time) {
 		if (anim_time == undefined) {
-			anim_time = performance.now() - TextureAnimator.start_timecode;
+			(anim_time = performance.now() - TextureAnimator.start_timecode) / 1000;
 		}
 		let animated_textures = [];
 		for (let texture of Texture.all) {
@@ -37,7 +37,7 @@ export const TextureAnimator = {
 			let fps = Format.texture_mcmeta
 				? 1000 / Math.max(16.66, 50 * texture.frame_time)
 				: Math.max(1, texture.fps);
-			let frame = Math.floor((anim_time/1000) * fps) % texture.frameCount;
+			let frame = Math.floor((anim_time) * fps) % texture.frameCount;
 			if (frame != texture.currentFrame) {
 				texture.currentFrame = frame;
 				animated_textures.push(texture);
@@ -89,6 +89,9 @@ export const TextureAnimator = {
 
 	editor_dialog: null,
 }
+Blockbench.on('display_animation_frame', () => {
+	TextureAnimator.playAnimationFrame(Timeline.time);
+});
 
 BARS.defineActions(function() {
 
