@@ -1416,6 +1416,7 @@ const global = {
 };
 declare global {
 	const Panel: typeof global.Panel
+	type Panel = import('./panels').Panel
 	const Panels: typeof global.Panels
 	const setupPanels: typeof global.setupPanels
 	const updateInterfacePanels: typeof global.updateInterfacePanels

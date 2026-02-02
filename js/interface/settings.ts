@@ -600,7 +600,9 @@ const globals = {
 declare global {
 	const settings: typeof globals.settings
 	const Setting: typeof globals.Setting
+	type Setting = import('./settings').Setting
 	const SettingsProfile: typeof globals.SettingsProfile
+	type SettingsProfile = import('./settings').SettingsProfile
 	const Settings: typeof globals.Settings
 }
 

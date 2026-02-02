@@ -93,5 +93,6 @@ const global = {
 };
 declare global {
 	const Face: typeof global.Face
+	type Face = import('./face').Face
 }
 Object.assign(window, global);

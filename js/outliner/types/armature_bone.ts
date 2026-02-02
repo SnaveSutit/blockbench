@@ -603,6 +603,7 @@ const global = {
 };
 declare global {
 	const ArmatureBone: typeof global.ArmatureBone
+	type ArmatureBone = import('./armature_bone').ArmatureBone
 	const getAllArmatureBones: typeof global.getAllArmatureBones
 }
 Object.assign(window, global);

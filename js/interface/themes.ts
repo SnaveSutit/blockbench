@@ -931,5 +931,6 @@ const global = {
 };
 declare global {
 	const CustomTheme: typeof global.CustomTheme
+	type CustomTheme = import('./themes').CustomTheme
 }
 Object.assign(window, global);

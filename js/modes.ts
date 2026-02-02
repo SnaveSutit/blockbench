@@ -225,6 +225,7 @@ const global = {
 declare global {
 	const Modes: typeof global.Modes
 	const Mode: typeof global.Mode
+	type Mode = import('./modes').Mode
 }
 
 Object.assign(window, global);

@@ -694,6 +694,7 @@ const global = {
 };
 declare global {
 	const ModelFormat: typeof global.ModelFormat
+	type ModelFormat = import('./format').ModelFormat
 	const Format: ModelFormat
 	const Formats: Record<string, ModelFormat>
 }

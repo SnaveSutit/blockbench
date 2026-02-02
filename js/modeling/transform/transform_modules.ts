@@ -127,5 +127,6 @@ const globals = {
 }
 declare global {
 	const TransformerModule: typeof globals.TransformerModule
+	type TransformerModule = import('./transform_modules').TransformerModule
 }
 Object.assign(window, globals);
