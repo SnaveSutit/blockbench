@@ -139,7 +139,7 @@
 		"publish-mac": "npm uninstall electron-color-picker && npm run build-electron && electron-builder --publish=always",
 		"publish-linux": "npm uninstall electron-color-picker && npm run build-electron && electron-builder --linux --publish=onTagOrDraft",
 		"pwa": "node ./scripts/generate_pwa.js",
-		"prepublish": "npm run build-web && npm run pwa && npm run generate-docs",
+		"prepublish-web": "npm run build-web && npm run pwa && npm run generate-docs",
 		"prepublish-beta": "node ./scripts/enable_beta.js && npm run build-web && npm run pwa && npm run generate-docs",
 		"webapp": "git checkout gh-pages && git pull && git merge master --no-edit && git push && git checkout master",
 		"generate-types": "tsc --project tsconfig.json && node ./scripts/convert_types.js",
