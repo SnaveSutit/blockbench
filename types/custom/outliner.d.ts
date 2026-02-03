@@ -121,6 +121,24 @@ declare namespace Outliner {
 		visibility: OutlinerToggle
 		[id: string]: OutlinerToggle
 	};
+
+	interface OutlinerDisplayRule {
+		/**
+		 * ID of the rule
+		 */
+		id: string
+		/**
+		 * A test function to determine if the node should be hidden by the rule
+		 * @param node Outliner node (or element) to test
+		 */
+		test: (node: OutlinerNode) => boolean
+	}
+	function isNodeDisplayed(node: OutlinerNode): boolean
+	/**
+	 * A list of rules regarding which nodes are displayed in the outliner. If any rule returns false, the node is not displayed
+	 */
+	const node_display_rules: OutlinerDisplayRule[]	
+
 	function toJSON(): []
 	function loadJSON(array: [], add_to_project?: boolean): void;
 }
