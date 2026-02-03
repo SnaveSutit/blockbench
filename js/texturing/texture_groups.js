@@ -6,6 +6,9 @@ export class TextureGroup {
 		this.uuid = uuid ?? guid();
 		this.folded = false;
 		this.material_config = new TextureGroupMaterialConfig(this);
+		this._static = Object.freeze({
+			properties: {},
+		});
 
 		for (let key in TextureGroup.properties) {
 			TextureGroup.properties[key].reset(this);
