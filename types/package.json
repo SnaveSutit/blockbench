@@ -12,6 +12,10 @@
 	"bugs": {
 		"url": "https://github.com/JannisX11/blockbench/issues"
 	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/JannisX11/blockbench"
+	},
 	"homepage": "https://blockbench.net",
 	"dependencies": {
 		"@babel/types": "^7.20.7",
