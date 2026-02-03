@@ -1050,6 +1050,8 @@
 	"settings.background_rendering.desc": "Update the preview while the window is not focused",
 	"settings.particle_tick_rate": "Particle Tick Rate",
 	"settings.particle_tick_rate.desc": "Tick rate for particle effects in ticks per second. Default is 30",
+	"settings.flipbook_textures_in_animation": "Play Flipbook Textures in Animation",
+	"settings.flipbook_textures_in_animation.desc": "Preview animations on flipbook textures in sync with the animation timeline",
 	"settings.volume": "Volume",
 	"settings.volume.desc": "Volume control for sound effects in animations",
 	"settings.audio_scrubbing": "Timline Scrubbing Audio",

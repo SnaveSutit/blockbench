@@ -90,6 +90,7 @@ export const TextureAnimator = {
 	editor_dialog: null,
 }
 Blockbench.on('display_animation_frame', () => {
+	if (settings.flipbook_textures_in_animation.value == false) return;
 	TextureAnimator.playAnimationFrame(Timeline.time);
 });
 
