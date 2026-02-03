@@ -2,7 +2,7 @@ import { BBPlugin } from "./plugin_loader";
 import { createScopedFS } from "./util/scoped_fs";
 
 const electron: typeof import("@electron/remote") = require('@electron/remote');
-const {clipboard, shell, nativeImage, ipcRenderer, webUtils} = require('electron') as typeof import('electron');
+const {shell, nativeImage, ipcRenderer, webUtils} = require('electron') as typeof import('electron');
 const app = electron.app;
 const fs: typeof import("node:fs") = require('node:fs');
 const NodeBuffer: typeof import("node:buffer") = require('buffer');
@@ -13,6 +13,7 @@ const PathModule: typeof import("node:path") = require('path');
 const os: typeof import("node:os") = require('os');
 const currentwindow = electron.getCurrentWindow();
 const dialog = electron.dialog;
+const clipboard = electron.clipboard;
 
 /** @internal */
 export {
