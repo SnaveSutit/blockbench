@@ -102,8 +102,6 @@ export class Mode extends KeybindItem {
 		$('#main_toolbar .toolbar_wrapper').css('visibility', this.hide_toolbars ? 'hidden' : 'visible');
 		$('#status_bar').css('display', this.hide_status_bar ? 'none' : 'flex');
 
-		Outliner.vue.options.hidden_types.replace(this.hidden_node_types);
-
 		if (typeof this.onSelect === 'function') {
 			this.onSelect()
 		}

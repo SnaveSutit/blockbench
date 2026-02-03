@@ -318,7 +318,7 @@ export abstract class OutlinerNode {
 		}
 		return false;
 	}
-	isIconEnabled(toggle) {
+	isIconEnabled(toggle): true {
 		if (typeof toggle.getState == 'function') {
 			return toggle.getState(this);
 		} else if (this[toggle.id] !== undefined) {
@@ -327,10 +327,10 @@ export abstract class OutlinerNode {
 			return true;
 		}
 	}
-	matchesFilter(search_term_lowercase) {
+	matchesFilter(search_term_lowercase: string): boolean {
 		if (this.name.toLowerCase().includes(search_term_lowercase)) return true;
 		if ('children' in this) {
-			return this.children.find(child => child.matchesFilter(search_term_lowercase));
+			return this.children.some(child => child.matchesFilter(search_term_lowercase));
 		}
 		return false;
 	}
