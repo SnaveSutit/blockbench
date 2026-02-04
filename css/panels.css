@@ -1378,9 +1378,17 @@
 	}
 
 /* Placeholders */
+	#panel_variable_placeholders .prism-editor-component {
+		flex-shrink: 1;
+		flex-grow: 1;
+		height: 50%;
+	}
 	ul#placeholder_buttons {
 		max-height: 32%;
 		overflow: auto;
+	}
+	ul#placeholder_buttons:has(> li) {
+		min-height: 32px;
 	}
 	#placeholder_buttons li {
 		display: flex;

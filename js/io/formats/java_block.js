@@ -335,6 +335,7 @@ var codec = new Codec('java_block', {
 
 		var texture_ids = {}
 		var texture_paths = {}
+		var texture_by_link = {}
 		if (model.textures) {
 			//Create Path Array to fetch textures
 			var path_arr = path.split(osfs)
@@ -351,9 +352,15 @@ var codec = new Codec('java_block', {
 					if (link.startsWith('#') && texture_arr[link.substring(1)]) {
 						link = texture_arr[link.substring(1)];
 					}
-					let texture = new Texture({id: key}).fromJavaLink(link, path_arr.slice(), args.externalDataLoader).add();
-					texture_paths[texture_arr[key].replace(/^minecraft:/, '')] = texture_ids[key] = texture;
-					new_textures.push(texture);
+					let texture;
+					if (texture_by_link[link]) {
+						texture = texture_by_link[link]
+					} else {
+						texture = new Texture({id: key}).fromJavaLink(link, path_arr.slice(), args.externalDataLoader).add();
+					}
+					let path = texture_arr[key].replace(/^minecraft:/, '');
+					texture_paths[path] = texture_ids[key] = texture_by_link[link] = texture;
+					new_textures.safePush(texture);
 				}
 			}
 			if (texture_arr.particle) {

@@ -46,6 +46,7 @@ declare class Preview extends Deletable {
 	 * Angle, when in a specific side view
 	 */
 	angle: null | number
+	default_angle?: AnglePreset
 	readonly camera: THREE.PerspectiveCamera | THREE.OrthographicCamera
 	camPers: THREE.PerspectiveCamera
 	camOrtho: THREE.OrthographicCamera
@@ -126,5 +127,7 @@ declare class Preview extends Deletable {
 		updateSize()
 	}
 }
+
+declare const DefaultCameraPresets: AnglePreset[]
 
 declare function animate(): void

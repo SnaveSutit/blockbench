@@ -1056,6 +1056,9 @@ FormElement.types.save = FormElementFile;
 const global = {InputForm, FormElement};
 declare global {
 	const InputForm: typeof global.InputForm
+	type InputForm = import('./form').InputForm
 	const FormElement: typeof global.FormElement
+	type FormElement = import('./form').FormElement
+	type FormElementOptions = import('./form').FormElementOptions
 }
 Object.assign(window, global);

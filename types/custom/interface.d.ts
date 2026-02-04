@@ -40,6 +40,7 @@ declare namespace Interface {
 		menu: Menu
 		vue: Vue.Component
 	}
+	let tab_bar: Vue
 	const Panels: {
 		[key: string]: Panel
 	}

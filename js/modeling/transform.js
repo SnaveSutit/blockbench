@@ -243,7 +243,7 @@ export function mirrorSelected(axis) {
 							group.rotation[i] *= -1
 						}
 					}
-					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group.old_name);
+					flipNameOnAxis(group, axis, name => (!Group.all.find(g => g.name == name)), group.temp_data.old_name);
 					Canvas.updateAllBones([group]);
 				}
 				flipGroup(group);

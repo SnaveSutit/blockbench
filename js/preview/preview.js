@@ -5,6 +5,7 @@ import { ConfigDialog } from '../interface/dialog';
 import { toSnakeCase } from '../util/util';
 import { electron, ipcRenderer } from '../native_apis';
 import { Pressing } from '../misc';
+import { PointerTarget } from '../interface/pointer_target';
 
 window.scene = null;
 window.main_preview = null;
@@ -349,7 +350,10 @@ export class Preview {
 				this.static_rclick = false;
 			}
 		}, false)
-		addEventListeners(this.canvas, 'mousemove touchmove',	event => { this.mousemove(event)}, false)
+		addEventListeners(this.canvas, 'mousemove touchmove',	event => {
+			if (PointerTarget.active == PointerTarget.types.global_drag_slider) return;
+			this.mousemove(event)
+		}, false)
 		addEventListeners(this.canvas, 'mouseup touchend',		event => { this.mouseup(event)}, false)
 		addEventListeners(this.canvas, 'dblclick', 				event => { if (settings.double_click_switch_tools.value) Toolbox.toggleTransforms(event); }, false)
 		addEventListeners(this.canvas, 'mouseenter touchstart', event => { this.occupyTransformer(event)}, false)
@@ -2223,6 +2227,9 @@ export function animate() {
 	framespersecond++;
 	if (Modes.display === true && Canvas.ground_animation === true && !Transformer.hoverAxis) {
 		DisplayMode.groundAnimation()
+	}
+	if (TextureAnimator.isPlaying) {
+		TextureAnimator.playAnimationFrame();
 	}
 	Blockbench.dispatchEvent('render_frame');
 }

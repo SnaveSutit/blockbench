@@ -309,7 +309,7 @@ var codec = new Codec('fbx', {
 				if (mesh.faces[key].vertices.length >= 3) {
 					let face = mesh.faces[key];
 					let vertices = face.getSortedVertices();
-					let tex = mesh.faces[key].getTexture();
+					let tex = mesh.faces[key].getTexture() || undefined;
 					textures.push(tex);
 
 					vertices.forEach(vkey => {
@@ -713,7 +713,7 @@ var codec = new Codec('fbx', {
 			for (let fkey in cube.faces) {
 				let face = cube.faces[fkey];
 				if (face.texture === null) continue;
-				let texture = face.getTexture();
+				let texture = face.getTexture() || undefined;
 				textures.push(texture);
 				normals.push(...cube_face_normals[fkey]);
 
@@ -1397,7 +1397,7 @@ var codec = new Codec('fbx', {
 		scale: {label: 'settings.model_export_scale', type: 'number', value: Settings.get('model_export_scale')},
 		embed_textures: {type: 'checkbox', label: 'codec.common.embed_textures', value: false},
 		include_animations: {label: 'codec.common.export_animations', type: 'checkbox', value: true},
-		armature_note: {type: 'info', condition: () => Armature.all.length, text: '⚠️ Armature export to FBX is currently experimental, glTF is recommended instead.'}
+		armature_note: {type: 'info', condition: () => Armature.all.length > 0, text: '⚠️ Armature export to FBX is currently experimental, glTF is recommended instead.'}
 	},
 	async export() {
 		if (Object.keys(this.export_options).length) {

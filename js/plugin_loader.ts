@@ -1962,8 +1962,6 @@ BARS.defineActions(function() {
 	})
 })
 
-declare global {
-}
 const global = {
 	Plugins,
 	Plugin,
@@ -1971,6 +1969,7 @@ const global = {
 };
 declare global {
 	const BBPlugin: typeof Plugin;
+	type BBPlugin = import('./plugin_loader').Plugin
 	const Plugins: typeof global.Plugins
 }
 Object.assign(window, global);

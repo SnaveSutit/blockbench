@@ -371,7 +371,7 @@ export const Blockbench = {
 	Format: 0 as (ModelFormat | number),
 	Project: 0 as (ModelProject | number),
 	get Undo() {
-		return Project?.undo;
+		return Blockbench.Project instanceof ModelProject ? Blockbench.Project.undo : undefined;
 	},
 	// File System
 	import: Filesystem.importFile,

@@ -72,6 +72,18 @@ export function initializeDesktopApp() {
 			console.error('Attempted and failed to clear GPU cache', err);
 		}
 	}
+
+	if (location.href.endsWith('/blockbench/index.html')) {
+		let action = new Action('dev_mode_reload', {
+			name: 'Reload',
+			icon: 'refresh',
+			color: '#76f39b',
+			click() {
+				Blockbench.reload();
+			}
+		})
+		action.toElement('#update_menu');
+	}
 }
 //Load Model
 export function loadOpenWithBlockbenchFile() {

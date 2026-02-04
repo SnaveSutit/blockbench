@@ -144,7 +144,7 @@ Blockbench.on('finish_edit', (args) => {
 	}
 	let options = toggle.tool_config.options;
 	let offset = options.offset == '180' ? 180 : 0;
-	if (options.offset == 'custom') offset = options.custom_offset;
+	if (options.offset == 'custom') offset = options.custom_offset as number;
 	let {added_keyframes, removed_keyframes} = flipCopyKeyframes({
 		keyframes: args.aspects.keyframes,
 		animators,

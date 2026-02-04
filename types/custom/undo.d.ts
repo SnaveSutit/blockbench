@@ -36,6 +36,7 @@ interface UndoAspects {
 	display_slots?: string[]
 	exploded_view?: boolean
 	mirror_modeling?: false
+	uv_only?: boolean
 }
 interface UndoSelectionAspects {
 	texture_selection?: boolean

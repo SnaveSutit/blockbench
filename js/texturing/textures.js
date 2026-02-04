@@ -1193,6 +1193,11 @@ export class Texture {
 				}},
 				frame_order: {label: 'dialog.texture.frame_order', type: 'text', value: this.frame_order, condition: form => form.frame_order_type == 'custom', placeholder: '0 3 1 2', description: 'dialog.texture.frame_order.desc'},
 			});
+		} else if (this.frameCount > 1) {
+			Object.assign(form, {
+				'texture_mcmeta': '_',
+				fps: {label: 'dialog.texture.fps', type: 'number', value: this.fps, min: 1, step: 1, description: 'dialog.texture.fps.desc'},
+			});
 		}
 		let preview_img = new Image();
 		preview_img.src = this.img.src;
@@ -1208,7 +1213,7 @@ export class Texture {
 			onConfirm: results => {
 
 				dialog.hide();
-				if (['name', 'variable', 'folder', 'namespace', 'frame_time', 'frame_interpolate', 'frame_order_type', 'frame_order'].find(key => {
+				if (['name', 'variable', 'folder', 'namespace', 'fps', 'frame_time', 'frame_interpolate', 'frame_order_type', 'frame_order'].find(key => {
 					return results[key] !== undefined && results[key] !== this[key];
 				}) == undefined) {
 					return;
@@ -1225,6 +1230,7 @@ export class Texture {
 				if (results.render_mode !== undefined) this.render_mode = results.render_mode;
 				if (results.render_sides !== undefined) this.render_sides = results.render_sides;
 				if (results.wrap_mode !== undefined) this.wrap_mode = results.wrap_mode;
+				if (results.fps !== undefined) this.fps = results.fps;
 				
 				if (Format.per_texture_uv_size) {
 					let changed = this.uv_width != results.uv_size[0] || this.uv_height != results.uv_size[1];
@@ -2173,6 +2179,7 @@ export class Texture {
 	new Property(Texture, 'enum', 'render_sides', {default: 'auto'})
 	new Property(Texture, 'enum', 'wrap_mode', {default: () => Format.texture_wrap_default ?? 'limited'})
 	new Property(Texture, 'enum', 'pbr_channel', {default: 'color'})
+	new Property(Texture, 'number', 'fps', {default: 7})
 	
 	new Property(Texture, 'number', 'frame_time', {default: 1})
 	new Property(Texture, 'enum', 'frame_order_type', {default: 'loop', values: ['custom', 'loop', 'backwards', 'back_and_forth']})

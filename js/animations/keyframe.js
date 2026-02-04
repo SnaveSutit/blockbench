@@ -876,7 +876,7 @@ BARS.defineActions(function() {
 		Undo.finishEdit('Move keyframe graph');
 	}
 	new Action('move_graph_keyframes_up', {
-		icon: 'arrow_back',
+		icon: 'arrow_warm_up',
 		category: 'transform',
 		condition: {modes: ['animate'], method: () => (!open_menu && Timeline.selected.length && Timeline.vue.graph_editor_open)},
 		keybind: new Keybind({key: 38, ctrl: null, shift: null}),
@@ -886,7 +886,7 @@ BARS.defineActions(function() {
 		}
 	})
 	new Action('move_graph_keyframes_down', {
-		icon: 'arrow_forward',
+		icon: 'arrow_cool_down',
 		category: 'transform',
 		condition: {modes: ['animate'], method: () => (!open_menu && Timeline.selected.length && Timeline.vue.graph_editor_open)},
 		keybind: new Keybind({key: 40, ctrl: null, shift: null}),

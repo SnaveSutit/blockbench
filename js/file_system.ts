@@ -770,7 +770,5 @@ export namespace Filesystem {
 const global = {
 	Filesystem
 };
-declare global {
-	const Filesystem: typeof global.Filesystem
-}
+// No internal global declaration since it does not work well with namespaces
 Object.assign(window, global);

@@ -1,6 +1,8 @@
 import blender from '../../keymaps/blender.bbkeymap';
 import cinema4d from '../../keymaps/cinema4d.bbkeymap';
 import maya from '../../keymaps/maya.bbkeymap';
+import { dragHelper } from '../util/drag_helper';
+import { PointerTarget } from './pointer_target';
 import { BARS } from './toolbars';
 
 const KeymapPresets = {
@@ -218,7 +220,12 @@ export class Keybind {
 			case  36: return 'pos1';
 			case  44: return 'printscreen';
 			case  19: return 'pause';
+			case  91: return 'meta';
 			case 1001: return 'mousewheel';
+			case 1010: return 'slide_lmb_horizontal';
+			case 1011: return 'slide_lmb_vertical';
+			case 1012: return 'slide_rmb_horizontal';
+			case 1013: return 'slide_rmb_vertical';
 
 			case 106: return tl('keys.numpad', ['*']);
 			case 107: return tl('keys.numpad', ['+']);
@@ -259,20 +266,25 @@ export class Keybind {
 		}
 		return this;
 	}
-	isTriggered(event) {
+	isTriggered(event, input_type) {
 		let modifiers_used = new Set();
 		if (this.variations) {
 			for (let option in this.variations) {
 				modifiers_used.add(this.variations[option].replace('unless_', ''));
 			}
 		}
-		return (
-			(this.key 	=== event.which	|| (this.key == 1001 && event instanceof MouseEvent)) &&
-			(this.ctrl 	=== (event.ctrlKey 	|| Pressing.overrides.ctrl) || this.ctrl === null	|| modifiers_used.has('ctrl') 	) &&
-			(this.shift === (event.shiftKey || Pressing.overrides.shift)|| this.shift === null	|| modifiers_used.has('shift')	) &&
-			(this.alt 	=== (event.altKey 	|| Pressing.overrides.alt) 	|| this.alt === null	|| modifiers_used.has('alt') 	) &&
-			(this.meta 	=== event.metaKey								|| this.meta === null	|| modifiers_used.has('ctrl') 	)
-		)
+		if ( !(this.ctrl 	=== (event.ctrlKey 	|| Pressing.overrides.ctrl) || this.ctrl === null	|| modifiers_used.has('ctrl') 	) ) return false;
+		if ( !(this.shift	=== (event.shiftKey || Pressing.overrides.shift)|| this.shift === null	|| modifiers_used.has('shift')	) ) return false;
+		if ( !(this.alt		=== (event.altKey 	|| Pressing.overrides.alt) 	|| this.alt === null	|| modifiers_used.has('alt') 	) ) return false;
+		if ( !(this.meta	===  event.metaKey								|| this.meta === null	|| modifiers_used.has('ctrl') 	) ) return false;
+
+		if (this.key == event.which) return true;
+		if (this.key == 1001 && event instanceof MouseEvent) return true;
+		if (this.key >= 1010 && this.key < 1018 && input_type == 'pointer_slide') {
+			if ((this.key == 1010 || this.key == 1011) && event.which == 1) return true;
+			if ((this.key == 1012 || this.key == 1013) && event.which == 3) return true;
+		}
+		return false;
 	}
 	additionalModifierTriggered(event, variation) {
 		if (!this.variations) return;
@@ -294,21 +306,122 @@ export class Keybind {
 		}
 	}
 	record() {
-		var scope = this;
+		let scope = this;
 		Keybinds.recording = this;
-		var overlay = $('#overlay_message_box').show()
+
+		let button_cancel = Interface.createElement('button', { '@click'() {
+			scope.stopRecording();
+		}}, tl('dialog.cancel'));
+		let button_empty = Interface.createElement('button', {'@click'() {
+			scope.clear().stopRecording();
+		}}, tl('keybindings.clear'));
+
+		let key_list = Interface.createElement('div', {id: 'keybind_record_key_list', class: 'keybindslot'});
+		key_list.innerHTML = this.getText(true);
+
+		let ui = Interface.createElement('div', {id: 'overlay_message_box'}, [
+			Interface.createElement('div', {}, [
+				Interface.createElement('h3', {}, [
+					Blockbench.getIconNode('keyboard'), tl('keybindings.recording')
+				]),
+				Interface.createElement('p', {}, tl('keybindings.press')),
+				key_list,
+				button_cancel, ' ', button_empty,
+			])
+		]);
+
+		if (BarItems[this.action] instanceof NumSlider) {
+			let slide_options = {
+				'slide_lmb_horizontal': 1010,
+				'slide_lmb_vertical': 1011,
+				'slide_rmb_horizontal': 1012,
+				'slide_rmb_vertical': 1013,
+			};
+			function setGesture(event, key) {
+				clearListeners();
+
+				scope.key = slide_options[key];
+				scope.ctrl 	= event.ctrlKey;
+				scope.shift = event.shiftKey;
+				scope.alt 	= event.altKey;
+				scope.meta 	= event.metaKey;
+
+				scope.label = scope.getText();
+				scope.save(true);
+				Blockbench.showQuickMessage(scope.label);
+
+				scope.stopRecording();
+			}
+			let list = Interface.createElement('div', {
+				class: 'mouse_gesture_keybind_menu'
+			}, [
+				Interface.createElement('h3', {}, 'Mouse Gesture'),
+				Interface.createElement('div', {}, [
+					Interface.createElement('label', {}, 'Left click'),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_lmb_horizontal'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_lmb_horizontal')
+						},
+						Blockbench.getIconNode('arrow_range')
+					),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_lmb_vertical'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_lmb_vertical')
+						},
+						Blockbench.getIconNode('height')
+					),
+				]),
+				Interface.createElement('div', {}, [
+					Interface.createElement('label', {}, 'Right click'),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_rmb_horizontal'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_rmb_horizontal')
+						},
+						Blockbench.getIconNode('arrow_range')
+					),
+					Interface.createElement('div',
+						{
+							title: tl('keys.slide_rmb_vertical'),
+							class: 'mouse_gesture_option',
+							'@click': (event) => setGesture(event, 'slide_rmb_vertical')
+						},
+						Blockbench.getIconNode('height')
+					),
+				]),
+			]);
+			button_cancel.parentElement.append(list);
+
+		}
+
+		document.getElementById('dialog_wrapper').append(ui);
+		var overlay = $(ui);
 		var top = limitNumber(window.innerHeight/2 - 200, 30, 800)
-		overlay.find('> div').css('margin-top', top+'px')
+		overlay.find('> div').css('margin-top', top+'px');
 
-		function onActivate(event) {
-			if (event.originalEvent) event = event.originalEvent;
-
+		function clearListeners() {
+			
 			document.removeEventListener('keyup', onActivate)
 			document.removeEventListener('keydown', onActivateDown)
 			overlay.off('mousedown', onActivate)
 			overlay.off('wheel', onActivate)
 			overlay.off('keydown keypress keyup click click dblclick mouseup mousewheel', preventDefault)
-			if (event instanceof KeyboardEvent == false && event.target && event.target.tagName === 'BUTTON') return;
+			removeEventListeners(document, 'keydown mousedown', onUpdate);
+		}
+
+		function onActivate(event) {
+			if (event.originalEvent) event = event.originalEvent;
+
+			clearListeners();
+
+			if (event instanceof KeyboardEvent == false && event.target) {
+				if (event.target.tagName === 'BUTTON' || event.target.classList.contains('mouse_gesture_option')) return;
+			}
 
 			if (event instanceof WheelEvent) {
 				scope.key = 1001
@@ -334,6 +447,22 @@ export class Keybind {
 		function preventDefault(event) {
 			event.preventDefault();
 		}
+		function onUpdate(event) {
+			let modifiers = [];
+			if (event.ctrlKey) 	modifiers.push(tl('keys.ctrl'))	
+			if (event.shiftKey)	modifiers.push(tl('keys.shift'))	
+			if (event.altKey) 	modifiers.push(tl('keys.alt'))	
+			if (event.metaKey) 	modifiers.push(tl('keys.meta'))	
+
+			modifiers.forEach((text, i) => {
+				let type = i !== modifiers.length-1
+						? text.match(/\[\w+\]/) ? 'optional' : 'modifier'
+						: 'key'
+				modifiers[i] = `<span class="${type}">${text}</span>`;
+			})
+			key_list.innerHTML = modifiers.join(`<span class="punctuation"> + </span>`);
+		}
+		addEventListeners(document, 'keydown mousedown', onUpdate);
 
 		document.addEventListener('keyup', onActivate)
 		document.addEventListener('keydown', onActivateDown)
@@ -344,9 +473,8 @@ export class Keybind {
 		return this;
 	}
 	stopRecording() {
-		Keybinds.recording = false
-		$('#overlay_message_box').hide().off('mousedown mousewheel')
-		$('#keybind_input_box').off('keyup keydown')
+		Keybinds.recording = false;
+		document.getElementById('overlay_message_box')?.remove();
 		return this;
 	}
 	toString() {
@@ -619,7 +747,7 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 			alt.select()
 			Toolbox.original = orig
 		}
-	} else if (Keybinds.extra.cancel.keybind.isTriggered(e) && (Transformer.dragging)) {
+	} else if (Keybinds.extra.cancel.keybind.isTriggered(e) && PointerTarget.active == PointerTarget.types.gizmo_transform) {
 		Transformer.cancelMovement(e, false);
 		updateSelection();
 	} else if (KnifeToolContext.current) {
@@ -774,6 +902,48 @@ $(document).keyup(function(e) {
 		Blockbench.dispatchEvent('update_pressed_modifier_keys', {before, now: Pressing, event: e});
 	}
 })
+
+document.addEventListener('pointerdown', (e1) => {
+
+	let sliders = Keybinds.actions.filter(slider => {
+		if (slider instanceof NumSlider == false) return false;
+		if (!Condition(slider.condition)) return false;
+		return slider.keybind.isTriggered(e1, 'pointer_slide');
+	});
+	if (sliders.length) {
+		let success = PointerTarget.requestTarget(PointerTarget.types.global_drag_slider);
+		if (!success) return;
+		dragHelper(e1, {
+			onStart(context) {
+				for (let slider of sliders) {
+					if (typeof slider.onBefore === 'function') {
+						slider.onBefore();
+					}
+					slider.sliding = true;
+					slider.pre = 0;
+					slider.sliding_start_pos = 0;
+				}
+			},
+			onMove(context) {
+				for (let slider of sliders) {
+					let orientation = slider.keybind.key == 1010 || slider.keybind.key ==  1012;
+					let distance = orientation ? context.delta.x : context.delta.y;
+					let factor = (orientation ? 2.4 : 2.6) * (slider.settings?.gesture_speed ?? 1);
+					slider.slide(distance * factor, e1);
+				}
+			},
+			onEnd(context) {
+				Blockbench.setStatusBarText();
+				for (let slider of sliders) {
+					delete slider.sliding;
+					if (typeof slider.onAfter === 'function') {
+						slider.onAfter(slider.value - slider.last_value)
+					}
+				}
+			}
+		})
+	}
+}, {capture: true})
 
 
 Object.assign(window, {

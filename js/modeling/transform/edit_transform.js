@@ -222,15 +222,15 @@ new TransformerModule('edit', {
 						obj.oldVertices[key] = obj.vertices[key].slice();
 					}
 				} else if (obj.getTypeBehavior('resizable')) {
-					obj.old_size = typeof obj.size == 'function' ? obj.size(context.axis_number) : obj.size.slice();
-					if (obj.stretch) obj.oldStretch = obj.stretch.slice();
-					if (obj.uv_offset) obj.oldUVOffset = obj.uv_offset.slice();
-					if (obj.to && obj.to) obj.oldCenter = obj.from.map((from, i) => (from + obj.to[i]) / 2);
+					obj.temp_data.old_size = typeof obj.size == 'function' ? obj.size(context.axis_number) : obj.size.slice();
+					if (obj.stretch) obj.temp_data.oldStretch = obj.stretch.slice();
+					if (obj.uv_offset) obj.temp_data.oldUVOffset = obj.uv_offset.slice();
+					if (obj.to && obj.to) obj.temp_data.oldCenter = obj.from.map((from, i) => (from + obj.to[i]) / 2);
 				} else if (obj.size) {
-					obj.old_size = obj.size.slice();
+					obj.temp_data.old_size = obj.size.slice();
 				}
 				if (obj.getTypeBehavior('stretchable')) {
-					obj.oldStretch = obj.stretch.slice();
+					obj.temp_data.oldStretch = obj.stretch.slice();
 				}
 			})
 		}
@@ -309,16 +309,16 @@ new TransformerModule('edit', {
 		} else if (tool_id === 'stretch_tool') {
 			
 			Outliner.selected.forEach(function(obj, i) {
-				if (obj.stretch && obj.oldStretch) {
+				if (obj.stretch && obj.temp_data.oldStretch) {
 					if (axis == 'e') {
-						obj.stretch[0] = obj.oldStretch[0] + value;
-						obj.stretch[1] = obj.oldStretch[1] + value;
-						obj.stretch[2] = obj.oldStretch[2] + value;
+						obj.stretch[0] = obj.temp_data.oldStretch[0] + value;
+						obj.stretch[1] = obj.temp_data.oldStretch[1] + value;
+						obj.stretch[2] = obj.temp_data.oldStretch[2] + value;
 					} else if (!second_axis) {
-						obj.stretch[axis_number] = obj.oldStretch[axis_number] + value;
+						obj.stretch[axis_number] = obj.temp_data.oldStretch[axis_number] + value;
 					} else {
-						obj.stretch[axis_number] = obj.oldStretch[axis_number] + value;
-						obj.stretch[second_axis_number] = obj.oldStretch[second_axis_number] + value;
+						obj.stretch[axis_number] = obj.temp_data.oldStretch[axis_number] + value;
+						obj.stretch[second_axis_number] = obj.temp_data.oldStretch[second_axis_number] + value;
 					}
 				}
 			})
@@ -396,10 +396,10 @@ new TransformerModule('edit', {
 		if (tool_id === 'resize_tool' || tool_id === 'stretch_tool') {
 			//Scale and stretch
 			Outliner.selected.forEach(function(obj) {
-				delete obj.old_size;
-				delete obj.oldStretch;
-				delete obj.oldCenter;
-				delete obj.oldUVOffset;
+				delete obj.temp_data.old_size;
+				delete obj.temp_data.oldStretch;
+				delete obj.temp_data.oldCenter;
+				delete obj.temp_data.oldUVOffset;
 			})
 			if (context.has_changed && context.keep_changes) {
 				if (tool_id === 'resize_tool') {

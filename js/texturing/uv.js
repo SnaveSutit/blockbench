@@ -1,4 +1,5 @@
 import { editUVSizeDialog } from "../uv/uv_size";
+import { PointerTarget } from "../interface/pointer_target";
 
 export const UVEditor = {
 	face: 'north',
@@ -139,6 +140,7 @@ export const UVEditor = {
 		}
 	},
 	movePaintTool(event) {
+		if (!PointerTarget.requestTarget(PointerTarget.types.paint)) return;
 		if (event.pointerType === 'pen' && event.pressure === 0) {
 			return;
 		}
@@ -665,24 +667,81 @@ export const UVEditor = {
 			}
 		}
 	},
+	getFacePosition(axis) {
+		let elements = UVEditor.getMappableElements();
+		if (!elements[0]) return 0;
+
+		if (UVEditor.isBoxUV() && elements[0].getTypeBehavior('cube_faces')) {
+			return elements[0].uv_offset[axis];
+		} else if (elements[0].getTypeBehavior('cube_faces')) {
+			var face = UVEditor.getReferenceFace();
+			if (face) {
+				return face.uv[axis];
+			}
+		} else if (elements[0] instanceof Mesh) {
+			let selected_vertices = elements[0].getSelectedVertices();
+
+			if (selected_vertices.length) {
+				let min = Infinity;
+				UVEditor.getSelectedFaces(elements[0]).forEach(fkey => {
+					let face = elements[0].faces[fkey];
+					face.vertices.forEach(vkey => {
+						if (selected_vertices.includes(vkey) && face.uv[vkey]) {
+							min = Math.min(min, face.uv[vkey][axis]);
+						}
+					})
+				})
+				if (min == Infinity) min = 0;
+				return min;
+
+			} else {
+				let face = UVEditor.getReferenceFace();
+				if (!face) return 0;
+				let min = Infinity;
+				face.vertices.forEach(vkey => {
+					if (face.uv[vkey]) {
+						min = Math.min(min, face.uv[vkey][axis]);
+					}
+				})
+				if (min == Infinity) min = 0;
+				return min;
+			}
+		}
+		return 0
+	},
+	getFaceSize(axis) {
+		if (UVEditor.isFaceUV()) {
+			let ref_face = UVEditor.getReferenceFace();
+			if (ref_face instanceof CubeFace) {
+				return ref_face.uv[axis+2] - ref_face.uv[axis];
+			} else if (ref_face instanceof MeshFace) {
+				let rect = ref_face.getBoundingRect();
+				return axis ? rect.y : rect.x;
+			}
+		}
+		return 0;
+	},
 	slidePos(modify, axis) {
-		let limit = this.getResolution(axis);
+		let min = 0;
+		let max = this.getResolution(axis);
+		let clamped = UVEditor.isUVClamped();
 
 		Outliner.selected.forEach(function(obj) {
 			if (!obj.getTypeBehavior('cube_faces')) return;
 			if (obj.box_uv === true) {
-				let minimum = 0;
 				if (axis === 0) {
 					var size = (obj.size(0) + (obj.size(1) ? obj.size(2) : 0))*2
-					if (obj.size(1) == 0) minimum = -obj.size(2);
+					if (obj.size(1) == 0) min = -obj.size(2);
 				} else {
 					var size = obj.size(2) + obj.size(1)
-					if (obj.size(0) == 0) minimum = -obj.size(2);
+					if (obj.size(0) == 0) min = -obj.size(2);
 				}
 				var value = modify(obj.uv_offset[axis])
 
-				value = limitNumber(value, minimum, limit)
-				value = limitNumber(value + size, minimum, limit) - size
+				if (clamped) {
+					value = limitNumber(value, min, max);
+					value = limitNumber(value + size, min, max) - size;
+				}
 				obj.uv_offset[axis] = Math.round(value);
 			} else {
 				UVEditor.getSelectedFaces(obj).forEach(fkey => {
@@ -692,9 +751,10 @@ export const UVEditor = {
 	
 					var value = modify(uvTag[axis])
 	
-					value = limitNumber(value, 0, limit)
-					value = limitNumber(value + size, 0, limit) - size
-	
+					if (clamped) {
+						value = limitNumber(value, 0, max);
+						value = limitNumber(value + size, 0, max) - size;
+					}
 					uvTag[axis] = value
 					uvTag[axis+2] = value + size
 				})
@@ -1588,6 +1648,7 @@ export const UVEditor = {
 		'uv_auto',
 		'uv_rel_auto',
 		'uv_project_from_view',
+		'move_uv_to_cursor',
 		'connect_uv_faces',
 		'merge_uv_vertices',
 		'snap_uv_to_pixels',
@@ -2103,6 +2164,26 @@ BARS.defineActions(function() {
 			Undo.finishEdit('Set face tint')
 		}
 	})
+	new Action('move_uv_to_cursor', {
+		icon: 'fas.fa-magnet',
+		category: 'uv',
+		condition: () => UVEditor.hasElements(),
+		click(event) {
+			Undo.initEdit({elements: UVEditor.getMappableElements(), uv_only: true})
+			let center = [
+				UVEditor.getFacePosition(0) + UVEditor.getFaceSize(0)/2,
+				UVEditor.getFacePosition(1) + UVEditor.getFaceSize(1)/2,
+			];
+			let cursor_pos = [
+				// Previous mouse coords, convert from pixel space to UV space
+				UVEditor.vue.mouse_coords.x * (UVEditor.getUVWidth() / UVEditor.texture.width),
+				UVEditor.vue.mouse_coords.y * (UVEditor.getUVHeight() / UVEditor.texture.height),
+			];
+			UVEditor.slidePos((val) => val + cursor_pos[0] - center[0], 0);
+			UVEditor.slidePos((val) => val + cursor_pos[1] - center[1], 1);
+			Undo.finishEdit('Move UV to cursor');
+		}
+	})
 	new Action('merge_uv_vertices', {
 		icon: 'close_fullscreen',
 		category: 'uv',
@@ -2359,6 +2440,7 @@ BARS.defineActions(function() {
 		condition: {modes: ['edit']}
 	})
 })
+
 
 Interface.definePanels(function() {
 
@@ -2665,6 +2747,7 @@ Interface.definePanels(function() {
 				updateMouseCoords(event) {					
 					convertTouchEvent(event);
 					if (!this.texture) return;
+					if (PointerTarget.active) return;
 
 					var {x, y} = UVEditor.getBrushCoordinates(event, this.texture);
 					this.mouse_coords.active = true;
@@ -3006,6 +3089,7 @@ Interface.definePanels(function() {
 					}
 				},
 				onMouseLeave(event) {
+					if (PointerTarget.active == PointerTarget.types.global_drag_slider) return;
 					if (this.mode == 'paint') {
 						this.mouse_coords.active = false;
 					}
@@ -4762,54 +4846,12 @@ Interface.definePanels(function() {
 			return canvasGridSize(event.shiftKey || Pressing.overrides.shift, event.ctrlOrCmd || Pressing.overrides.ctrl) / UVEditor.grid;
 		}
 	}
-	function getPos(axis) {
-		let elements = UVEditor.getMappableElements();
-		if (!elements[0]) return 0;
-
-		if (UVEditor.isBoxUV() && elements[0].getTypeBehavior('cube_faces')) {
-			return trimFloatNumber(elements[0].uv_offset[axis])
-		} else if (elements[0].getTypeBehavior('cube_faces')) {
-			var face = UVEditor.getReferenceFace();
-			if (face) {
-				return trimFloatNumber(face.uv[axis])
-			}
-		} else if (elements[0] instanceof Mesh) {
-			let selected_vertices = elements[0].getSelectedVertices();
-
-			if (selected_vertices.length) {
-				let min = Infinity;
-				UVEditor.getSelectedFaces(elements[0]).forEach(fkey => {
-					let face = elements[0].faces[fkey];
-					face.vertices.forEach(vkey => {
-						if (selected_vertices.includes(vkey) && face.uv[vkey]) {
-							min = Math.min(min, face.uv[vkey][axis]);
-						}
-					})
-				})
-				if (min == Infinity) min = 0;
-				return trimFloatNumber(min);
-
-			} else {
-				let face = UVEditor.getReferenceFace();
-				if (!face) return 0;
-				let min = Infinity;
-				face.vertices.forEach(vkey => {
-					if (face.uv[vkey]) {
-						min = Math.min(min, face.uv[vkey][axis]);
-					}
-				})
-				if (min == Infinity) min = 0;
-				return trimFloatNumber(min)
-			}
-		}
-		return 0
-	}
 	UVEditor.sliders.pos_x = new NumSlider({
 		id: 'uv_slider_pos_x',
 		private: true,
 		condition: () => UVEditor.hasElements() && (UVEditor.getReferenceFace() || UVEditor.isBoxUV()),
-		get: function() {
-			return getPos(0);
+		get() {
+			return trimFloatNumber(UVEditor.getFacePosition(0));
 		},
 		change: function(modify) {
 			UVEditor.slidePos(modify, 0);
@@ -4823,8 +4865,8 @@ Interface.definePanels(function() {
 		id: 'uv_slider_pos_y',
 		private: true,
 		condition: () => UVEditor.hasElements() && (UVEditor.getReferenceFace() || UVEditor.isBoxUV()),
-		get: function() {
-			return getPos(1);
+		get() {
+			return trimFloatNumber(UVEditor.getFacePosition(1));
 		},
 		change: function(modify) {
 			UVEditor.slidePos(modify, 1);
@@ -4838,17 +4880,8 @@ Interface.definePanels(function() {
 		id: 'uv_slider_size_x',
 		private: true,
 		condition: () => (UVEditor.hasElements() && UVEditor.isFaceUV() && UVEditor.getReferenceFace()),
-		get: function() {
-			if (UVEditor.isFaceUV()) {
-				let ref_face = UVEditor.getReferenceFace();
-				if (ref_face instanceof CubeFace) {
-					return trimFloatNumber(ref_face.uv[2] - ref_face.uv[0]);
-				} else if (ref_face instanceof MeshFace) {
-					let rect = ref_face.getBoundingRect();
-					return trimFloatNumber(rect.x);
-				}
-			}
-			return 0
+		get() {
+			return trimFloatNumber(UVEditor.getFaceSize(0));
 		},
 		change: function(modify) {
 			UVEditor.slideSize(modify, 0)
@@ -4862,17 +4895,8 @@ Interface.definePanels(function() {
 		id: 'uv_slider_size_y',
 		private: true,
 		condition: () => (UVEditor.hasElements() && UVEditor.isFaceUV() && UVEditor.getReferenceFace()),
-		get: function() {
-			if (UVEditor.isFaceUV()) {
-				let ref_face = UVEditor.getReferenceFace();
-				if (ref_face instanceof CubeFace) {
-					return trimFloatNumber(ref_face.uv[3] - ref_face.uv[1]);
-				} else if (ref_face instanceof MeshFace) {
-					let rect = ref_face.getBoundingRect();
-					return trimFloatNumber(rect.y);
-				}
-			}
-			return 0
+		get() {
+			return trimFloatNumber(UVEditor.getFaceSize(1));
 		},
 		change: function(modify) {
 			UVEditor.slideSize(modify, 1)

@@ -250,5 +250,6 @@ const global = {
 }
 declare global {
 	const Property: typeof global.Property
+	type Property = import('./property').Property<any>
 }
 Object.assign(window, global);

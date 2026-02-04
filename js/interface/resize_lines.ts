@@ -227,7 +227,7 @@ export function setupResizeLines() {
 	});
 	new ResizeLine('top', {
 		horizontal: true,
-		condition() {return !Blockbench.isMobile && Interface.getTopPanel()},
+		condition() {return !Blockbench.isMobile && !!Interface.getTopPanel()},
 		get() {
 			let panel = Interface.getTopPanel();
 			return panel.folded ? panel.tab_bar.clientHeight : panel.height;
@@ -247,7 +247,7 @@ export function setupResizeLines() {
 	});
 	new ResizeLine('bottom', {
 		horizontal: true,
-		condition() {return !Blockbench.isMobile && Interface.getBottomPanel()},
+		condition() {return !Blockbench.isMobile && !!Interface.getBottomPanel()},
 		get() {
 			let panel = Interface.getBottomPanel();
 			return panel.folded ? panel.tab_bar.clientHeight : panel.height;
@@ -293,5 +293,6 @@ const global = {
 }
 declare global {
 	const ResizeLine: typeof global.ResizeLine
+	type ResizeLine = import('./resize_lines').ResizeLine
 }
 Object.assign(window, global);
