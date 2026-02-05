@@ -8,11 +8,6 @@ function isStreamerMode(): boolean {
 	return window.settings.streamer_mode.value;
 }
 
-declare class Blockbench {
-	static isTouch: boolean
-	static showMessageBox(options: any): void
-	static showQuickMessage(message: string): void
-}
 
 export namespace Filesystem {
 	export type FileResult = {
@@ -672,12 +667,10 @@ export namespace Filesystem {
 			})
 		}
 
-		forDragHandlers(event, function(handler, el) {
-			let fileNames = event.dataTransfer.files
-
-			let paths: string[] | FileList = [];
+		function getFilePaths(file_names: FileList): string[] {
+			let paths: string[] = [];
 			if (isApp) {
-				for (let file of fileNames) {
+				for (let file of file_names) {
 					if ('path' in file) {
 						// @ts-ignore
 						paths.push(file.path)
@@ -688,8 +681,14 @@ export namespace Filesystem {
 					}
 				}
 			} else {
-				paths = fileNames;
+				paths = [...file_names] as unknown as string[];
 			}
+			return paths;
+		}
+
+		let handled = false;
+		forDragHandlers(event, function(handler, el) {
+			let paths = getFilePaths(event.dataTransfer.files)
 			if (!paths.length) return;
 
 			let read_options = {
@@ -699,8 +698,16 @@ export namespace Filesystem {
 			}
 			Filesystem.read(paths, read_options, (files) => {
 				handler.cb(files, event)
+				handled = true;
 			})
 		})
+		if (!handled) {
+			let file_path = getFilePaths(event.dataTransfer.files)[0];
+			if (file_path) {
+				unsupportedFileFormatMessage(file_path);
+			}
+
+		}
 	}
 	document.body.ondragenter = function(event) {
 		event.preventDefault()
@@ -749,7 +756,6 @@ export namespace Filesystem {
 				}
 			}
 			let extensions = typeof handler.extensions == 'function' ? handler.extensions() : handler.extensions;
-			extensions.includes( pathToExtension(event.dataTransfer.files[0].name).toLowerCase());
 			let name = event.dataTransfer.files[0].name;
 			if (el && extensions.filter(ex => {
 				return name.substr(-ex.length) == ex;
@@ -764,7 +770,5 @@ export namespace Filesystem {
 const global = {
 	Filesystem
 };
-declare global {
-	const Filesystem: typeof global.Filesystem
-}
+// No internal global declaration since it does not work well with namespaces
 Object.assign(window, global);

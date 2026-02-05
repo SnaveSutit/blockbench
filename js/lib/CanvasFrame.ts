@@ -128,5 +128,6 @@ const global = {
 };
 declare global {
 	const CanvasFrame: typeof global.CanvasFrame
+	type CanvasFrame = import('./CanvasFrame').CanvasFrame
 }
 Object.assign(window, global);

@@ -85,7 +85,7 @@ export const Blockbench = {
 		console.warn('Blockbench.registerEdit is outdated. Please use Undo.initEdit and Undo.finishEdit')
 	},
 	//Interface
-	getIconNode(icon: IconString | boolean | HTMLElement | (() => (IconString | boolean | HTMLElement)), color?: string) {
+	getIconNode(icon: IconString | boolean | HTMLElement | (() => (IconString | boolean | HTMLElement)), color?: string): HTMLElement {
 		let node;
 		if (typeof icon === 'function') {
 			icon = icon()
@@ -371,7 +371,7 @@ export const Blockbench = {
 	Format: 0 as (ModelFormat | number),
 	Project: 0 as (ModelProject | number),
 	get Undo() {
-		return Project?.undo;
+		return Blockbench.Project instanceof ModelProject ? Blockbench.Project.undo : undefined;
 	},
 	// File System
 	import: Filesystem.importFile,

@@ -230,7 +230,7 @@ export class Billboard extends OutlinerElement {
 		if (axis == 2) return;
 		if (negative) val = -val;
 
-		let before = this.old_size != undefined ? this.old_size : this.size[axis];
+		let before = this.temp_data.old_size != undefined ? this.temp_data.old_size : this.size[axis];
 		if (before instanceof Array) before = before[axis];
 		let modify = val instanceof Function ? val : n => (n+val);
 

@@ -323,5 +323,6 @@ const global = {
 };
 declare global {
 	const Armature: typeof global.Armature
+	type Armature = import('./armature').Armature
 }
 Object.assign(window, global);

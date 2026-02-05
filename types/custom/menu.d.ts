@@ -44,11 +44,11 @@ declare class Menu extends Deletable {
 	 * @param position Position where to open the menu. Can be a mouse event, or a node that the menu is spawned below.
 	 * @param context Context for the click events inside the menu
 	 */
-	open(position: MouseEvent | HTMLElement, context?: any): this
+	open(position: MouseEvent | HTMLElement | 'mouse', context?: any): this
 	/**
 	 * Alias for .open()
 	 */
-	show(position: MouseEvent | HTMLElement, context?: any): this
+	show(position: MouseEvent | HTMLElement | 'mouse', context?: any): this
 	/**
 	 * Closes the menu if it's open
 	 */
@@ -65,6 +65,7 @@ declare class Menu extends Deletable {
 	 */
 	removeAction(path: string | Action): void
 	structure: MenuItem[]
+	static open: Menu | null
 }
 
 declare interface BarMenuOptions {
@@ -104,6 +105,12 @@ declare namespace MenuBar {
 		help: Menu
 		[id: string]: Menu
 	}
+	/**
+	 * Add a new menu to the menu bar
+	 * @param menu The BarMenu to add
+	 * @param position Specify the position in the menu list where to add insert the menu. Can either be an index in the list of all menus, or the ID of the menu to insert right from.
+	 */
+	function addMenu(menu: BarMenu, position?: number | string): void
 	/**
 	 * Adds an action to the menu structure
 	 * @param action Action to add

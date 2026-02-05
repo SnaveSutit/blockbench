@@ -95,7 +95,7 @@ let codec = new Codec('image', {
 			gif: 'GIF',
 		}},
 		alpha_channel: {type: 'checkbox', label: 'codec.image.alpha_channel', condition: (result) => result?.format == 'gif', value: true},
-		animation_fps: {type: 'number', label: 'codec.image.animation_fps', condition: (result) => result?.format == 'gif', value: settings.texture_fps.value},
+		animation_fps: {type: 'number', label: 'codec.image.animation_fps', condition: (result) => result?.format == 'gif', value: 7},
 		quality: {type: 'range', label: 'codec.image.quality', value: 1, min: 0, max: 1, step: 0.05, editable_range_label: true, condition: (result) => result && ['jpeg', 'webp'].includes(result.format)}
 	},
 	async compile(options) {

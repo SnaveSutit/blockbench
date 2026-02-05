@@ -845,6 +845,7 @@ const global = {
 	Collection
 };
 declare global {
+	type Collection = import('./collections').Collection
 	const Collection: typeof global.Collection
 }
 Object.assign(window, global);

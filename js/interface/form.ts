@@ -500,6 +500,8 @@ FormElement.types.text = class FormElementText extends FormElement {
 
 			let copy_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.copy_to_clipboard')}, Blockbench.getIconNode('content_paste'));
 			copy_button.addEventListener('click', e => {
+				let text = this.getValue();
+				let is_url = text.startsWith('https://');
 				if (isApp || navigator.clipboard) {
 					Clipbench.setText(text);
 					Blockbench.showQuickMessage('dialog.copied_to_clipboard');
@@ -518,6 +520,7 @@ FormElement.types.text = class FormElementText extends FormElement {
 			if (is_url) {
 				let open_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.open_url')}, Blockbench.getIconNode('open_in_browser'));
 				open_button.addEventListener('click', e => {
+					let text = this.getValue();
 					Blockbench.openLink(text);
 				});
 				bar.append(open_button);
@@ -525,6 +528,7 @@ FormElement.types.text = class FormElementText extends FormElement {
 			if (navigator.share) {
 				let share_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('generic.share')}, Blockbench.getIconNode('share'));
 				share_button.addEventListener('click', e => {
+					let text = this.getValue();
 					navigator.share({
 						title: this.options.label ? tl(this.options.label) : 'Share',
 						[is_url ? 'url' : 'text']: text
@@ -1035,6 +1039,9 @@ FormElement.types.save = FormElementFile;
 const global = {InputForm, FormElement};
 declare global {
 	const InputForm: typeof global.InputForm
+	type InputForm = import('./form').InputForm
 	const FormElement: typeof global.FormElement
+	type FormElement = import('./form').FormElement
+	type FormElementOptions = import('./form').FormElementOptions
 }
 Object.assign(window, global);

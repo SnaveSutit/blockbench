@@ -142,6 +142,11 @@ declare var LZUTF8: any
 declare function unselectAllElements(exceptions?: OutlinerNode[]): void
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number
+/**
+ * Get the world-space center of the selection
+ * @param all If true, calculate the center of all elements instead of just selected
+ */
+declare function getSelectionCenter(all: boolean = false): ArrayVector3
 
 declare const Pressing: {
 	shift: boolean
@@ -153,6 +158,22 @@ declare const Pressing: {
 		alt: boolean
 	}
 }
+
+type RecentProjectData = {
+	name: string
+	path: string
+	icon: string
+	day: number
+	favorite: boolean
+	textures?: string[]
+	animation_files?: string[]
+}
+declare const recent_projects: RecentProjectData[]
+
+declare const Prop = {
+	active_panel: string
+}
+declare const Project: ModelProject
 
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number

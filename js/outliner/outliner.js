@@ -3,6 +3,7 @@ import StateMemory from "../util/state_memory"
 import { OutlinerNode } from "./abstract/outliner_node"
 import { OutlinerElement } from "./abstract/outliner_element"
 import { radToDeg } from "three/src/math/MathUtils"
+import { PointerTarget } from "../interface/pointer_target"
 
 export const Outliner = {
 	ROOT: 'root',
@@ -83,6 +84,33 @@ export const Outliner = {
 			}
 		},
 	},
+
+	isNodeDisplayed(node) {
+		for (let rule of Outliner.node_display_rules) {
+			let result = rule.test(node);
+			if (result == false) return false;
+		}
+		return true;
+	},
+	node_display_rules: [
+		{
+			id: 'mode_hidden_types',
+			test(node) {
+				if (Mode.selected?.hidden_node_types?.length) {
+					return !Mode.selected.hidden_node_types.includes(node.type);
+				}
+				return true;
+			}
+		},
+		{
+			id: 'search',
+			test(node) {
+				if (Outliner.vue._data.options.search_term == '') return true;
+				return node.matchesFilter(Outliner.vue.search_term_lowercase);
+			}
+		},
+	],
+
 
 	toJSON() {
 		let result = [];
@@ -370,8 +398,10 @@ export function parseGroups(...args) {
 };
 
 // Dropping
-export function moveOutlinerSelectionTo(item, target, event, order, adjust_position) {
+export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
+	let event = options.event
 	let duplicate = event.altKey || Pressing.overrides.alt;
+	let adjust_position_viable = false;
 	if (item.children instanceof Array && target instanceof OutlinerNode && target.parent) {
 		var is_parent = false;
 		function iterate(g) {
@@ -409,19 +439,19 @@ export function moveOutlinerSelectionTo(item, target, event, order, adjust_posit
 		return;
 	}
 	if (duplicate) {
-		Undo.initEdit({elements: [], outliner: true, selection: true})
+		Undo.initEdit({elements: [], outliner: true, selection: true}, options.amended);
 		Outliner.selected.empty();
 	} else {
 		Undo.initEdit({
 			outliner: true,
 			selection: true,
-			elements: adjust_position ? Outliner.selected : undefined,
-			groups: adjust_position ? Group.selected : undefined,
-		})
+			elements: options.adjust_position ? Outliner.selected : undefined,
+			groups: options.adjust_position ? Group.all.filter(g => g.selected) : null,
+		}, options.amended);
 	}
-	function updatePosRecursive(item) {
+	function updateTransformRecursive(item) {
 		if (item.children && item.children.length) {
-			item.children.forEach(updatePosRecursive)
+			item.children.forEach(updateTransformRecursive)
 		}
 		if (item.preview_controller?.updateTransform) {
 			item.preview_controller.updateTransform(item);
@@ -432,21 +462,23 @@ export function moveOutlinerSelectionTo(item, target, event, order, adjust_posit
 	}
 	let matrix1 = new THREE.Matrix4();
 	let matrix2 = new THREE.Matrix4();
+	let matrix_world = new THREE.Matrix4();
 	function place(obj) {
 		let scene_object = obj.scene_object;
 		let old_parent = obj.parent;
 
 		scene_object.updateMatrix();
 		matrix2.copy(scene_object.matrix);
+		matrix_world.copy(scene_object.matrixWorld);
 
 		if (!order) {
 			obj.addTo(target)
 		} else {
 			obj.sortInBefore(target, order == 1 ? 1 : undefined);
 		}
-		updatePosRecursive(obj);
+		updateTransformRecursive(obj);
 
-		if (adjust_position) {
+		if (options.adjust_position) {
 
 			// Calculate matrix
 			scene_object.parent.updateMatrixWorld(true);
@@ -455,42 +487,26 @@ export function moveOutlinerSelectionTo(item, target, event, order, adjust_posit
 			matrix2.premultiply(matrix1);
 
 			let position_change = Reusable.vec1;
-			let rotation_change = new THREE.Euler(0, 0, 0, scene_object.order);
+			let quaternion = Reusable.quat1;
 			let scale_change = Reusable.vec2;
-			matrix2.decompose(position_change, rotation_change, scale_change);
+			matrix2.decompose(position_change, quaternion, scale_change);
 
-			// Todo: Fix rotation
-			rotation_change.x -= scene_object.rotation.x;
-			rotation_change.y -= scene_object.rotation.y;
-			rotation_change.z -= scene_object.rotation.z;
-
-
-			let absolute_position = Format.bone_rig &&
-				obj.parent instanceof OutlinerNode &&
-				obj.parent.getTypeBehavior('parent') &&
-				obj.parent.getTypeBehavior('use_absolute_position');
-			if (absolute_position) {
-				position_change.x += obj.parent.origin[0];
-				position_change.y += obj.parent.origin[1];
-				position_change.z += obj.parent.origin[2];
-			}
-
-			if (obj.getTypeBehavior('movable')) {
-				let arr = position_change.toArray();
-
-				if (obj.from && obj.to) {
-					arr.V3_subtract(obj.origin);
-					obj.from.V3_add(arr);
-					obj.to.V3_add(arr);
-					obj.origin.V3_add(arr);
-				} else if (obj.position) {
-					obj.position.V3_set(arr);
-				}
-			}
+			changeNodeLocalPosition(obj, position_change);
+			
 			if (obj.getTypeBehavior('rotatable')) {
-				obj.rotation.V3_add(rotation_change.toArray().map(radToDeg));
+				let new_rotation = Reusable.euler1;
+				new_rotation.setFromQuaternion(quaternion, scene_object.rotation.order);
+				obj.rotation.V3_set(new_rotation.toArray().map(radToDeg));
 			}
-			updatePosRecursive(obj);
+			updateTransformRecursive(obj);
+
+		} else if (old_parent != obj.parent && !adjust_position_viable) {
+			scene_object.updateMatrixWorld(true);
+			let elements1 = scene_object.matrixWorld.elements;
+			let elements2 = matrix_world.elements;
+			if (elements1.some((v, i) => !Math.epsilon(v, elements2[i], 0.00001))) {
+				adjust_position_viable = true;
+			}
 		}
 	}
 	items.forEach(function(item) {
@@ -513,22 +529,27 @@ export function moveOutlinerSelectionTo(item, target, event, order, adjust_posit
 	if (Format.bone_rig) {
 		Canvas.updateAllBones()
 	}
+	updateSelection();
 	if (duplicate) {
-		updateSelection()
 		Undo.finishEdit('Duplicate selection', {elements: selected, outliner: true, selection: true, groups: Group.selected})
 	} else {
-		Transformer.updateSelection()
 		Undo.finishEdit('Move elements in outliner')
 	}
+	return adjust_position_viable;
 }
 export function moveOutlinerSelectionAmend(item, target, event, order) {
-	moveOutlinerSelectionTo(item, target, event, order, true);
+	let default_options = {event, adjust_position: false};
+	let open_amend = moveOutlinerSelectionTo(item, target, order, default_options);
 
-	if (target instanceof Collection == false) {
+	if (open_amend) {
 		Undo.amendEdit({
-			adjust_position: {type: 'checkbox', value: false, label: 'Preserve World Transform'},
+			adjust_position: {type: 'checkbox', value: default_options.adjust_position, label: 'edit.reparent_selection.adjust_position'},
 		}, form => {
-			moveOutlinerSelectionTo(item, target, event, order, form.adjust_position);
+			moveOutlinerSelectionTo(item, target, order, {
+				amended: true,
+				event,
+				adjust_position: form.adjust_position,
+			});
 		})
 	}
 }
@@ -1117,7 +1138,7 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 'i'}),
 		condition: {modes: ['edit', 'paint']},
 		click() {
-			if (Painter.painting) return;
+			if (PointerTarget.hasMinPriority(2)) return;
 			let enabled = !Project.only_hidden_elements;
 
 			if (Project.only_hidden_elements) {
@@ -1159,7 +1180,7 @@ Interface.definePanels(function() {
 				//Opener
 				
 				`<i
-					v-if="node.children && node.children.length > 0 && (!options.hidden_types.length || node.children.some(node => !options.hidden_types.includes(node.type)))"
+					v-if="node.children && node.children.some(isNodeDisplayed)"
 					@click.stop="node.isOpen = !node.isOpen" class="icon-open-state fa"
 					:class='{"fa-angle-right": !node.isOpen, "fa-angle-down": node.isOpen}'
 				></i>
@@ -1201,19 +1222,13 @@ Interface.definePanels(function() {
 				return limitNumber(this.depth, 0, (this.width-100) / 16);
 			},
 			visible_children() {
-				let filtered = this.node.children;
-				if (this.options.search_term) {
-					let search_term_lowercase = this.options.search_term.toLowerCase();
-					filtered = this.node.children.filter(child => child.matchesFilter(search_term_lowercase));
-				}
-				if (!this.options.hidden_types.length) {
-					return filtered;
-				} else {
-					return filtered.filter(node => !this.options.hidden_types.includes(node.type));
-				}
+				return this.node.children.filter(Outliner.isNodeDisplayed);
 			}
 		},
 		methods: {
+			isNodeDisplayed(node) {
+				return Outliner.isNodeDisplayed(node)
+			},
 			nodeClass: function (node) {
 				if (node.isOpen) {
 					return node.openedIcon || node.icon;
@@ -1332,8 +1347,7 @@ Interface.definePanels(function() {
 				options: {
 					width: 300,
 					show_advanced_toggles: StateMemory.advanced_outliner_toggles,
-					hidden_types: [],
-					search_term: ''
+					search_term: '',
 				}
 			}},
 			methods: {
@@ -1591,13 +1605,11 @@ Interface.definePanels(function() {
 				}
 			},
 			computed: {
+				search_term_lowercase() {
+					return this.options.search_term.toLowerCase();
+				},
 				filtered_root() {
-					if (!this.options.search_term) {
-						return this.root;
-					} else {
-						let search_term_lowercase = this.options.search_term.toLowerCase();
-						return this.root.filter(node => node.matchesFilter(search_term_lowercase))
-					}
+					return this.root.filter(Outliner.isNodeDisplayed)
 				}
 			},
 			template: `

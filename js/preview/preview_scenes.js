@@ -1,4 +1,5 @@
-import { adjustFromAndToForInflateAndStretch } from "../outliner/cube";
+
+import { adjustFromAndToForInflateAndStretch } from "../outliner/types/cube";
 import { compileJSON } from "../util/json";
 import { toSnakeCase } from "../util/util";
 

@@ -1,3 +1,5 @@
+import { shell } from "../native_apis";
+
 //Import
 export function setupDragHandlers() {
 	Blockbench.addDragHandler(
@@ -98,6 +100,7 @@ export function loadModelFile(file, args) {
 		let success = loadIfCompatible(Codecs[id], 'json', model);
 		if (success) return;
 	}
+	unsupportedFileFormatMessage(file.path);
 }
 
 export async function loadImages(files, event) {
@@ -269,6 +272,40 @@ export async function loadImages(files, event) {
 	}
 }
 
+export function unsupportedFileFormatMessage(file_path) {
+	let extension = pathToExtension(file_path).toLowerCase();
+	let supported_plugins = Plugins.all.filter(plugin => {
+		return plugin.contributes?.open_extensions?.includes(extension);
+	})
+	let commands = {};
+	for (let plugin of supported_plugins) {
+		commands[plugin.id] = {
+			icon: plugin.icon,
+			text: tl('message.invalid_format.install_plugin', [plugin.title])
+		}
+	}
+	if (isApp && file_path.match(/[\\\/]/)) {
+		commands.open_in_default_program = {
+			icon: 'open_in_new',
+			text: 'message.unsupported_file_extension.open_in_default_program'
+		}
+	}
+	Blockbench.showMessageBox({
+		translateKey: 'unsupported_file_extension',
+		message: tl('message.unsupported_file_extension.message', ['`' + pathToName(file_path, true) + '`']),
+		commands,
+	}, (plugin_id) => {
+		if (plugin_id == 'open_in_default_program') {
+			return shell.openPath(file_path);
+		}
+		let plugin = plugin_id && supported_plugins.find(p => p.id == plugin_id);
+		if (plugin) {
+			BarItems.plugins_window.click();
+			Plugins.dialog.content_vue.selectPlugin(plugin);
+		}
+	})
+}
+
 //Extruder
 export const Extruder = {
 	dialog: new Dialog({
@@ -372,9 +409,11 @@ export const Extruder = {
 
 		//Scale Index
 		var scale_i = 1;
-		scale_i = 16 / Extruder.width;
-		let uv_scale_x = Project.texture_width / Extruder.width;
-		let uv_scale_y = Project.texture_height / Extruder.height;
+		if (Format.cube_size_limiter && !Format.integer_size) {
+			scale_i = 16 / Extruder.width;
+		}
+		let uv_scale_x = Project.getUVWidth(texture) / Extruder.width;
+		let uv_scale_y = Project.getUVHeight(texture) / Extruder.height;
 
 		function isOpaquePixel(px_x, px_y) {
 			var opacity = image_data[(px_x + ctx.canvas.width * px_y) * 4 + 3]
@@ -717,6 +756,7 @@ Object.assign(window, {
 	loadModelFile,
 	loadImages,
 	Extruder,
+	unsupportedFileFormatMessage,
 	compileJSON,
 	autoParseJSON,
 })

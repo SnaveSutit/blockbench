@@ -413,13 +413,11 @@ export class Mesh extends OutlinerElement {
 	constructor(data, uuid) {
 		super(data, uuid)
 
-		this._static = {
-			properties: {
-				vertices: {},
-				faces: {},
-				seams: {},
-			}
-		}
+		Object.assign(this._static.properties, {
+			vertices: {},
+			faces: {},
+			seams: {},
+		});
 		Object.freeze(this._static);
 
 		if (!data.vertices) {

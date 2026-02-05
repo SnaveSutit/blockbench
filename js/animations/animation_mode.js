@@ -4,6 +4,7 @@ import { Mode } from "../modes";
 import { invertMolang } from "../util/molang";
 import { clipboard, fs } from "../native_apis";
 import { openMolangEditor } from "./molang_editor";
+import './mirror_animating'
 
 export const Animator = {
 	get possible_channels() {
@@ -448,7 +449,7 @@ export const Animator = {
 		if (Group.first_selected || (Outliner.selected[0] && Outliner.selected[0].constructor.animator)) {
 			Transformer.updateSelection()
 		}
-		Blockbench.dispatchEvent('display_animation_frame')
+		Blockbench.dispatchEvent('display_animation_frame');
 	},
 	particle_effects: {},
 	loadParticleEmitter(path, content) {

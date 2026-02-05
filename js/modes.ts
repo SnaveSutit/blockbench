@@ -102,8 +102,6 @@ export class Mode extends KeybindItem {
 		$('#main_toolbar .toolbar_wrapper').css('visibility', this.hide_toolbars ? 'hidden' : 'visible');
 		$('#status_bar').css('display', this.hide_status_bar ? 'none' : 'flex');
 
-		Outliner.vue.options.hidden_types.replace(this.hidden_node_types);
-
 		if (typeof this.onSelect === 'function') {
 			this.onSelect()
 		}
@@ -225,6 +223,7 @@ const global = {
 declare global {
 	const Modes: typeof global.Modes
 	const Mode: typeof global.Mode
+	type Mode = import('./modes').Mode
 }
 
 Object.assign(window, global);

@@ -5,7 +5,7 @@
 declare namespace Painter {
 	const currentPixel: ArrayVector2
 	const brushChanges: boolean
-	const current: any
+	let current: any
 	const selection: any
 	const mirror_painting: boolean
 	const lock_alpha: boolean
