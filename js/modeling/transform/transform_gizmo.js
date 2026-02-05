@@ -1243,7 +1243,11 @@ import { TransformerModule } from "./transform_modules";
 				this.update()
 				return this;
 			}
-
+			Object.defineProperty(this, 'dragging', {
+				get() {
+					return PointerTarget.active == PointerTarget.types.gizmo_transform;
+				}
+			})
 			this.center = function() {
 				delete Transformer.rotation_ref;
 				if (!scope.dragging) Transformer.rotation_selection.set(0, 0, 0);
