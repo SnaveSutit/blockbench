@@ -163,7 +163,7 @@ export const MenuBar = {
 						ModelProject.all.forEach(project => {
 							if (project == Project) return;
 							projects.push({
-								name: project.getDisplayName(),
+								name: project.getDisplayName(true),
 								icon: project.format.icon,
 								description: project.path,
 								click() {

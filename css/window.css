@@ -736,6 +736,9 @@
 		padding: 0 4px;
 		pointer-events: none;
 	}
+	.project_tab label span {
+		color: var(--color-subtle_text);
+	}
 	#tab_bar .project_tab > * {
 		cursor: inherit
 	}

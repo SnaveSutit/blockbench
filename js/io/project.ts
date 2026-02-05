@@ -249,8 +249,14 @@ export class ModelProject {
 	get nodes_3d(): Record<UUID, THREE.Object3D> {
 		return ProjectData[this.uuid].nodes_3d;
 	}
-	getDisplayName(): string {
-		return this.name || this.model_identifier || this.format.name;
+	getDisplayName(with_extension: boolean = false): string {
+		let name = this.name || this.model_identifier || this.format.name;
+		if (with_extension) name = name + '.' + this.getFileExtension();
+		return name;
+	}
+	getFileExtension() {
+		let path = this.save_path || this.export_path;
+		return pathToExtension(path);
 	}
 	getProjectMemory() {
 		if (!isApp) return;
@@ -1412,7 +1418,7 @@ BARS.defineActions(function() {
 							<ul id="tab_overview_grid">
 								<li v-for="project in filtered_projects" @mousedown="select(project)" :class="{pixel_art: isPixelArt(project)}">
 									<img :src="project.thumbnail" :style="{visibility: project.thumbnail ? 'unset' : 'hidden'}">
-									{{ project.name }}
+									{{ project.getDisplayName(true) }}
 								</li>
 							</ul>
 						</div>
