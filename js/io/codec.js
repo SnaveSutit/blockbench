@@ -223,9 +223,13 @@ export class Codec extends EventSystem {
 }
 Codec.getAllExtensions = function() {
 	let extensions = [];
-	for (var id in Codecs) {
-		if (Codecs[id].load_filter && Codecs[id].load_filter.extensions) {
-			extensions.safePush(...Codecs[id].load_filter.extensions);
+	for (let id in Codecs) {
+		let codec = Codecs[id];
+		if (codec.load_filter && codec.load_filter.extensions) {
+			let list = typeof codec.load_filter.extensions == 'function'
+				? codec.load_filter.extensions()
+				: codec.load_filter.extensions ?? [];
+			extensions.safePush(...list);
 		}
 	}
 	return extensions;

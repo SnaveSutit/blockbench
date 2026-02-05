@@ -2341,6 +2341,7 @@
 	"menu.texture.discard_changes.desc": "Discard all unsaved changes and load the latest version from the file",
 	"menu.texture.change": "Change File",
 	"menu.texture.folder": "Show in File Explorer",
+	"menu.texture.file_format": "File Format",
 	"menu.texture.render_mode": "Render Mode",
 	"menu.texture.render_mode.default": "Default",
 	"menu.texture.render_mode.emissive": "Emissive",

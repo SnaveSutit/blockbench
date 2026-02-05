@@ -3,7 +3,6 @@
 
 import "./lib/libs"
 import "./lib/jquery-ui.min"
-import "./lib/targa"
 import "./lib/VuePrismEditor.min"
 import "./lib/molang-prism-syntax"
 import "./lib/lzutf8"

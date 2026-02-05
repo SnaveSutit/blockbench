@@ -176,35 +176,16 @@ export namespace Filesystem {
 				}
 
 				if (readtype === 'image') {
-					//
-					let extension = pathToExtension(file)
-					if (extension === 'tga' && fs.existsSync(file)) {
-						let targa_loader = new Targa()
-						targa_loader.open(file, () => {
-
-							results[i] = {
-								name: pathToName(file, true),
-								path: file,
-								content: targa_loader.getDataURL()
-							}
-						
-							result_count++;
-							if (result_count === files.length) {
-								callback(results)
-							}
-						})
-
-					} else {
-						results[i] = {
-							name: pathToName(file, true),
-							path: file,
-							content: file
-						}
-						result_count++;
-						if (result_count === files.length) {
-							callback(results)
-						}
+					results[i] = {
+						name: pathToName(file, true),
+						path: file,
+						content: file
 					}
+					result_count++;
+					if (result_count === files.length) {
+						callback(results)
+					}
+
 				} else /*text*/ {
 					let data;
 					try {
@@ -250,15 +231,7 @@ export namespace Filesystem {
 				let reader = new FileReader()
 				let local_i = i;
 				reader.onloadend = function() {
-					let result;
-					if (typeof reader.result != 'string' && reader.result.byteLength && pathToExtension(name) === 'tga') {
-						let arr = new Uint8Array(reader.result)
-						let targa_loader = new Targa()
-						targa_loader.load(arr)
-						result = targa_loader.getDataURL()
-					} else {
-						result = reader.result
-					}
+					let result = reader.result;
 					results[local_i] = {
 						name,
 						path: name,
@@ -395,11 +368,12 @@ export namespace Filesystem {
 				options.custom_writer(options.content, file_name)
 				
 			} else {
+				let savetype = typeof options.savetype == 'function' ? options.savetype(file_name) : options.savetype;
 
-				if (options.savetype === 'image') {
+				if (savetype === 'image' && typeof options.content == 'string') {
 					saveAs(options.content, file_name, {})
 
-				} else if (options.savetype === 'zip' || options.savetype === 'buffer' || options.savetype === 'binary') {
+				} else if (['zip', 'buffer', 'binary', 'image'].includes(savetype)) {
 					let blob = options.content instanceof Blob
 							 ? options.content
 							 : new Blob([options.content], {type: "octet/stream"});
