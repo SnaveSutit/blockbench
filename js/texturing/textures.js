@@ -1141,7 +1141,7 @@ export class Texture {
 				default: 'menu.texture.render_mode.default',
 				emissive: 'menu.texture.render_mode.emissive',
 				additive: 'menu.texture.render_mode.additive',
-				layered: Format.single_texture && 'menu.texture.render_mode.layered',
+				layered: (Format.single_texture || Format.single_texture_default) && 'menu.texture.render_mode.layered',
 			}},
 		};
 		if (Format.id == 'free') {
