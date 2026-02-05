@@ -68,11 +68,17 @@ declare class Menu extends Deletable {
 	static open: Menu | null
 }
 
+declare interface BarMenuOptions {
+	name?: string
+	icon?: IconString
+	condition?: ConditionResolvable
+}
+
 /**
  * Creates a new menu in the menu bar
  */
 declare class BarMenu extends Menu {
-	constructor(id: string, structure: MenuItem[], condition?: ConditionResolvable)
+	constructor(id: string, structure: MenuItem[], options?: BarMenuOptions)
 	type: 'bar_menu'
 	id: string
 	condition?: ConditionResolvable

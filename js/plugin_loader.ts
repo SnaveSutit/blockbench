@@ -991,7 +991,7 @@ export class Plugin {
 
 // Alias for typescript
 export const BBPlugin = Plugin;
-
+export type BBPlugin = Plugin;
 
 if (isApp) {
 	Plugins.path = app.getPath('userData')+osfs+'plugins'+osfs
