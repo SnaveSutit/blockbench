@@ -1175,7 +1175,7 @@ export class Texture {
 					name: 'Change',
 					click: (event) => {
 						Dialog.open.close();
-						editUVSizeDialog(this);
+						editUVSizeDialog({target: this});
 					}
 				}]
 			};

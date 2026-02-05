@@ -2641,7 +2641,7 @@ Interface.definePanels(function() {
 			methods: {
 				tl,
 				projectResolution() {
-					editUVSizeDialog(Format.per_texture_uv_size ? UVEditor.texture : undefined);
+					editUVSizeDialog({target: Format.per_texture_uv_size ? UVEditor.texture : undefined});
 				},
 				updateSize() {
 					if (!this.$refs.viewport) return;

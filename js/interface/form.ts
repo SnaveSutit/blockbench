@@ -746,11 +746,12 @@ FormElement.types.buttons = class FormElementButtons extends FormElement {
 		return true;
 	}
 	build(bar: HTMLDivElement) {
+		super.build(bar);
 		this.bar = bar;
 		let list = document.createElement('div');
 		list.className = 'dialog_form_buttons';
 		this.options.buttons.forEach((button_text, index) => {
-			let button = document.createElement('a');
+			let button = document.createElement('button');
 			button.innerText = tl(button_text);
 			button.addEventListener('click', e => {
 				this.options.click(index);

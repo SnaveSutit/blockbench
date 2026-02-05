@@ -5,6 +5,7 @@ import { Vue } from "../lib/libs";
 import { currentwindow, ipcRenderer, shell } from "../native_apis";
 import { ReferenceImage, ReferenceImageMode } from "../preview/reference_images";
 import { Property } from "../util/property";
+import { editUVSizeDialog } from "../uv/uv_size";
 import { ModelFormat } from "./format";
 
 interface ModelProjectOptions {
@@ -1116,7 +1117,7 @@ BARS.defineActions(function() {
 						name: 'Change',
 						click: (event) => {
 							Dialog.open.close();
-							editUVSizeDialog(this);
+							editUVSizeDialog({});
 						}
 					}]
 				});
@@ -1408,7 +1409,6 @@ declare global {
 	const newProject: typeof global.newProject
 	const selectNoProject: typeof global.selectNoProject
 	const updateTabBarVisibility: typeof global.updateTabBarVisibility
-	const setProjectResolution: typeof global.setProjectResolution
 	const updateProjectResolution: typeof global.updateProjectResolution
 	const setStartScreen: typeof global.setStartScreen
 }
