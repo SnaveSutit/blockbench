@@ -341,9 +341,7 @@ export class ModelFormat implements FormatOptions {
 	static properties: Record<string, Property<any>>
 	public type = 'format';
 
-	constructor(id: string, data: Partial<FormatOptions>);
-	constructor(data: Partial<FormatOptions> & {id: string});
-	constructor(id: string | Partial<FormatOptions>, data?: Partial<FormatOptions>) {
+	constructor(id: string, data: Partial<FormatOptions>) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
