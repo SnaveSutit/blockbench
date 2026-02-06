@@ -1837,7 +1837,7 @@ BARS.defineActions(function() {
 	new BarSlider('uv_rotation', {
 		category: 'uv',
 		condition: () => UVEditor.isFaceUV() && Format.uv_rotation && Cube.selected.length,
-		min: 0, max: 270, step: 90, width: 80,
+		min: 0, max: 270, step: 90, width: 80, circular: true,
 		onBefore: () => {
 			Undo.initEdit({elements: Cube.selected, uv_only: true})
 		},

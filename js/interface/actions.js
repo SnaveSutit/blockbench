@@ -1088,13 +1088,17 @@ export class BarSlider extends Widget {
 		this.type = 'slider'
 		this.icon = 'fa-sliders-h'
 		this.value = data.value||0;
+		this.settings = {
+			min: data.min ? data.min : 0,
+			max: data.max ? data.max : 10,
+			step: data.step ? data.step : 1,
+			circular: data.circular
+		}
 		this.node = Interface.createElement('div', {class: 'tool widget', toolbar_item: this.id}, [
 			Interface.createElement('input', {
 				type: 'range',
 				value: data.value ? data.value : 0,
-				min: data.min ? data.min : 0,
-				max: data.max ? data.max : 10,
-				step: data.step ? data.step : 1,
+				...this.settings,
 				style: `width: ${data.width ? (data.width+'px') : 'auto'};`
 			})
 		])
@@ -1109,7 +1113,8 @@ export class BarSlider extends Widget {
 			this.onAfter = data.onAfter
 		}
 		$(this.node).children('input').on('input', function(event) {
-			scope.change(event)
+			let value = parseFloat( $(event.target).val() );
+			scope.change(value, event);
 		})
 		if (scope.onBefore) {
 			$(this.node).children('input').on('mousedown', function(event) {
@@ -1121,9 +1126,44 @@ export class BarSlider extends Widget {
 				scope.onAfter(event)
 			})
 		}
+		this.addSubKeybind('increase',
+			'keybindings.item.num_slider.increase',
+			data.sub_keybinds?.increase,
+			(event) => {
+				if (!Condition(this.condition)) return false;
+				if (typeof this.onBefore === 'function') {
+					this.onBefore(event);
+				}
+				let value = this.get() + this.settings.step;
+				if (this.settings.circular && value > this.settings.max) value = this.settings.min;
+				this.change(value, event);
+
+				if (typeof this.onAfter === 'function') {
+					this.onAfter(event);
+				}
+			}
+		);
+		this.addSubKeybind('decrease',
+			'keybindings.item.num_slider.decrease',
+			data.sub_keybinds?.decrease,
+			(event) => {
+				if (!Condition(this.condition)) return false;
+				if (typeof this.onBefore === 'function') {
+					this.onBefore(event);
+				}
+				let value = this.get() - this.settings.step;
+				if (this.settings.circular && value < this.settings.min) value = this.settings.max;
+				this.change(value, event);
+
+				if (typeof this.onAfter === 'function') {
+					this.onAfter(event);
+				}
+			}
+		);
 	}
-	change(event) {
-		this.set( parseFloat( $(event.target).val() ) )
+	change(value) {
+		value = Math.clamp(value, this.settings.min, this.settings.max);
+		this.set( value );
 		if (this.onChange) {
 			this.onChange(this, event)
 		}
