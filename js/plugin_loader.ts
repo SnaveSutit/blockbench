@@ -1008,6 +1008,7 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 	$.ajax({
 		cache: false,
 		url: Plugins.api_path+'.json',
+		timeout: 5_000,
 		dataType: 'json',
 		success(data) {
 			Plugins.json = data;
@@ -1015,8 +1016,8 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 			resolve();
 			Plugins.loading_promise = null;
 		},
-		error() {
-			console.log('Could not connect to plugin server')
+		error(response, type) {
+			console.error('Could not connect to plugin server:', type, response)
 			$('#plugin_available_empty').text('Could not connect to plugin server')
 			resolve();
 			Plugins.loading_promise = null;
