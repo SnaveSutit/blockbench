@@ -121,6 +121,9 @@ declare global {
 		static no_overlap(k1: KeybindItem, k2: KeybindItem): boolean
 	}
 	interface KeybindItemOptions {
+		name: string
+		description: string
+		category?: string
 		keybind?: Keybind
 		variations?: {
 			[key: string]: { name: string; description?: string }
@@ -128,6 +131,9 @@ declare global {
 	}
 	class KeybindItem extends Deletable {
 		constructor(id: string, options: KeybindItemOptions)
+		name: string
+		description: string
+		category?: string
 		keybind: Keybind
 		condition?: ConditionResolvable
 		variations?: {

@@ -210,6 +210,7 @@ export class KeybindItem {
 		this.id = id
 		this.type = 'keybind_item'
 		this.name =  tl(data.name || ('keybind.'+this.id))
+		this.description = tl(data.description ?? 'action.'+this.id+'.desc', [], '');
 		this.category = data.category ? data.category : 'misc'
 		if (data.keybind) {
 			this.default_keybind = data.keybind
