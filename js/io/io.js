@@ -613,6 +613,16 @@ BARS.defineActions(function() {
 			}, {placeholder: 'https://blckbn.ch/123abc'});
 		}
 	})
+	Blockbench.on('drop_text', ({text}) => {
+		if (text && text.startsWith('https://blckbn.ch/')) {
+			let code = text.replace(/\/$/, '').split('/').last();
+			$.getJSON(`https://blckbn.ch/api/models/${code}`, (model) => {
+				Codecs.project.load(model, {path: ''});
+			}).fail(error => {
+				Blockbench.showQuickMessage('message.invalid_link')
+			})
+		}
+	})
 	new Action('extrude_texture', {
 		icon: 'eject',
 		category: 'file',
@@ -638,10 +648,10 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 's', ctrl: true}),
 		condition: () => Project,
 		click: async function(event) {
+			let export_codec = Codecs[Project.export_codec] ?? Format?.codec;
 			if (isApp) {
 				await saveTextures()
 				if (Format) {
-					let export_codec = Format.codec;
 					if (Project.save_path) {
 						Codecs.project.write(Codecs.project.compile(), Project.save_path);
 					}

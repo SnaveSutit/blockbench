@@ -966,6 +966,7 @@ var codec = new Codec('modded_entity', {
 		var name = pathToName(path, true)
 		if (Format.codec == this || this.id == 'project') {
 			Project.export_path = path;
+			Project.export_codec = this.id;
 			Project.name = pathToName(path, false);
 		}
 		if (this.remember) {

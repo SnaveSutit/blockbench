@@ -181,6 +181,7 @@ export const MenuBar = {
 				'import_project',
 				'import_java_block_model',
 				'import_optifine_part',
+				'import_bedrock_voxel_shape',
 				'import_obj',
 				'extrude_texture'
 			]},
@@ -188,6 +189,7 @@ export const MenuBar = {
 				'export_blockmodel',
 				'export_bedrock',
 				'export_entity',
+				'export_bedrock_voxel_shape',
 				'export_class_entity',
 				'export_optifine_full',
 				'export_optifine_part',
@@ -464,6 +466,8 @@ export const MenuBar = {
 			'convert_to_mesh',
 			'auto_set_cullfaces',
 			'remove_blank_faces',
+			'generate_voxel_shapes',
+			'generate_bedrock_collision_box',
 		], {icon: 'handyman'})
 		MenuBar.menus.filter = MenuBar.menus.tools;
 

@@ -53,6 +53,10 @@
 	}
 	.code {
 		font-size: 16px;
+		tab-size: 4;
+	}
+	textarea.code {
+		padding: 5px;
 	}
 	.small_text {
 		font-size: 0.94em;

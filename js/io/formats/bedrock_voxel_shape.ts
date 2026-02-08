@@ -1,0 +1,216 @@
+import { BoundingBox } from "../../outliner/types/bounding_box";
+
+type BoxSchema = {
+	min: ArrayVector3,
+	max: ArrayVector3,
+}
+type MainSchema = {
+	description: {
+		identifier: string
+	}
+	shape: {
+		boxes: BoxSchema[]
+	}
+}
+
+var codec = new Codec('bedrock_voxel_shape', {
+	name: 'Bedrock Voxel Shape',
+	extension: 'json',
+	remember: true,
+	support_partial_export: true,
+	load_filter: {
+		type: 'json',
+		extensions: ['json'],
+		condition(model) {
+			return model['minecraft:voxel_shape'];
+		}
+	},
+	parse(model, path, args = {}) {
+
+		this.dispatchEvent('parse', {model});
+
+		let main = model["minecraft:voxel_shape"] as MainSchema;
+		if (main.description.identifier && !args.import_to_current_project) {
+			Project.model_identifier = main.description.identifier;
+		}
+
+		let bounding_boxes: BoundingBox[] = [];
+		let groups = [];
+		if (args.import_to_current_project) {
+			Undo.initEdit({elements: bounding_boxes, groups, outliner: true});
+		}
+
+		let group = new Group({
+			name: 'voxel_shape',
+		}).init();
+		const offset: ArrayVector3 = [-8, 0, -8];
+		let i = 0;
+		for (let box_template of main.shape.boxes) {
+			let bounding_box = new BoundingBox({
+				from: box_template.min.slice().V3_add(offset),
+				to: box_template.max.slice().V3_add(offset),
+				color: i
+			});
+			bounding_box.init().addTo(group);
+			bounding_boxes.push(bounding_box);
+			i++;
+		}
+
+		if (args.import_to_current_project) {
+			groups.push(group);
+			Undo.finishEdit('Import bounding box');
+		}
+
+		this.dispatchEvent('parsed', {model});
+		Validator.validate();
+	},
+	compile(options: any = {}) {
+
+		let main_tag: MainSchema = {
+			description: {
+				identifier: Project.model_identifier
+			},
+			shape: {boxes: []}
+		}
+
+		const offset: ArrayVector3 = [-8, 0, -8];
+		for (let element of BoundingBox.all) {
+			let box = element as BoundingBox;
+			if (box.export == false) continue;
+			let box_template: BoxSchema = {
+				min: box.from.slice().V3_subtract(offset),
+				max: box.to.slice().V3_subtract(offset),
+			}
+			main_tag.shape.boxes.push(box_template);
+		}
+
+		let file_object = {
+			"format_version": "1.21.110",
+			"minecraft:voxel_shape": main_tag
+		}
+
+		this.dispatchEvent('compile', {model: file_object, options});
+
+		if (options.raw) {
+			return file_object
+		} else {
+			return autoStringify(file_object)
+		}
+	},
+	fileName() {
+		var name = Project.name||'model';
+		if (!name.match(/\.geo$/)) {
+			name += '.geo';
+		}
+		return name;
+	},
+})
+codec.format = Formats.bedrock_block;
+
+BARS.defineActions(function() {
+	codec.export_action = new Action('export_bedrock_voxel_shape', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block'], method: () => BoundingBox.all.length > 0},
+		click() {
+			codec.export()
+		}
+	})
+	new Action('import_bedrock_voxel_shape', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block']},
+		click() {
+			Filesystem.importFile({
+				resource_id: 'bedrock_voxel_shape',
+				extensions: ['json'],
+				type: 'Voxel Shape',
+				multiple: true,
+				readtype: 'text'
+			}, files => {
+				for (let file of files) {
+					let json = autoParseJSON(file.content as string);
+					codec.parse(json, file.path, {import_to_current_project: true});
+				}
+			})
+		}
+	})
+	type CollisionBoxJSON = {
+		origin: ArrayVector3
+		size: ArrayVector3
+	}
+	// TODO: Add a way to import this back via paste text and drag-drop text
+	new Action('generate_bedrock_collision_box', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock_block']},
+		click() {
+			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
+				let bounding_boxes = BoundingBox.all as BoundingBox[];
+				let box_data: CollisionBoxJSON[] = bounding_boxes.map(bb => {
+					return {
+						origin: [-bb.to[0], bb.from[1], bb.from[2]],
+						size: bb.size()
+					}
+				});
+				if (type == 'selection_box') box_data.length = 1;
+				let data = box_data.length == 1 ? box_data[0] : box_data;
+				let key = `"minecraft:${type}": `;
+				return key + compileJSON(data, {small: minify})
+			}
+			new Dialog({
+				id: 'generate_bedrock_collision_box',
+				title: 'action.generate_bedrock_collision_box',
+				form: {
+					// Todo: translations
+					type: {label: 'Type', type: 'inline_select', options: {
+						collision_box: 'Collision',
+						selection_box: 'Selection Box'
+					}},
+					minify: {type: 'checkbox', label: 'Minify'},
+					output: {
+						type: 'textarea',
+						style: 'code',
+						value: generate('collision_box', false),
+						full_width: true,
+						readonly: true,
+						share_text: true
+					}
+				},
+				onFormChange(result) {
+					let text = generate(result.type as 'collision_box' | 'selection_box', result.minify as boolean);
+					Dialog.open.setFormValues({output: text}, false);
+				},
+				singleButton: true,
+			}).show();
+		}
+	})
+	
+	// @ts-ignore
+	Blockbench.on('drop_text paste_text', (arg: {text: string}) => {
+		if (!Format || Format.id != 'bedrock_block') return;
+		let text = arg.text.replace(/\s+/g, '');
+		if (text.startsWith('"minecraft:selection_box"') || text.startsWith('"minecraft:collision_box"')) {
+			let data = text.replace(/^"[^"]*"\s*:\s*/, '').replace(/[,\s]+$/, '');
+			let json = autoParseJSON(data, true) as (CollisionBoxJSON | CollisionBoxJSON[]);
+			if (!json) return;
+			let name = /minecraft:(\w+)/.exec(text)?.[1] ?? 'box';
+			if (json instanceof Array == false) json = [json];
+			let bounding_boxes: OutlinerElement[] = [];
+			for (let box of json) {
+				if (box.origin instanceof Array == false || box.size instanceof Array == false) return;
+				if (bounding_boxes.length == 0) {
+					Undo.initEdit({elements: bounding_boxes, outliner: true});
+				}
+				let bb = new BoundingBox({
+					name,
+					from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
+					to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
+				});
+				bb.addTo().init();
+				bounding_boxes.push(bb);
+			}
+			if (bounding_boxes.length) Undo.finishEdit('Paste bounding boxes')
+		}
+	})
+})
