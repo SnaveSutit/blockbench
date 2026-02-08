@@ -1,3 +1,4 @@
+import { Filesystem } from "../../file_system";
 import { BoundingBox } from "../../outliner/types/bounding_box";
 
 type BoxSchema = {

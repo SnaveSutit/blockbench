@@ -1484,6 +1484,7 @@ var entity_format = new ModelFormat({
 	bone_binding_expression: true,
 	locators: true,
 	texture_meshes: true,
+	bounding_boxes: true,
 	pbr: true,
 	codec,
 	onSetup(project) {
@@ -1523,6 +1524,7 @@ var block_format = new ModelFormat({
 	animation_mode: false,
 	display_mode: true,
 	texture_meshes: true,
+	bounding_boxes: true,
 	pbr: true,
 	cube_size_limiter: {
 		rotation_affected: true,

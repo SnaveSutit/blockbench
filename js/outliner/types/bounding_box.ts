@@ -59,10 +59,10 @@ export class BoundingBox extends OutlinerElement {
 		for (let key in BoundingBox.properties) {
 			BoundingBox.properties[key].reset(this);
 		}
-		this._static.properties = {
+		Object.assign(this._static.properties, {
 			from: [0, 0, 0],
 			to: [size, size, size],
-		}
+		});
 
 		if (data) {
 			this.extend(data)
@@ -486,7 +486,7 @@ BARS.defineActions(function() {
 	new Action('add_bounding_box', {
 		icon: 'activity_zone',
 		category: 'edit',
-		condition: () => Modes.edit,
+		condition: {formats: ['edit'], features: ['bounding_boxes']},
 		click: function () {
 			
 			Undo.initEdit({outliner: true, elements: [], selection: true});
@@ -529,7 +529,11 @@ BARS.defineActions(function() {
 	})
 })
 
-
-Object.assign(window, {
+const global = {
 	BoundingBox
-});
+}
+declare global {
+	type BoundingBox = import('./bounding_box').BoundingBox
+	const BoundingBox: typeof global.BoundingBox
+}
+Object.assign(window, global);

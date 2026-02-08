@@ -171,6 +171,10 @@ export interface FormatFeatures {
 	 */
 	billboards: boolean
 	/**
+	 * Enable bounding box elements
+	 */
+	bounding_boxes: boolean
+	/**
 	 * Enable locators
 	 */
 	locators: boolean
@@ -575,6 +579,13 @@ export class ModelFormat implements FormatOptions {
 		if (!this.billboards && old_format.billboards) {
 			// @ts-ignore
 			Billboard.all.slice().forEach(b => {
+				b.remove()
+			})
+		}
+		//Billboards
+		if (!this.bounding_boxes && old_format.bounding_boxes) {
+			// @ts-ignore
+			BoundingBox.all.slice().forEach(b => {
 				b.remove()
 			})
 		}

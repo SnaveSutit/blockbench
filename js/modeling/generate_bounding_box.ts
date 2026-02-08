@@ -49,6 +49,7 @@ BARS.defineActions(() => {
 		name: 'Generate Voxel Shapes',
 		category: 'edit',
 		icon: 'fa-cubes',
+		condition: {features: ['bounding_boxes']},
 		click() {
 
 			interface GenerateOptions{
