@@ -1841,7 +1841,7 @@ BARS.defineActions(function() {
 		onBefore: () => {
 			Undo.initEdit({elements: Cube.selected, uv_only: true})
 		},
-		onChange: function(slider) {
+		onChange: function() {
 			UVEditor.rotate();
 		},
 		onAfter: () => {

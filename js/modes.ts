@@ -27,8 +27,6 @@ interface ModeOptions {
 	onUnselect?(): void
 }
 export class Mode extends KeybindItem {
-	id: string
-	name: string
 	icon: IconString
 	selected: boolean
 	tool: string

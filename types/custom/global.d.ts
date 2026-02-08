@@ -15,7 +15,7 @@ declare global {
 	/**
 	 * @deprecated
 	 */
-	let open_interface: Dialog | undefined
+	let open_interface: Dialog | any | undefined
 
 	function confirm(message: string, title: string): boolean
 

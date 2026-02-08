@@ -6,7 +6,7 @@
 
 /// <reference types="./texture_layers" />
 /// <reference types="./texture_group" />
-/// <reference types="./action" />
+/// <reference types="./toolbars" />
 /// <reference types="./animation" />
 /// <reference types="./animation_controller" />
 /// <reference types="./canvas_frame" />

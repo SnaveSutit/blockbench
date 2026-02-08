@@ -16,18 +16,18 @@ BARS.defineActions(function() {
 			} else {
 				clearTimeout(seam_timeout);
 				seam_timeout = null;
-				(BarItems.select_seam as BarSelect<string>).trigger(data?.event);
+				(BarItems.select_seam as BarSelect).trigger(data?.event);
 			}
 		},
 		onSelect: function() {
-			(BarItems.selection_mode as BarSelect<string>).set('edge');
-			(BarItems.view_mode as BarSelect<string>).set('solid');
-			(BarItems.view_mode as BarSelect<string>).onChange(BarItems.view_mode);
+			(BarItems.selection_mode as BarSelect).set('edge');
+			(BarItems.view_mode as BarSelect).set('solid');
+			(BarItems.view_mode as BarSelect).onChange(BarItems.view_mode as BarSelect);
 		},
 		onUnselect: function() {
-			(BarItems.selection_mode as BarSelect<string>).set('object');
-			(BarItems.view_mode as BarSelect<string>).set('textured');
-			(BarItems.view_mode as BarSelect<string>).onChange(BarItems.view_mode);
+			(BarItems.selection_mode as BarSelect).set('object');
+			(BarItems.view_mode as BarSelect).set('textured');
+			(BarItems.view_mode as BarSelect).onChange(BarItems.view_mode as BarSelect);
 		}
 	})
 	new BarSelect('select_seam', {

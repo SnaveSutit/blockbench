@@ -579,7 +579,7 @@ BARS.defineActions(() => {
 	new Action('set_collection_content_to_selection', {
 		icon: 'unarchive',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
@@ -593,7 +593,7 @@ BARS.defineActions(() => {
 	new Action('add_to_collection', {
 		icon: 'box_add',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
