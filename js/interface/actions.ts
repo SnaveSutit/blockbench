@@ -410,6 +410,13 @@ export class Action extends BarItem {
 		//Icon
 		this.icon = data.icon
 
+		// Needs to run here instead of in toggle constructor to be set before HTML elements are generated
+		let linked_setting = (data as ToggleOptions).linked_setting;
+		if (this instanceof Toggle && linked_setting) {
+			if (!data.name) this.name = tl(`settings.${linked_setting}`);
+			if (!data.description) this.description = tl(`settings.${linked_setting}.desc`);
+		}
+
 		if (data.condition) this.condition = data.condition
 		this.children = data.children;
 		this.searchable = data.searchable;
@@ -904,8 +911,6 @@ export class Toggle extends Action {
 		this.type = 'toggle';
 		this.value = data.default || false;
 		if (data.linked_setting) {
-			if (!data.name) this.name = tl(`settings.${data.linked_setting}`);
-			if (!data.description) this.description = tl(`settings.${data.linked_setting}.desc`);
 			this.linked_setting = data.linked_setting;
 			if (settings[this.linked_setting]) {
 				this.value = !!settings[this.linked_setting].value;
