@@ -37,7 +37,6 @@
 /// <reference types="./io" />
 /// <reference types="./uveditor" />
 /// <reference types="./validator" />
-/// <reference types="./shared_actions" />
 /// <reference types="./display_mode" />
 /// <reference types="./misc" />
 /// <reference types="./util" />
