@@ -779,6 +779,7 @@ export function selectNoProject() {
 	Blockbench.dispatchEvent('select_no_project', {});
 }
 export function updateTabBarVisibility() {
+	if (!Interface.tab_bar.$data.tabs) return;
 	let hidden = Settings.get('hide_tab_bar') && Interface.tab_bar.$data.tabs.length < 2;
 	document.getElementById('tab_bar').style.display = hidden ? 'none' : 'flex';
 	document.getElementById('title_bar_home_button').style.display = hidden ? 'block' : 'none';

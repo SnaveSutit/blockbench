@@ -118,14 +118,10 @@ if (options.watch || options.serve) {
     if (isApp) {
         await ctx.watch({});
     } else {
-        const host = 'localhost';
-        const port = 3001;
-        await ctx.serve({
+        let server = await ctx.serve({
             servedir: import.meta.dirname,
-            host,
-            port
         });
-        console.log(`Hosting app at http://${host}:${port}`)
+        console.log(`Hosting app at http://${server.hosts[0]}:${server.port}`);
     }
 } else {
     if (options.analyze) config.metafile = true;
