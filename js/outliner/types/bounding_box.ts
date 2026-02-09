@@ -486,7 +486,7 @@ BARS.defineActions(function() {
 	new Action('add_bounding_box', {
 		icon: 'activity_zone',
 		category: 'edit',
-		condition: {formats: ['edit'], features: ['bounding_boxes']},
+		condition: {modes: ['edit'], features: ['bounding_boxes']},
 		click: function () {
 			
 			Undo.initEdit({outliner: true, elements: [], selection: true});

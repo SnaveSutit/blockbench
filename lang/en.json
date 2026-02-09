@@ -1910,7 +1910,7 @@
 	"action.shelf_alignment.bottom": "Bottom Alignment",
 	"action.predicate_overrides": "Edit Predicate Overrides...",
 	"action.predicate_overrides.desc": "Select models to override this model based on selected conditions",
-	"action.generate_bedrock_collision_box": "Generate Collision or Selection",
+	"action.generate_bedrock_collision_box": "Copy Collision/Selection Component",
 	"action.generate_bedrock_collision_box.desc": "Generate a collision or selection box component for Minecraft Bedrock Edition blocks",
 
 	"action.move_up": "Move Up",

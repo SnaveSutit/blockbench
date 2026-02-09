@@ -673,6 +673,7 @@ new Property(ModelFormat, 'boolean', 'meshes');
 new Property(ModelFormat, 'boolean', 'splines');
 new Property(ModelFormat, 'boolean', 'texture_meshes');
 new Property(ModelFormat, 'boolean', 'billboards');
+new Property(ModelFormat, 'boolean', 'bounding_boxes');
 new Property(ModelFormat, 'boolean', 'locators');
 new Property(ModelFormat, 'boolean', 'rotation_limit');
 new Property(ModelFormat, 'boolean', 'rotation_snap');

@@ -155,7 +155,14 @@ BARS.defineActions(function() {
 					}
 				});
 				if (type == 'selection_box') box_data.length = 1;
-				let data = box_data.length == 1 ? box_data[0] : box_data;
+				let data = box_data as any;
+				if (box_data.length == 1 && box_data[0].origin.equals([-8, 0, -8]) && box_data[0].size.equals([16, 16, 16])) {
+					data = true;
+				} else if (box_data.length == 1) {
+					data = box_data[0];
+				} else if (box_data.length == 0) {
+					data = false;
+				}
 				let key = `"minecraft:${type}": `;
 				return key + compileJSON(data, {small: minify})
 			}

@@ -46,7 +46,7 @@ class VoxelMatrix<Type> {
 BARS.defineActions(() => {
 	new Action('generate_voxel_shapes', {
 		// TODO: Localize this
-		name: 'Generate Voxel Shapes',
+		name: 'Generate Bounding Boxes',
 		category: 'edit',
 		icon: 'fa-cubes',
 		condition: {features: ['bounding_boxes']},
@@ -269,7 +269,7 @@ BARS.defineActions(() => {
 					bounding_boxes.push(bb);
 				}
 
-				Undo.finishEdit('Generate voxel shapes');
+				Undo.finishEdit('Generate bounding boxes');
 			}
 			generate(false, default_options);
 
