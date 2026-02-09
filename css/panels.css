@@ -1458,7 +1458,7 @@
 		position: absolute;
 		margin-left: -9px;
 		z-index: 5;
-		height: 10px;
+		height: 16px;
 		width: 20px;
 		cursor: pointer;
 	}
@@ -1471,6 +1471,12 @@
 	}
 	.timeline_marker:hover > i {
 		top: -3px;
+	}
+	.timeline_marker:hover > .tooltip {
+		visibility: visible;
+		margin-top: -10px;
+		right: 0;
+		left: 0;
 	}
 	#timeline_time.holding_ctrl .timeline_marker {
 		cursor: ew-resize;
