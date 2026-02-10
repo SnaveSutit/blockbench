@@ -2897,6 +2897,7 @@ Interface.definePanels(function() {
 				onPointerDown(event) {
 					if (this.touches_count) return;
 					setActivePanel('uv');
+					if (Menu.open) Menu.open.hide();
 					UVEditor.total_zoom_offset = [6, 6];
 					if (event.which === 2 ||
 						(Keybinds.extra.preview_drag.keybind.isTriggered(event) && !event.which == 1)
