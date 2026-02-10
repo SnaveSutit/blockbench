@@ -921,19 +921,19 @@ export class Toggle extends Action {
 		this.menu_icon_node = Blockbench.getIconNode('check_box_outline_blank');
 		$(this.menu_node).find('.icon').replaceWith(this.menu_icon_node);
 
-		this.updateEnabledState();
-	}
-	// @ts-expect-error
-	click() {
-		this.value = !this.value;
-		if (this.linked_setting && settings[this.linked_setting]) {
-			let setting = settings[this.linked_setting];
-			setting.value = this.value;
-			if (setting.onChange) setting.onChange(setting.value);
-			Settings.saveLocalStorages();
+		this.click = () => {
+			this.value = !this.value;
+			if (this.linked_setting && settings[this.linked_setting]) {
+				let setting = settings[this.linked_setting];
+				setting.value = this.value;
+				if (setting.onChange) setting.onChange(setting.value);
+				Settings.saveLocalStorages();
+			}
+			if (this.onChange) this.onChange(this.value);
+			this.dispatchEvent('change', {state: this.value});
+
+			this.updateEnabledState();
 		}
-		if (this.onChange) this.onChange(this.value);
-		this.dispatchEvent('change', {state: this.value});
 
 		this.updateEnabledState();
 	}
