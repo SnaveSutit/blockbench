@@ -1,10 +1,95 @@
 import MolangParser from "molangjs";
-import { Keybind, Keybinds } from "./keyboard";
+import { Keybinds } from "./keyboard";
+import tinycolor from "tinycolor2";
 
-export const BarItems = {};
+type ActionEventName =
+	| 'delete'
+	| 'use'
+	| 'used'
+	| 'trigger'
+	| 'get_node'
+	| 'select'
+	| 'change'
+	| 'changed'
+	| 'update'
+	| 'open'
+	| 'modify_color'
+
+export const BarItems: Record<string, BarItem> = {};
+
 //Bars
+type SubKeybind = {
+	name: string
+	keybind?: Keybind
+	default_keybind?: Keybind
+	trigger: (event: Event) => void
+}
+export interface KeybindItemOptions {
+	name?: string
+	description?: string
+	category?: string
+	keybind?: Keybind
+	variations?: {
+		[key: string]: { name: string; description?: string }
+	}
+}
+export interface BarItemOptions extends KeybindItemOptions {
+	name?: string
+	description?: string
+	icon?: IconString | (() => IconString)
+	color?: string
+	condition?: ConditionResolvable
+	category?: string
+	keybind?: Keybind
+	/**
+	 * If set to true, the item can only be used in private context and does not appear in keybindings, action control, or toolbar customization
+	 */
+	private?: true
+	/**
+	 * The plugin that this was added by
+	 */
+	plugin?: string
+	work_in_dialog?: boolean
+	variations?: {
+		[key: string]: {
+			name: string,
+			description?: string,
+		}
+	}
+}
 export class BarItem extends EventSystem {
-	constructor(id, data) {
+	static constructing: BarItem | undefined;
+
+	id: string
+	name: string
+	description: string
+	icon?: IconString | (() => IconString)
+	category?: string
+	color?: string
+	condition: ConditionResolvable
+
+	type: string
+	node: HTMLElement
+	nodes: HTMLElement[]
+	uniqueNode?: boolean
+	toolbars: Toolbar[]
+	keybind: Keybind
+	default_keybind?: Keybind
+	/**
+	 * The plugin that this was added by
+	 */
+	plugin?: string
+	/**
+	 * @private How often the action was used
+	 */
+	uses?: number
+	work_in_dialog?: boolean
+	variations?: BarItemOptions['variations']
+
+	/**
+	 * Anything that can go into a toolbar, including actions, tools, toggles, widgets etc.
+	 */
+	constructor(id: string, data: BarItemOptions) {
 		super();
 		BarItem.constructing = this;
 		this.id = id;
@@ -46,10 +131,15 @@ export class BarItem extends EventSystem {
 			Keybinds.actions.push(this);
 		}
 	}
-	conditionMet() {
+	conditionMet(): boolean {
 		return Condition(this.condition)
 	}
-	addLabel(in_bar, action) {
+	/**
+	 * Adds a label to the HTML element of the bar item
+	 * @param in_bar Set to true to generate an in-bar label, as opposed to a regular on-hover label
+	 * @param action Provide the action to generate the label. This defaults to self and is only needed in special cases
+	 */
+	addLabel(in_bar?: boolean, action?: any): void {
 		if (!action || this instanceof BarItem) {
 			action = this;
 		}
@@ -94,10 +184,10 @@ export class BarItem extends EventSystem {
 
 					j_tooltip.css('margin-left', '0')
 					var offset = j_tooltip && j_tooltip.offset()
-					offset.right = offset.left + parseInt(j_tooltip.css('width').replace(/px/, '')) - window.innerWidth
+					let right_offset = offset.left + parseInt(j_tooltip.css('width').replace(/px/, '')) - window.innerWidth
 
-					if (offset.right > 4) {
-						j_tooltip.css('margin-left', -offset.right+'px')
+					if (right_offset > 4) {
+						j_tooltip.css('margin-left', -right_offset+'px')
 					}				
 
 					// description
@@ -105,10 +195,10 @@ export class BarItem extends EventSystem {
 
 					j_description.css('margin-left', '-5px')
 					var offset = j_description.offset()
-					offset.right = offset.left + parseInt(j_description.css('width').replace(/px/, '')) - window.innerWidth
+					right_offset = offset.left + parseInt(j_description.css('width').replace(/px/, '')) - window.innerWidth
 
-					if (offset.right > 4) {
-						j_description.css('margin-left', -offset.right+'px')
+					if (right_offset > 4) {
+						j_description.css('margin-left', -right_offset+'px')
 					}
 
 					// height
@@ -134,7 +224,10 @@ export class BarItem extends EventSystem {
 			}, {passive: true})
 		}
 	}
-	getNode(ignore_disconnected) {
+	/**
+	 * Gets a copy of the elements HTML node that is not yet in use.
+	 */
+	getNode(ignore_disconnected?: boolean): HTMLElement {
 		if (this.nodes.length === 0) {
 			this.nodes = [this.node]
 		}
@@ -146,30 +239,35 @@ export class BarItem extends EventSystem {
 		}
 		var clone = $(this.node).clone(true, true).get(0);
 		clone.onclick = (e) => {
+			// @ts-expect-error
 			this.trigger(e)
 		}
 		this.nodes.push(clone);
 		return clone;
 	}
-	toElement(destination) {
+	/**
+	 * Appends the bar item to a HTML element
+	 */
+	toElement(destination: HTMLElement | string): this {
+		// @ts-expect-error
 		$(destination).first().append(this.getNode())
 		return this;
 	}
-	pushToolbar(bar, idx) {
-		var scope = this;
-		if (scope.uniqueNode && scope.toolbars.length) {
-			for (var i = scope.toolbars.length-1; i >= 0; i--) {
-				scope.toolbars[i].remove(scope, false);
+	pushToolbar(bar: Toolbar, index?: number): void {
+		if (this.uniqueNode && this.toolbars.length) {
+			for (var i = this.toolbars.length-1; i >= 0; i--) {
+				this.toolbars[i].remove(this, false);
 			}
 		}
-		if (idx !== undefined) {
-			bar.children.splice(idx, 0, this);
+		if (index !== undefined) {
+			bar.children.splice(index, 0, this);
 		} else {
 			bar.children.push(this);
 		}
 		this.toolbars.safePush(bar)
 	}
-	addSubKeybind(id, name, default_keybind, trigger) {
+	sub_keybinds?: Record<string, SubKeybind>
+	addSubKeybind(id: string, name: string, default_keybind: Keybind, trigger) {
 		if (!this.sub_keybinds) this.sub_keybinds = {};
 		this.sub_keybinds[id] = {
 			name: tl(name, null, name),
@@ -187,10 +285,9 @@ export class BarItem extends EventSystem {
 		this.sub_keybinds[id].keybind.setAction(this.id, id);
 	}
 	delete() {
-		this.dispatchEvent('delete');
-		var scope = this;
+		this.dispatchEvent('delete', {});
 		this.toolbars.forEach(bar => {
-			bar.remove(scope);
+			bar.remove(this);
 		})
 		delete BarItems[this.id];
 		Keybinds.actions.remove(this);
@@ -202,7 +299,18 @@ export class BarItem extends EventSystem {
 	}
 }
 export class KeybindItem {
-	constructor(id, data) {
+	id: string
+	type: string
+	name: string
+	description: string
+	category?: string
+	keybind: Keybind
+	default_keybind?: Keybind
+	condition?: ConditionResolvable
+	variations?: {
+		[key: string]: { name: string; description?: string }
+	}
+	constructor(id: string, data: KeybindItemOptions & {id: string}) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -210,10 +318,12 @@ export class KeybindItem {
 		this.id = id
 		this.type = 'keybind_item'
 		this.name =  tl(data.name || ('keybind.'+this.id))
+		this.description = tl(data.description ?? 'action.'+this.id+'.desc', [], '');
 		this.category = data.category ? data.category : 'misc'
 		if (data.keybind) {
 			this.default_keybind = data.keybind
 		}
+		let a = this.default_keybind?.variations
 		if (Keybinds.stored[this.id]) {
 			this.keybind = new Keybind(null, this.default_keybind?.variations).set(Keybinds.stored[this.id], this.default_keybind);
 		} else {
@@ -234,10 +344,64 @@ export class KeybindItem {
 		}
 	}
 }
+
+
+
+export interface ActionOptions extends BarItemOptions {
+	/**
+	 * Function to run when user uses the action successfully
+	 */
+	click?: (event?: Event) => void
+	/**
+	 * Icon color. Can be a CSS color string, or an axis letter to use an axis color.
+	 */
+	color?: string
+	children?: MenuItem[] | ((context: any) => MenuItem[])
+	searchable?: boolean
+	/**
+	 * Show the full label in toolbars
+	 */
+	label?: boolean
+	/**
+	 * Provide a menu that belongs to the action, and gets displayed as a small arrow next to it in toolbars.
+	 */
+	side_menu?: Menu | ToolConfig | Dialog
+	/**
+	 * Provide a window with additional configutation related to the action
+	 */
+	tool_config?: ToolConfig
+}
+export interface ActionSpecificOptions extends ActionOptions {
+	click:(event?: Event) => void
+}
+/**
+ * Actions can be triggered to run something, they can be added to menus, toolbars, assigned a keybinding, or run via Action Control
+ */
 export class Action extends BarItem {
-	constructor(id, data) {
+	
+	menu_node: HTMLElement
+	icon_node: HTMLElement
+	/**
+	 * Provide a menu that belongs to the action, and gets displayed as a small arrow next to it in toolbars.
+	 */
+	side_menu?: ActionOptions['side_menu']
+	menus: {menu: Menu, path: string}[]
+	/**
+	 * Provide a window with additional configutation related to the action
+	 */
+	tool_config?: ToolConfig
+	onClick: any
+
+	children?: ActionOptions['children']
+	searchable?: boolean
+
+	click: ActionOptions['click']
+
+
+	constructor(id: string, data: ActionSpecificOptions) {
 		if (typeof id == 'object') {
 			data = id;
+			// @ts-expect-error
 			id = data.id;
 		}
 		super(id, data)
@@ -246,11 +410,13 @@ export class Action extends BarItem {
 		//Icon
 		this.icon = data.icon
 
-		if (data.linked_setting) {
-			if (!data.name) this.name = tl(`settings.${data.linked_setting}`);
-			if (!data.description) this.description = tl(`settings.${data.linked_setting}.desc`);
-			this.linked_setting = data.linked_setting;
+		// Needs to run here instead of in toggle constructor to be set before HTML elements are generated
+		let linked_setting = (data as ToggleOptions).linked_setting;
+		if (this instanceof Toggle && linked_setting) {
+			if (!data.name) this.name = tl(`settings.${linked_setting}`);
+			if (!data.description) this.description = tl(`settings.${linked_setting}.desc`);
 		}
+
 		if (data.condition) this.condition = data.condition
 		this.children = data.children;
 		this.searchable = data.searchable;
@@ -259,14 +425,13 @@ export class Action extends BarItem {
 		if (!this.click && data.click) {
 			this.onClick = data.click;
 			this.click = (...args) => {
-				let result = this.dispatchEvent('use');
+				let result = this.dispatchEvent('use', {});
 				if (result == false) return;
 				this.onClick(...args);
-				this.dispatchEvent('used');
+				this.dispatchEvent('used', {});
 			};
 		}
 		this.icon_node = Blockbench.getIconNode(this.icon, this.color)
-		this.icon_states = data.icon_states;
 		this.node = document.createElement('div');
 		this.node.classList.add('tool');
 		this.node.setAttribute('toolbar_item', this.id);
@@ -275,9 +440,9 @@ export class Action extends BarItem {
 		this.menus = [];
 		
 		this.menu_node = Interface.createElement('li', {title: this.description || '', menu_item: id}, [
-			this.icon_node.cloneNode(true),
+			this.icon_node.cloneNode(true) as HTMLElement,
 			Interface.createElement('span', {}, this.name),
-			Interface.createElement('label', {class: 'keybinding_label'}, this.keybind || '')
+			Interface.createElement('label', {class: 'keybinding_label'}, this.keybind?.toString() || '')
 		]);
 		addEventListeners(this.menu_node, 'mouseenter mousedown', event => {
 			if (event.target == this.menu_node) {
@@ -286,7 +451,7 @@ export class Action extends BarItem {
 		});
 		if (!this.children) {
 			this.menu_node.addEventListener('click', event => {
-				if (!(event.target == this.menu_node || event.target.parentElement == this.menu_node)) return;
+				if (!(event.target == this.menu_node || (event.target as HTMLElement).parentElement == this.menu_node)) return;
 				this.trigger(event);
 			});
 		}
@@ -307,7 +472,7 @@ export class Action extends BarItem {
 			open_node.onclick = e => {
 				e.stopPropagation();
 				if (this.side_menu instanceof Menu) {
-					this.side_menu.open(e.target.parentElement);
+					this.side_menu.open((e.target as HTMLElement).parentElement);
 				} else if (this.side_menu instanceof ToolConfig) {
 					this.side_menu.show(this.node);
 				} else if (this.side_menu instanceof Dialog) {
@@ -321,12 +486,15 @@ export class Action extends BarItem {
 			scope.trigger(e)
 		}
 	}
-	trigger(event) {
+	/**
+	 * Trigger to run or select the action. This is the equivalent of clicking or using a keybind to trigger it. Also checks if the condition is met.
+	 */
+	trigger(event?: Event): boolean {
 		var scope = this;
 		let condition_met = BARS.condition(scope.condition, this);
 		this.dispatchEvent('trigger', {condition_met});
 		if (condition_met) {
-			if (event && event.type === 'click' && event.altKey && scope.keybind) {
+			if (event && event.type === 'click' && (event as MouseEvent).altKey && scope.keybind) {
 				var record = function() {
 					document.removeEventListener('keyup', record)
 					scope.keybind.record()
@@ -349,7 +517,7 @@ export class Action extends BarItem {
 		}
 		return false;
 	}
-	updateKeybindingLabel() {
+	updateKeybindingLabel(): this {
 		let keybind_text = this.keybind?.toString() || '';
 		if (!keybind_text && this.id == 'color_picker') {
 			keybind_text = tl('keys.alt');
@@ -363,12 +531,12 @@ export class Action extends BarItem {
 	getNode(ignore_disconnected) {
 		let clone = super.getNode(ignore_disconnected);
 		if (this.side_menu) {
-			let options = clone.querySelector('.action_more_options');
+			let options = clone.querySelector('.action_more_options') as HTMLDivElement;
 			if (options && !options.onclick) {
 				options.onclick = e => {
 					e.stopPropagation();
 					if (this.side_menu instanceof Menu) {
-						this.side_menu.open(e.target.parentElement);
+						this.side_menu.open((e.target as HTMLElement).parentElement);
 					} else if (this.side_menu instanceof ToolConfig) {
 						this.side_menu.show(clone);
 					} else if (this.side_menu instanceof Dialog) {
@@ -380,7 +548,8 @@ export class Action extends BarItem {
 		this.dispatchEvent('get_node', {node: clone});
 		return clone;
 	}
-	setIcon(icon) {
+	/** Change the icon of the action */
+	setIcon(icon: IconString): void {
 		this.icon = icon
 		this.icon_node = Blockbench.getIconNode(this.icon)
 		$(this.menu_node).find('> .icon').replaceWith(this.icon_node)
@@ -390,7 +559,10 @@ export class Action extends BarItem {
 			old_icon.replaceWith(this.icon_node.cloneNode(true));
 		})
 	}
-	setName(name) {
+	/**
+	 * Change the name of the action
+	 */
+	setName(name: string): void {
 		this.name = name;
 		this.nodes.forEach(node => {
 			let tooltip = node.querySelector('.tooltip');
@@ -413,12 +585,178 @@ export class Action extends BarItem {
 		}
 	}
 }
-export class Tool extends Action {
-	constructor(id, data) {
+
+
+type RGBAColor = { r: number; g: number; b: number; a: number }
+type ViewMode = 'textured' | 'solid' | 'wireframe' | 'uv' | 'normal'
+type PaintContext = {
+	/**
+	 * Brush color, set by the Blockbench color panel
+	 */
+	color: string
+	/**
+	 * Opacity, as set by the Opacity slider
+	 */
+	opacity: number
+	/**
+	 * 2D Canvas context of the texture that is being edited
+	 */
+	ctx: CanvasRenderingContext2D
+	/**X Coordinate of the position of the brush stroke */
+	x: number
+	/**Y Coordinate of the position of the brush stroke */
+	y: number
+	/**
+	 * Brush size, as set by the Brush Size slider
+	 */
+	size: number
+	/**
+	 * Brush softness, as set by the Brush Softness slider
+	 */
+	softness: number
+	/**
+	 * Blockbench texture that is being edited
+	 */
+	texture: Texture
+	/**
+	 * Javascript pointer event that the brush stroke originated from
+	 */
+	event: PointerEvent
+}
+export interface BrushOptions {
+	/**
+	 * Enable the input for blend modes when this tool is selected
+	 */
+	blend_modes: boolean
+	/**
+	 * Enable the input for shapes when this tool is selected
+	 */
+	shapes: boolean
+	/**
+	 * Enable the input for brush size when this tool is selected
+	 */
+	size: boolean
+	/**
+	 * Enable the input for softness when this tool is selected
+	 */
+	softness: boolean
+	/**
+	 * Enable the input for opacity when this tool is selected
+	 */
+	opacity: boolean
+	/**
+	 * When the brush size is an even number, offset the snapping by half a pixel so that even size brush strokes can be correctly centered
+	 */
+	offset_even_radius: boolean
+	/**
+	 * Set whether the brush coordinates get floored to snap to the nearest pixel.
+	 */
+	floor_coordinates: boolean | (() => boolean)
+	/**
+	 * Function that runs per pixel when the brush is used. Mutually exclusive with draw().
+	 * @param pixel_x Local X coordinate relative to the brush center
+	 * @param pixel_y Local Y coordinate relative to the brush center
+	 * @param pixel_color Current color of the pixel on the texture
+	 * @param local_opacity Local opacity of the current pixel on the brush, between 0 and 1. Opacity falls of to the sides of the brush if the brush is set to smooth. Opacity from the Opacity slider is not factored in yet.
+	 * @param PaintContext Additional context to the paint stroke
+	 */
+	changePixel(
+		pixel_x: number,
+		pixel_y: number,
+		pixel_color: RGBAColor,
+		local_opacity: number,
+		PaintContext: PaintContext
+	): RGBAColor
+	/**
+	 * Function that runs when a new brush stroke starts. Return false to cancel the brush stroke
+	 * @param context
+	 */
+	onStrokeStart(context: {
+		texture: Texture
+		x: number
+		y: number
+		uv?: any
+		event: PointerEvent
+		raycast_data: RaycastResult
+	}): boolean
+	/**
+	 * Function that runs when a new brush stroke starts. Return false to cancel the brush stroke
+	 * @param context
+	 */
+	onStrokeMove(context: {
+		texture: Texture
+		x: number
+		y: number
+		uv?: any
+		event: PointerEvent
+		raycast_data: RaycastResult
+	}): boolean
+	/**
+	 * Function that runs when a new brush stroke starts.
+	 * @param context
+	 */
+	onStrokeEnd(context: {
+		texture: Texture
+		x: number
+		y: number
+		uv?: any
+		raycast_data: RaycastResult
+	}): void
+	/**
+	 * Alternative way to create a custom brush, mutually exclusive with the changePixel() function. Draw runs once every time the brush starts or moves, and also along the bath on lines.
+	 * @param context
+	 */
+	draw(context: {
+		ctx: CanvasRenderingContext2D
+		x: number
+		y: number
+		size: number
+		softness: number
+		texture: Texture
+		event: PointerEvent
+	}): void
+}
+interface ToolSpecificOptions {
+	selectFace?: boolean
+	selectElements?: boolean
+	transformerMode?: 'translate' | 'hidden' | ''
+	cursor?: string,
+	animation_channel?: string
+	toolbar?: string
+	transform_toolbar?: string
+	alt_tool?: string
+	modes?: string[]
+	allowed_view_modes?: ViewMode
+	paintTool?: boolean
+	brush?: BrushOptions
+	raycast_options?: {
+		edges?: boolean
+		vertices?: boolean
+	}
+	onCanvasClick?(raycast_data: RaycastResult): void
+	onSelect?(): void
+	onUnselect?(): void
+	onCanvasMouseMove?(raycast_data: RaycastResult)
+	onCanvasRightClick?(raycast_data: RaycastResult)
+	onTextureEditorClick?(raycast_data: RaycastResult)
+}
+export type ToolOptions = ActionOptions & ToolSpecificOptions
+
+export interface Tool extends ToolSpecificOptions {}
+/**
+ * A tool, such as move tool, vertex snap tool, or paint brush
+ */
+export class Tool extends Action implements ToolSpecificOptions {
+	tool_settings: Record<string, any>
+
+
+	constructor(id: string, data: ToolOptions) {
 		if (typeof id == 'object') {
 			data = id;
+			// @ts-expect-error
 			id = data.id;
 		}
+		// @ts-expect-error
 		super(id, data);
 		var scope = this;
 		this.type = 'tool'
@@ -481,7 +819,7 @@ export class Tool extends Action {
 		}
 		if (this.allowed_view_modes && !this.allowed_view_modes.includes(Project.view_mode)) {
 			Project.view_mode = 'textured';
-			BarItems.view_mode.change('textured');
+			(BarItems.view_mode as BarSelect).change('textured');
 		}
 		if (this.toolbar && Toolbars[this.toolbar]) {
 			Toolbars[this.toolbar].toPlace('tool_options');
@@ -513,7 +851,7 @@ export class Tool extends Action {
 		TickUpdates.selection = true;
 		return this;
 	}
-	trigger(event) {
+	trigger(event: Event): boolean {
 		if (BARS.condition(this.condition, this)) {
 			this.select()
 			return true;
@@ -536,51 +874,86 @@ export class Tool extends Action {
 		super.delete();
 		Tool.all.remove(this);
 	}
+	static all: Tool[] = [];
+	static selected: Tool | null = null;
 }
-Tool.all = [];
-Tool.selected = null;
+
+export interface ToggleOptions extends Omit<ActionOptions, 'click'> {
+	/**
+	 * Default value of the toggle
+	 */
+	default?: boolean
+	/**
+	 * ID of a setting that the toggle is linked to
+	 */
+	linked_setting?: string
+	/**
+	 * Method that gets called when the user changes the value of the toggle
+	 */
+	onChange?(value: boolean): void
+	icon: IconString | (() => IconString)
+}
+/**
+ * A toggle is a type of action that can be on or off. The state is not persistent between restarts by default.
+ */
 export class Toggle extends Action {
-	constructor(id, data) {
+	/**
+	 * ID of a setting that the toggle is linked to
+	 */
+	linked_setting?: string
+	value: boolean
+	onChange?: (value: boolean) => void
+	menu_icon_node: HTMLElement
+
+	constructor(id: string, data: ToggleOptions) {
+		// @ts-expect-error
 		super(id, data);
 		this.type = 'toggle';
 		this.value = data.default || false;
-		if (this.linked_setting && settings[this.linked_setting]) {
-			this.value = settings[this.linked_setting].value;
+		if (data.linked_setting) {
+			this.linked_setting = data.linked_setting;
+			if (settings[this.linked_setting]) {
+				this.value = !!settings[this.linked_setting].value;
+			}
 		}
 		this.onChange = data.onChange;
 
 		this.menu_icon_node = Blockbench.getIconNode('check_box_outline_blank');
 		$(this.menu_node).find('.icon').replaceWith(this.menu_icon_node);
 
-		this.updateEnabledState();
-	}
-	click() {
-		this.value = !this.value;
-		if (this.linked_setting && settings[this.linked_setting]) {
-			let setting = settings[this.linked_setting];
-			setting.value = this.value;
-			if (setting.onChange) setting.onChange(setting.value);
-			Settings.saveLocalStorages();
+		this.click = () => {
+			this.value = !this.value;
+			if (this.linked_setting && settings[this.linked_setting]) {
+				let setting = settings[this.linked_setting];
+				setting.value = this.value;
+				if (setting.onChange) setting.onChange(setting.value);
+				Settings.saveLocalStorages();
+			}
+			if (this.onChange) this.onChange(this.value);
+			this.dispatchEvent('change', {state: this.value});
+
+			this.updateEnabledState();
 		}
-		if (this.onChange) this.onChange(this.value);
-		this.dispatchEvent('change', {state: this.value});
 
 		this.updateEnabledState();
 	}
-	set(value) {
+	set(value: boolean): this {
 		if (value == this.value) return this;
 		this.click();
 		return this;
 	}
-	setIcon(icon) {
-		if (icon) {
-			this.icon = icon;
-			this.icon_node = Blockbench.getIconNode(this.icon);
-			this.nodes.forEach(n => {
-				$(n).find('.icon').replaceWith($(this.icon_node).clone());
-			})
-		}
+	setIcon(icon: IconString): this {
+		if (!icon) return this;
+		this.icon = icon;
+		this.icon_node = Blockbench.getIconNode(this.icon);
+		this.nodes.forEach(n => {
+			$(n).find('.icon').replaceWith($(this.icon_node).clone());
+		})
+		return this;
 	}
+	/**
+	 * Updates the state of the toggle in the UI
+	 */
 	updateEnabledState() {
 		this.nodes.forEach(node => {
 			node.classList.toggle('enabled', this.value);
@@ -589,19 +962,82 @@ export class Toggle extends Action {
 		return this;
 	}
 }
+interface WidgetOptions extends BarItemOptions {
+	id?: string
+}
 export class Widget extends BarItem {
-	constructor(id, data) {
+	constructor(id: string, data: WidgetOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
 		}
 		super(id, data);
 		this.type = 'widget';
-		//this.uniqueNode = true;
 	}
 }
+type NumSliderOptions = WidgetOptions & {
+	private?: boolean
+	settings?: {
+		default?: number
+		min?: number
+		max?: number
+		interval?: number
+		step?: number
+		show_bar?: boolean
+		limit?: boolean
+	}
+	sensitivity?: number
+	invert_scroll_direction?: boolean
+	/**
+	 * Define a tool setting key under which the value of the slider is saved on the selected tool
+	 */
+	tool_setting?: string
+	uv?: boolean
+	sub_keybinds?: {
+		increase: Keybind
+		decrease: Keybind
+	}
+
+	getInterval?(event: Event): number
+	change?(value: (n: number) => number): void
+	get?(): number
+	onChange?: (value: number, event?: Event) => void
+	onBefore?(): void
+	onAfter?: (difference?: number) => void
+}
 export class NumSlider extends Widget {
-	constructor(id, data) {
+	value: number | string
+	width: number
+	sensitivity: number
+	invert_scroll_direction: boolean
+	pre?: number
+	private last_value: number | string
+	private sliding: boolean
+	private sliding_start_pos: number
+	settings: NumSliderOptions['settings']
+	interval: number | ((event: Event) => number)
+	onBefore?: () => void
+	onChange?: (value: number, event?: Event) => void
+	onAfter?: (difference?: number) => void
+	uv?: boolean
+	/**
+	 * @private
+	 */
+	jq_outer: JQuery
+	/**
+	 * @private
+	 */
+	jq_inner: JQuery
+	/**
+	 * Define a tool setting key under which the value of the slider is saved on the selected tool
+	 */
+	tool_setting?: string
+	/**
+	 * All sliders that form the vector input that this slider is a part of
+	 */
+	slider_vector?: NumSlider[]
+
+	constructor(id: string, data: NumSliderOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -622,7 +1058,7 @@ export class NumSlider extends Widget {
 		this.onAfter = data.onAfter;
 		if (typeof data.change === 'function') {
 			this.change = (modify, ...args) => {
-				data.change(modify, ...args)
+				data.change(modify)
 				this.dispatchEvent('changed', {modify});
 			};
 		}
@@ -634,8 +1070,7 @@ export class NumSlider extends Widget {
 			this.interval = this.settings.step || this.settings.interval;
 
 		} else {
-			this.interval = function(event) {
-				event = event||0;
+			this.interval = function(event: Event | any = {}) {
 				if (!event.shiftKey && !event.ctrlOrCmd) {
 					return 1
 				} else if (event.ctrlOrCmd && event.shiftKey) {
@@ -695,19 +1130,19 @@ export class NumSlider extends Widget {
 		this.jq_inner = this.jq_outer.find('.nslide');
 
 		if (this.color) {
-			var css_color = 'uvwxyz'.includes(this.color) ? `var(--color-axis-${this.color})` : this.color;
-			this.node.style.setProperty('--corner-color', css_color);
+			var css_color = 'uvwxyz'.includes(this.color.toString()) ? `var(--color-axis-${this.color})` : this.color;
+			this.node.style.setProperty('--corner-color', css_color.toString());
 			this.node.classList.add('is_colored');
 		}
 
-		this.addLabel(data.label);
+		//this.addLabel(data.label);
 
 		this.jq_inner
 		.on('mousedown touchstart', async (event) => {
 			if (scope.jq_inner.hasClass('editing')) return;
 			scope.last_value = scope.value;
 			
-			let drag_event = await new Promise((resolve, reject) => {
+			let drag_event = await new Promise<MouseEvent | TouchEvent | false>((resolve, reject) => {
 				function move(e2) {
 					if (!e2.clientX || Math.abs(e2.clientX-event.clientX) > 2) {
 						removeEventListeners(document, 'mousemove touchmove', move);
@@ -718,7 +1153,7 @@ export class NumSlider extends Widget {
 				function stop(e2) {
 					removeEventListeners(document, 'mousemove touchmove', move);
 					removeEventListeners(document, 'mouseup touchend', stop);
-					if (event.target == event.target) scope.startInput(event)
+					if (event.target == event.target) scope.startInput()
 					resolve(false);
 				}
 				addEventListeners(document, 'mousemove touchmove', move);
@@ -729,18 +1164,20 @@ export class NumSlider extends Widget {
 			if (typeof scope.onBefore === 'function') {
 				scope.onBefore()
 			}
-			convertTouchEvent(drag_event)
+			convertTouchEvent(drag_event);
+			drag_event = drag_event;
+			// @ts-expect-error
 			let clientX = drag_event.clientX;
 			scope.sliding = true;
 			scope.pre = 0;
-			scope.sliding_start_pos = drag_event.clientX;
+			scope.sliding_start_pos = clientX;
 			let move_calls = 0;
 
-			if (!drag_event.touches) scope.jq_inner.get(0).requestPointerLock();
+			if ('touches' in drag_event == false) scope.jq_inner.get(0).requestPointerLock();
 
 			function move(e) {
 				convertTouchEvent(e)
-				if (drag_event.touches) {
+				if (drag_event && 'touches' in drag_event) {
 					clientX = e.clientX;
 				} else {
 					let limit = move_calls <= 2 ? 1 : 160;
@@ -749,14 +1186,14 @@ export class NumSlider extends Widget {
 				scope.slide(clientX, e);
 				move_calls++;
 			}
-			function stop(e) {
+			function stop(e: MouseEvent | TouchEvent) {
 				removeEventListeners(document, 'mousemove touchmove', move);
 				removeEventListeners(document, 'mouseup touchend', stop);
 				document.exitPointerLock()
 				Blockbench.setStatusBarText();
 				delete scope.sliding;
 				if (typeof scope.onAfter === 'function') {
-					scope.onAfter(scope.value - scope.last_value)
+					scope.onAfter(parseFloat(scope.value as string) - parseFloat(scope.last_value as string))
 				}
 			}
 			addEventListeners(document, 'mousemove touchmove', move);
@@ -791,7 +1228,7 @@ export class NumSlider extends Widget {
 			scope.stopInput()
 
 		})
-		.on('contextmenu', event => {
+		.on('contextmenu', (event: Event) => {
 			new Menu([
 				new MenuSeparator('copypaste'),
 				{
@@ -799,7 +1236,7 @@ export class NumSlider extends Widget {
 					name: 'action.copy',
 					icon: 'fa-copy',
 					click: () => {
-						Clipbench.setText(this.value);
+						Clipbench.setText(this.value.toString());
 					}
 				},
 				{
@@ -859,7 +1296,7 @@ export class NumSlider extends Widget {
 						}
 					}
 				}
-			]).open(event);
+			]).open(event as MouseEvent);
 		});
 		//Arrows
 		this.jq_outer
@@ -883,14 +1320,14 @@ export class NumSlider extends Widget {
 			scope.jq_outer.find('.nslide_arrow').remove()
 		})
 	}
-	startInput(e) {
+	startInput() {
 		this.jq_inner.find('.nslide_arrow').remove()
 		this.jq_inner.attr('contenteditable', 'true')
 		this.jq_inner.addClass('editing')
 		this.jq_inner.focus()
 		document.execCommand('selectAll')
 	}
-	setWidth(width) {
+	setWidth(width: number) {
 		if (width) {
 			this.width = width
 		} else {
@@ -899,7 +1336,7 @@ export class NumSlider extends Widget {
 		this.node.style.width = width + 'px';
 		return this;
 	}
-	getInterval(e) {
+	getInterval(e?: Event) {
 		if (typeof this.interval == 'function') {
 			return this.interval(e);
 		} else if (typeof this.interval === 'number') {
@@ -908,7 +1345,7 @@ export class NumSlider extends Widget {
 			return 0;
 		}
 	}
-	slide(clientX, event) {
+	slide(clientX: number, event: MouseEvent | PointerEvent) {
 		var offset = Math.round((clientX - this.sliding_start_pos)/this.sensitivity)
 		var difference = (offset - this.pre) * this.getInterval(event);
 		this.pre = offset;
@@ -917,7 +1354,7 @@ export class NumSlider extends Widget {
 
 		this.change(n => n + difference, event);
 		this.update();
-		let display_offset = trimFloatNumber(this.value - this.last_value);
+		let display_offset = trimFloatNumber(parseFloat(this.value as string) - parseFloat(this.last_value as string));
 		if (!Blockbench.isMobile) {
 			Blockbench.setStatusBarText(display_offset);
 		}
@@ -938,9 +1375,9 @@ export class NumSlider extends Widget {
 			if (this.slider_vector && text.split(/\s+/g).length == this.slider_vector.length) {
 				let components = text.split(/\s+/g);
 
-				components.forEach((number, axis) => {
+				components.forEach((input, axis) => {
 					let slider = this.slider_vector[axis];
-					number = parseFloat(number);
+					let number = parseFloat(input);
 					if (isNaN(number)) {
 						number = 0;
 					}
@@ -1001,15 +1438,15 @@ export class NumSlider extends Widget {
 			this.onAfter(difference)
 		}
 	}
-	trigger(event) {
+	trigger(event: Event) {
 		if (!Condition(this.condition)) return false;
 		if (typeof this.onBefore === 'function') {
 			this.onBefore()
 		}
 		let sign = event.shiftKey ? -1 : 1;
-		if (event.deltaY > 0) sign *= -1;
+		if ((event as WheelEvent).deltaY > 0) sign *= -1;
 		if (event instanceof WheelEvent && this.invert_scroll_direction) sign *= -1;
-		var difference = this.getInterval(false) * sign;
+		var difference = this.getInterval() * sign;
 		this.change(n => n + difference)
 		this.update()
 		if (typeof this.onAfter === 'function') {
@@ -1017,7 +1454,7 @@ export class NumSlider extends Widget {
 		}
 		return true;
 	}
-	setValue(value, trim) {
+	setValue(value: number | string, trim: boolean = true) {
 		if (typeof value === 'string') {
 			value = parseFloat(value)
 		}
@@ -1034,13 +1471,14 @@ export class NumSlider extends Widget {
 		if (!this.jq_inner.hasClass('editing') && this.jq_inner[0].textContent !== this.value.toString()) {
 			this.jq_inner.text(this.value)
 		}
-		if (this.settings && this.settings.show_bar) {
+		if (this.settings && this.settings.show_bar && typeof this.settings.max == 'number') {
 			this.node.classList.add('has_percentage_bar');
-			this.node.style.setProperty('--percentage', Math.getLerp(this.settings.min, this.settings.max, value)*100);
+			let percentage = Math.getLerp(this.settings.min ?? 0, this.settings.max, value as number) * 100;
+			this.node.style.setProperty('--percentage', percentage.toString());
 		} 
 		return this;
 	}
-	change(modify, event) {
+	change(modify: (old_value: number) => number, event?: Event) {
 		//Solo sliders only, gets overwritten for most sliders
 		var num = modify(this.get());
 		if (this.settings && typeof this.settings.min === 'number' && this.settings.limit !== false) {
@@ -1062,7 +1500,7 @@ export class NumSlider extends Widget {
 				 ? Toolbox.selected.tool_settings[this.tool_setting]
 				 : (this.settings.default||0)
 		} else {
-			return parseFloat(this.value);
+			return parseFloat(this.value as string);
 		}
 	}
 	update() {
@@ -1072,13 +1510,38 @@ export class NumSlider extends Widget {
 		if (isNaN(number) && !this.jq_inner.hasClass('editing') && this.jq_inner[0].textContent) {
 			this.jq_inner.text('')
 		}
-		this.dispatchEvent('update');
+		this.dispatchEvent('update', {});
+	}
+	static MolangParser = new MolangParser();
+}
+
+interface BarSliderOptions extends WidgetOptions {
+	value?: number
+	min?: number
+	max?: number
+	step?: number
+	circular?: boolean
+	width?: number
+	onChange?: (event: Event) => void
+	onBefore?: (event: Event) => void
+	onAfter?: (event: Event) => void
+	sub_keybinds?: {
+		increase: Keybind
+		decrease: Keybind
 	}
 }
-NumSlider.MolangParser = new MolangParser()
-
 export class BarSlider extends Widget {
-	constructor(id, data) {
+	value: number
+	settings: {
+		min: number
+		max: number
+		step: number
+		circular?: boolean
+	}
+	onChange?: (event: Event) => void
+	onBefore?: (event: Event) => void
+	onAfter?: (event: Event) => void
+	constructor(id: string, data: BarSliderOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -1088,13 +1551,17 @@ export class BarSlider extends Widget {
 		this.type = 'slider'
 		this.icon = 'fa-sliders-h'
 		this.value = data.value||0;
+		this.settings = {
+			min: data.min ? data.min : 0,
+			max: data.max ? data.max : 10,
+			step: data.step ? data.step : 1,
+			circular: data.circular
+		}
 		this.node = Interface.createElement('div', {class: 'tool widget', toolbar_item: this.id}, [
 			Interface.createElement('input', {
 				type: 'range',
 				value: data.value ? data.value : 0,
-				min: data.min ? data.min : 0,
-				max: data.max ? data.max : 10,
-				step: data.step ? data.step : 1,
+				...this.settings,
 				style: `width: ${data.width ? (data.width+'px') : 'auto'};`
 			})
 		])
@@ -1109,36 +1576,94 @@ export class BarSlider extends Widget {
 			this.onAfter = data.onAfter
 		}
 		$(this.node).children('input').on('input', function(event) {
-			scope.change(event)
+			let value = parseFloat( $(event.target).val() );
+			scope.change(value, event.originalEvent);
 		})
 		if (scope.onBefore) {
 			$(this.node).children('input').on('mousedown', function(event) {
-				scope.onBefore(event)
+				scope.onBefore(event.originalEvent)
 			})
 		}
 		if (scope.onAfter) {
 			$(this.node).children('input').on('change', function(event) {
-				scope.onAfter(event)
+				scope.onAfter(event.originalEvent)
 			})
 		}
+		this.addSubKeybind('increase',
+			'keybindings.item.num_slider.increase',
+			data.sub_keybinds?.increase,
+			(event) => {
+				if (!Condition(this.condition)) return false;
+				if (typeof this.onBefore === 'function') {
+					this.onBefore(event);
+				}
+				let value = this.get() + this.settings.step;
+				if (this.settings.circular && value > this.settings.max) value = this.settings.min;
+				this.change(value, event);
+
+				if (typeof this.onAfter === 'function') {
+					this.onAfter(event);
+				}
+			}
+		);
+		this.addSubKeybind('decrease',
+			'keybindings.item.num_slider.decrease',
+			data.sub_keybinds?.decrease,
+			(event) => {
+				if (!Condition(this.condition)) return false;
+				if (typeof this.onBefore === 'function') {
+					this.onBefore(event);
+				}
+				let value = this.get() - this.settings.step;
+				if (this.settings.circular && value < this.settings.min) value = this.settings.max;
+				this.change(value, event);
+
+				if (typeof this.onAfter === 'function') {
+					this.onAfter(event);
+				}
+			}
+		);
 	}
-	change(event) {
-		this.set( parseFloat( $(event.target).val() ) )
+	change(value: number, event?: Event) {
+		value = Math.clamp(value, this.settings.min, this.settings.max);
+		this.set( value );
 		if (this.onChange) {
-			this.onChange(this, event)
+			this.onChange(event)
 		}
 		this.dispatchEvent('change', {value: this.value});
 	}
-	set(value) {
+	set(value: number) {
 		this.value = value
 		$(this.nodes).children('input').val(value)
 	}
-	get() {
+	get(): number {
 		return this.value
 	}
 }
+type BarSelectPropertyFormat = string | boolean | {
+	name: string | true
+	condition?: ConditionResolvable
+	icon?: string
+}
+interface BarSelectOptions extends WidgetOptions {
+	value?: string
+	icon_mode?: boolean
+	options: Record<string, BarSelectPropertyFormat>
+	onChange?(self: BarSelect, event?: Event): void
+	width?: number
+	min_width?: number
+	sub_keybinds?: {
+		[key: string]: Keybind
+	}
+}
 export class BarSelect extends Widget {
-	constructor(id, data) {
+	icon_mode: boolean
+	value: string
+	values: string[]
+	options: Record<string, BarSelectPropertyFormat>
+	onChange?(self: BarSelect, event?: Event): void
+
+	constructor(id: string, data: BarSelectOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -1165,7 +1690,7 @@ export class BarSelect extends Widget {
 				let button = document.createElement('div');
 				button.className = 'select_option';
 				button.setAttribute('key', key);
-				button.append(Blockbench.getIconNode(data.options[key].icon));
+				button.append(Blockbench.getIconNode(typeof data.options[key] == 'object' ? data.options[key].icon : ''));
 				this.node.append(button);
 				button.addEventListener('click', event => {
 					this.set(key);
@@ -1215,13 +1740,13 @@ export class BarSelect extends Widget {
 			this.onChange = data.onChange
 		}
 		$(this.node).on('wheel', event => {
-			this.trigger(event.originalEvent);
+			this.trigger(event.originalEvent as WheelEvent);
 		})
 	}
-	getNode(ignore_disconnected) {
+	getNode(ignore_disconnected?: boolean) {
 		let length = this.nodes.length;
 		let node = super.getNode(ignore_disconnected);
-		node.onclick = '';
+		node.onclick = null;
 		if (this.nodes.length !== length) {
 			// Cloned
 			if (this.icon_mode) {
@@ -1250,36 +1775,33 @@ export class BarSelect extends Widget {
 		}
 		return node;
 	}
-	open(event) {
+	open(event: Event) {
 		if (Menu.closed_in_this_click == this.id) return this;
 		let scope = this;
 		let items = [];
-		for (var key in this.options) {
+		for (let key in this.options) {
 			let val = this.options[key];
 			if (val) {
-				(function() {
-					var save_key = key;
-					items.push({
-						name: scope.getNameFor(key),
-						icon: val.icon || ((scope.value == save_key) ? 'far.fa-dot-circle' : 'far.fa-circle'),
-						condition: val.condition,
-						click: (e) => {
-							scope.set(save_key);
-							if (scope.onChange) {
-								scope.onChange(scope, e);
-							}
+				let save_key = key;
+				items.push({
+					name: scope.getNameFor(key),
+					icon: (val as any).icon || ((scope.value == save_key) ? 'far.fa-dot-circle' : 'far.fa-circle'),
+					condition: (val as any).condition,
+					click: (e: MouseEvent) => {
+						scope.set(save_key);
+						if (scope.onChange) {
+							scope.onChange(scope, e);
 						}
-					})
-				})()
+					}
+				})
 			}
 		}
 		let menu = new Menu(this.id, items, {class: 'select_menu'});
 		this.dispatchEvent('open', {menu, items});
 		menu.node.style['min-width'] = this.node.clientWidth+'px';
-		menu.open(event.target, this);
+		menu.open(event.target as HTMLElement, this);
 	}
-	trigger(event) {
-		if (!event) event = 0;
+	trigger(event: MouseEvent | TouchEvent | KeyboardEvent | WheelEvent): boolean | undefined {
 		var scope = this;
 		let condition_met = BARS.condition(this.condition, this);
 		this.dispatchEvent('trigger', {condition_met});
@@ -1296,7 +1818,7 @@ export class BarSelect extends Widget {
 			var index = this.values.indexOf(this.value)
 			function advance() {
 				if (event.type === 'mousewheel' || event.type === 'wheel') {
-					index += event.deltaY < 0 ? -1 : 1;
+					index += (event as WheelEvent).deltaY < 0 ? -1 : 1;
 				} else {
 					index++;
 					if (index >= scope.values.length) index = 0;
@@ -1306,7 +1828,7 @@ export class BarSelect extends Widget {
 				advance()
 				if (index < 0 || index >= this.values.length) return;
 				let opt = this.options[this.values[index]];
-				if (opt && Condition(opt.condition)) break;
+				if (opt && Condition((opt as any).condition)) break;
 			}
 			this.set(this.values[index]);
 			if (this.onChange) {
@@ -1318,7 +1840,7 @@ export class BarSelect extends Widget {
 		}
 		return false;
 	}
-	change(value, event) {
+	change(value: string, event?: Event) {
 		this.set(value);
 		if (this.onChange) {
 			this.onChange(this, event);
@@ -1326,15 +1848,16 @@ export class BarSelect extends Widget {
 		this.dispatchEvent('change', {value, event});
 		return this;
 	}
-	getNameFor(key) {
+	getNameFor(key: string): string {
 		let val = this.options[key];
-		let name = tl(val === true || (val && val.name === true)
+		let name_input = typeof val == 'object' ? val.name : val;
+		let name = tl(val == true || name_input === true
 				? ('action.'+this.id+'.'+key) 
-				: ((val && val.name) || val)
+				: ((val && (val as any).name) || val)
 			);
 		return name;
 	}
-	set(key) {
+	set(key: string) {
 		if (this.options[key] == undefined) {
 			console.warn(`Option ${key} does not exist in BarSelect ${this.id}`)
 			return this;
@@ -1358,12 +1881,20 @@ export class BarSelect extends Widget {
 		}
 		return this;
 	}
-	get() {
+	get(): string {
 		return this.value;
 	}
 }
+interface BarTextOptions extends WidgetOptions {
+	text: string
+	onUpdate: () => void
+	click?: () => void
+}
 export class BarText extends Widget {
-	constructor(id, data) {
+	text: string
+	onUpdate: () => void
+	click: () => void
+	constructor(id: string, data: BarTextOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -1372,16 +1903,14 @@ export class BarText extends Widget {
 		this.type = 'bar_text'
 		this.icon = 'text_format'
 		this.node = Interface.createElement('div', {class: 'tool widget bar_text', toolbar_item: this.id}, data.text);
-		if (data.right) {
-			this.node.classList.add('f_right');
-		}
+
 		this.onUpdate = data.onUpdate;
 		if (typeof data.click === 'function') {
 			this.click = data.click;
 			this.node.addEventListener('click', this.click)
 		}
 	}
-	set(text) {
+	set(text: string): this {
 		this.text = text;
 		$(this.nodes).text(text)
 		return this;
@@ -1390,18 +1919,31 @@ export class BarText extends Widget {
 		if (typeof this.onUpdate === 'function') {
 			this.onUpdate()
 		}
-		this.dispatchEvent('update');
+		this.dispatchEvent('update', {});
 		return this;
 	}
-	trigger(event) {
+	trigger(event: Event) {
 		if (!Condition(this.condition)) return false;
-		this.dispatchEvent('trigger');
+		this.dispatchEvent('trigger', {event});
 		Blockbench.showQuickMessage(this.text)
 		return true;
 	}
 }
+
+export interface ColorPickerOptions extends WidgetOptions {
+	value?: string
+	palette?: boolean
+	onChange?: (color: tinycolor.Instance) => void
+}
+
 export class ColorPicker extends Widget {
-	constructor(id, data) {
+	value: tinycolor.Instance
+	jq: JQuery
+	onChange?: (color: tinycolor.Instance) => void
+	
+	constructor(options: ColorPickerOptions)
+	constructor(id: string, data: ColorPickerOptions)
+	constructor(id: string | ColorPickerOptions, data?: ColorPickerOptions) {
 		if (typeof id == 'object') {
 			data = id;
 			id = data.id;
@@ -1427,6 +1969,7 @@ export class ColorPicker extends Widget {
 			maxSelectionSize: 128,
 			showPalette: data.palette === true,
 			palette: data.palette ? [] : undefined,
+			// @ts-expect-error
 			resetText: tl('generic.reset'),
 			cancelText: tl('dialog.cancel'),
 			chooseText: tl('dialog.confirm'),
@@ -1444,19 +1987,20 @@ export class ColorPicker extends Widget {
 			}
 		})
 	}
-	change(color) {
+	change(color: tinycolor.Instance) {
 		if (this.onChange) {
-			this.onChange()
+			this.onChange(color);
 		}
 		this.dispatchEvent('change', {color});
 	}
 	hide() {
+		// @ts-expect-error
 		this.jq.spectrum('cancel');
 	}
 	confirm() {
 		this.jq.spectrum('hide');
 	}
-	set(color) {
+	set(color: tinycolor.ColorInput) {
 		this.value = new tinycolor(color)
 		this.jq.spectrum('set', this.value.toHex8String())
 		return this;
@@ -1469,7 +2013,7 @@ export class ColorPicker extends Widget {
 
 
 
-Object.assign(window, {
+const global = {
 	BarItem,
 	KeybindItem,
 	Action,
@@ -1483,5 +2027,31 @@ Object.assign(window, {
 	ColorPicker,
 	Keybinds,
 	BarItems,
-})
+};
+declare global {
+	type BarItem = import('./actions').BarItem
+	const BarItem: typeof global.BarItem
+	type KeybindItem = import('./actions').KeybindItem
+	const KeybindItem: typeof global.KeybindItem
+	type Action = import('./actions').Action
+	const Action: typeof global.Action
+	type Tool = import('./actions').Tool
+	const Tool: typeof global.Tool
+	type Toggle = import('./actions').Toggle
+	const Toggle: typeof global.Toggle
+	type Widget = import('./actions').Widget
+	const Widget: typeof global.Widget
+	type NumSlider = import('./actions').NumSlider
+	const NumSlider: typeof global.NumSlider
+	type BarSlider = import('./actions').BarSlider
+	const BarSlider: typeof global.BarSlider
+	type BarSelect = import('./actions').BarSelect
+	const BarSelect: typeof global.BarSelect
+	type BarText = import('./actions').BarText
+	const BarText: typeof global.BarText
+	type ColorPicker = import('./actions').ColorPicker
+	const ColorPicker: typeof global.ColorPicker
+	const BarItems: typeof global.BarItems
+}
+Object.assign(window, global);
 

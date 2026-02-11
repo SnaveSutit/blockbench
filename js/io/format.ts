@@ -171,6 +171,10 @@ export interface FormatFeatures {
 	 */
 	billboards: boolean
 	/**
+	 * Enable bounding box elements
+	 */
+	bounding_boxes: boolean
+	/**
 	 * Enable locators
 	 */
 	locators: boolean
@@ -450,6 +454,7 @@ export class ModelFormat implements FormatOptions {
 		Undo.history.empty();
 		Undo.index = 0;
 		Project.export_path = '';
+		Project.export_codec = '';
 		Project.unhandled_root_fields = {};
 
 		var old_format = Blockbench.Format as ModelFormat;
@@ -577,6 +582,13 @@ export class ModelFormat implements FormatOptions {
 				b.remove()
 			})
 		}
+		//Billboards
+		if (!this.bounding_boxes && old_format.bounding_boxes) {
+			// @ts-ignore
+			BoundingBox.all.slice().forEach(b => {
+				b.remove()
+			})
+		}
 
 		//Canvas Limit
 		if (this.cube_size_limiter && !old_format.cube_size_limiter && !settings.deactivate_size_limit.value) {
@@ -661,6 +673,7 @@ new Property(ModelFormat, 'boolean', 'meshes');
 new Property(ModelFormat, 'boolean', 'splines');
 new Property(ModelFormat, 'boolean', 'texture_meshes');
 new Property(ModelFormat, 'boolean', 'billboards');
+new Property(ModelFormat, 'boolean', 'bounding_boxes');
 new Property(ModelFormat, 'boolean', 'locators');
 new Property(ModelFormat, 'boolean', 'rotation_limit');
 new Property(ModelFormat, 'boolean', 'rotation_snap');

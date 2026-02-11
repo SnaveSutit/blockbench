@@ -77,10 +77,10 @@ export namespace ModelScaler {
 					before.vertices[key] = obj.vertices[key].slice();
 				}
 			}
-			(obj as any).before = before;
+			obj.temp_data.before = before;
 		})
 		scale_groups.forEach((g: Group) => {
-			g.old_origin = g.origin.slice();
+			g.temp_data.old_origin = g.origin.slice();
 		});
 		
 		dialog.show();
@@ -110,7 +110,7 @@ export namespace ModelScaler {
 			if (obj instanceof Cube) obj.autouv = 0;
 
 			let inflate = obj instanceof Cube ? obj.inflate : 0;
-			let before = (obj as any).before as {from: ArrayVector3, to: ArrayVector3, origin: ArrayVector3, vertices: Record<string, ArrayVector3>};
+			let before = obj.temp_data.before as {from: ArrayVector3, to: ArrayVector3, origin: ArrayVector3, vertices: Record<string, ArrayVector3>};
 			if (!before) before = obj as any;
 
 			origin.forEach(function(ogn, i) {
@@ -162,19 +162,18 @@ export namespace ModelScaler {
 				}
 			}
 			if (false) {
-				// @ts-ignore
-				delete obj.before;
+				delete obj.temp_data.before;
 			}
 			if (obj.getTypeBehavior('cube_faces') && 'box_uv' in obj && obj.box_uv) {
 				obj.preview_controller.updateUV(obj);
 			}
 		})
 		groups.forEach((g) => {
-			if (!axis || axis.x) g.origin[0] = ((g.old_origin[0] - origin[0]) * size) + origin[0];
-			if (!axis || axis.y) g.origin[1] = ((g.old_origin[1] - origin[1]) * size) + origin[1];
-			if (!axis || axis.z) g.origin[2] = ((g.old_origin[2] - origin[2]) * size) + origin[2];
+			if (!axis || axis.x) g.origin[0] = ((g.temp_data.old_origin[0] - origin[0]) * size) + origin[0];
+			if (!axis || axis.y) g.origin[1] = ((g.temp_data.old_origin[1] - origin[1]) * size) + origin[1];
+			if (!axis || axis.z) g.origin[2] = ((g.temp_data.old_origin[2] - origin[2]) * size) + origin[2];
 			if (false) {
-				delete g.old_origin
+				delete g.temp_data.old_origin
 			}
 		}, Group)
 		if (overflow.length && Format.cube_size_limiter && !settings.deactivate_size_limit.value) {
@@ -205,7 +204,7 @@ export namespace ModelScaler {
 	function cancel() {
 		Outliner.selected.forEach(function(obj) {
 			if (obj === undefined) return;
-			let before = (obj as any).before;
+			let before = obj.temp_data.before;
 			if ('from' in obj && obj.from instanceof Array) obj.from.V3_set(before.from);
 			if ('to' in obj && obj.to instanceof Array) obj.to.V3_set(before.to);
 			if ('origin' in obj && obj.origin instanceof Array) obj.origin.V3_set(before.origin);
@@ -215,16 +214,16 @@ export namespace ModelScaler {
 				}
 			}
 			// @ts-ignore
-			delete obj.before;
+			delete obj.temp_data.before;
 			if (obj instanceof Cube && obj.box_uv) {
 				obj.preview_controller.updateUV(obj)
 			}
 		})
 		ModelScaler.getScaleGroups().forEach((g) => {
-			g.origin[0] = g.old_origin[0]
-			g.origin[1] = g.old_origin[1]
-			g.origin[2] = g.old_origin[2]
-			delete g.old_origin
+			g.origin[0] = g.temp_data.old_origin[0]
+			g.origin[1] = g.temp_data.old_origin[1]
+			g.origin[2] = g.temp_data.old_origin[2]
+			delete g.temp_data.old_origin
 		}, Group)
 		Canvas.updateView({
 			elements: Outliner.selected,

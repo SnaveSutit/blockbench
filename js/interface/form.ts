@@ -45,9 +45,9 @@ export interface FormElementOptions {
 	 */
 	type?: FormInputType | `${FormInputType}`
 	/**
-	 * Visual style of the input. Checkbox inputs support 'checkbox' or 'toggle_switch'
+	 * Visual style of the input. Checkbox inputs support 'checkbox' or 'toggle_switch'. Textarea supports 'code'
 	 */
-	style?: 'checkbox' | 'toggle_switch'
+	style?: 'checkbox' | 'toggle_switch' | 'code'
 	/**
 	 * Stretch the input field across the whole width of the form
 	 */
@@ -315,6 +315,7 @@ export class FormElement extends EventSystem {
 		if (this.options.full_width) {
 			bar.classList.add('full_width_dialog_bar');
 		}
+		bar.setAttribute('form_type', this.options.type);
 		if (this.options.description) {
 			bar.setAttribute('title', tl(this.options.description));
 		}
@@ -360,6 +361,51 @@ export class FormElement extends EventSystem {
 				this.bar.classList.toggle('form_toggle_disabled', !toggle.checked);
 			});
 			this.input_toggle = toggle;
+		}
+	}
+	addShareButtons(bar: HTMLElement) {
+		let text = this.options.value.toString();
+		let is_url = text.startsWith('https://');
+		// @ts-ignore
+		let input: HTMLElement = this.input ?? this.textarea;
+
+		let copy_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.copy_to_clipboard')}, Blockbench.getIconNode('content_paste'));
+		copy_button.addEventListener('click', e => {
+			let text = this.getValue();
+			let is_url = text.startsWith('https://');
+			if (isApp || navigator.clipboard) {
+				Clipbench.setText(text);
+				Blockbench.showQuickMessage('dialog.copied_to_clipboard');
+				input.focus();
+				document.execCommand('selectAll');
+
+			} else if (is_url) {
+				Blockbench.showMessageBox({
+					title: 'dialog.share_model.title',
+					message: `[${text}](${text})`,
+				})
+			}
+		});
+		bar.append(copy_button);
+
+		if (is_url) {
+			let open_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.open_url')}, Blockbench.getIconNode('open_in_browser'));
+			open_button.addEventListener('click', e => {
+				let text = this.getValue();
+				Blockbench.openLink(text);
+			});
+			bar.append(open_button);
+		}
+		if (navigator.share) {
+			let share_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('generic.share')}, Blockbench.getIconNode('share'));
+			share_button.addEventListener('click', e => {
+				let text = this.getValue();
+				navigator.share({
+					title: this.options.label ? tl(this.options.label) : 'Share',
+					[is_url ? 'url' : 'text']: text
+				});
+			});
+			bar.append(share_button);
 		}
 	}
 
@@ -500,48 +546,8 @@ FormElement.types.text = class FormElementText extends FormElement {
 				password_toggle.firstElementChild.className = hidden ? 'fas fa-eye-slash' : 'fas fa-eye';
 			})
 		}
-		if (this.options.share_text && this.options.value) {
-			let text = this.options.value.toString();
-			let is_url = text.startsWith('https://');
-
-			let copy_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.copy_to_clipboard')}, Blockbench.getIconNode('content_paste'));
-			copy_button.addEventListener('click', e => {
-				let text = this.getValue();
-				let is_url = text.startsWith('https://');
-				if (isApp || navigator.clipboard) {
-					Clipbench.setText(text);
-					Blockbench.showQuickMessage('dialog.copied_to_clipboard');
-					input_element.focus();
-					document.execCommand('selectAll');
-
-				} else if (is_url) {
-					Blockbench.showMessageBox({
-						title: 'dialog.share_model.title',
-						message: `[${text}](${text})`,
-					})
-				}
-			});
-			bar.append(copy_button);
-
-			if (is_url) {
-				let open_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('dialog.open_url')}, Blockbench.getIconNode('open_in_browser'));
-				open_button.addEventListener('click', e => {
-					let text = this.getValue();
-					Blockbench.openLink(text);
-				});
-				bar.append(open_button);
-			}
-			if (navigator.share) {
-				let share_button = Interface.createElement('div', {class: 'form_input_tool tool', title: tl('generic.share')}, Blockbench.getIconNode('share'));
-				share_button.addEventListener('click', e => {
-					let text = this.getValue();
-					navigator.share({
-						title: this.options.label ? tl(this.options.label) : 'Share',
-						[is_url ? 'url' : 'text']: text
-					});
-				});
-				bar.append(share_button);
-			}
+		if (this.options.share_text) {
+			this.addShareButtons(bar);
 		}
 	}
 	getValue(): string {
@@ -569,7 +575,13 @@ FormElement.types.textarea = class FormElementTextarea extends FormElement {
 			}
 		});
 		this.textarea.style.height = (this.options.height || 150) + 'px';
+		if (this.options.style == 'code') this.textarea.classList.add('code');
 		bar.append(this.textarea);
+		if (this.options.share_text) {
+			let form_overlay_tools = Interface.createElement('div', {class: 'form_overlay_tools'});
+			bar.append(form_overlay_tools);
+			this.addShareButtons(form_overlay_tools);
+		}
 	}
 	getValue() {
 		return this.textarea.value;

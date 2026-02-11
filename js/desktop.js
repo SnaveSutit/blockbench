@@ -671,7 +671,7 @@ window.onbeforeunload = function (event) {
 			if (project.saved) return;
 			let li = Interface.createElement('li', {class: 'unsaved_model'}, [
 				Blockbench.getIconNode(project.format?.icon),
-				Interface.createElement('span', {}, project.getDisplayName()),
+				Interface.createElement('span', {}, project.getDisplayName(true)),
 				Interface.createElement('div', {class: 'tool'}, Blockbench.getIconNode('save')),
 			]);
 			li.addEventListener('click', event => {

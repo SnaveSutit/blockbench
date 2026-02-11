@@ -1,4 +1,5 @@
 /// <reference types="./blockbench"/>
+
 type ConditionResolvable<Context extends any = any> =
 	| undefined
 	| boolean
@@ -7,7 +8,7 @@ type ConditionResolvable<Context extends any = any> =
 			modes: string[]
 			formats: string[]
 			tools: string[]
-			features: string[]
+			features: (string | keyof FormatFeatures)[]
 			selected: {
 				animation?: boolean
 				animation_controller?: boolean

@@ -872,6 +872,7 @@ BARS.defineActions(function() {
 			'add_armature_bone',
 			'add_locator',
 			'add_null_object',
+			'add_bounding_box',
 			'add_texture_mesh',
 		]),
 		click(event) {

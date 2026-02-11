@@ -8,6 +8,9 @@ declare interface OutlinerNodeParentTraits {
 	isOpen: boolean
 }
 
+/**
+ * @deprecated Use {@link Outliner.elements} instead
+ */
 declare const elements: OutlinerNode[]
 
 

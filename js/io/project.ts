@@ -133,6 +133,7 @@ export class ModelProject {
 
 		this.save_path = '';
 		this.export_path = '';
+		this.export_codec = '';
 		this.export_options = {};
 		this.added_models = 0;
 
@@ -250,8 +251,14 @@ export class ModelProject {
 	get nodes_3d(): Record<UUID, THREE.Object3D> {
 		return ProjectData[this.uuid].nodes_3d;
 	}
-	getDisplayName(): string {
-		return this.name || this.model_identifier || this.format.name;
+	getDisplayName(with_extension: boolean = false): string {
+		let name = this.name || this.model_identifier || this.format.name;
+		if (with_extension) name = name + '.' + this.getFileExtension();
+		return name;
+	}
+	getFileExtension() {
+		let path = this.save_path || this.export_path;
+		return pathToExtension(path);
 	}
 	getProjectMemory() {
 		if (!isApp) return;
@@ -296,7 +303,7 @@ export class ModelProject {
 		Blockbench.Project = this;
 		this.selected = true;
 		this.format.select();
-		(BarItems.view_mode as BarSelect<string>).set(this.view_mode);
+		(BarItems.view_mode as BarSelect).set(this.view_mode);
 
 		// Setup Data
 		OutlinerNode.uuids = {};
@@ -773,6 +780,7 @@ export function selectNoProject() {
 	Blockbench.dispatchEvent('select_no_project', {});
 }
 export function updateTabBarVisibility() {
+	if (!Interface.tab_bar.$data.tabs) return;
 	let hidden = Settings.get('hide_tab_bar') && Interface.tab_bar.$data.tabs.length < 2;
 	document.getElementById('tab_bar').style.display = hidden ? 'none' : 'flex';
 	document.getElementById('title_bar_home_button').style.display = hidden ? 'block' : 'none';
@@ -1366,7 +1374,7 @@ BARS.defineActions(function() {
 							<ul id="tab_overview_grid">
 								<li v-for="project in filtered_projects" @mousedown="select(project)" :class="{pixel_art: isPixelArt(project)}">
 									<img :src="project.thumbnail" :style="{visibility: project.thumbnail ? 'unset' : 'hidden'}">
-									{{ project.name }}
+									{{ project.getDisplayName(true) }}
 								</li>
 							</ul>
 						</div>

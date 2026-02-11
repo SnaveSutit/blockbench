@@ -1,4 +1,5 @@
 import { findExistingFile } from "../../desktop";
+import { CanvasFrame } from "../../lib/CanvasFrame";
 import { currentwindow, dialog, fs } from "../../native_apis";
 import VersionUtil from '../../util/version_util'
 
@@ -177,12 +178,10 @@ window.BedrockEntityManager = class BedrockEntityManager {
 													base64 = btoa(String.fromCharCode(...u8))
 												}
 												if (pathToExtension(path) === 'tga') {
-													const targa_loader = new Targa()
-													targa_loader.open(`data:image/x-tga;base64,${base64}`, () => {
-														this.backgrounds[path] = `url("${targa_loader.getDataURL()}")`
+													let frame = new CanvasFrame().loadFromTGA(u8).then(() => {
+														this.backgrounds[path] = `url("${frame.toDataURL()}")`
 														this.$forceUpdate()
-													})
-													return
+													});
 												}
 												let mime
 												if (u8.slice(0, 4).toString() === [0x89, 0x50, 0x4E, 0x47].toString()) {
@@ -199,12 +198,19 @@ window.BedrockEntityManager = class BedrockEntityManager {
 											}
 										}
 										if (pathToExtension(path) === 'tga') {
-											this.backgrounds[path] = true
-											const targa_loader = new Targa()
-											targa_loader.open(path, () => {
-												this.backgrounds[path] = `url("${targa_loader.getDataURL()}")`
+											console.log(path);
+											this.backgrounds[path] = true;
+											let data;
+											if (isApp) {
+												data = fs.readFileSync(path);
+											} else {
+
+											}
+											let frame = new CanvasFrame();
+											frame.loadFromTGA(data).then((a, b) => {
+												this.backgrounds[path] = `url("${frame.canvas.toDataURL()}")`
 												this.$forceUpdate()
-											})
+											});
 											return
 										}
 										return `url("${ path.replace(/\\/g, '/').replace(/#/g, '%23') }?1")`
@@ -1169,7 +1175,7 @@ var codec = new Codec('bedrock', {
 		type: 'json',
 		extensions: ['json'],
 		condition(model) {
-			return model.format_version && VersionUtil.compare(model.format_version, '>=', '1.12.0');
+			return model['minecraft:geometry'] && model.format_version && VersionUtil.compare(model.format_version, '>=', '1.12.0');
 		}
 	},
 	load(model, file, args = {}) {
@@ -1198,6 +1204,7 @@ var codec = new Codec('bedrock', {
 			var name = pathToName(file.path, true);
 			Project.name = pathToName(name, false);
 			Project.export_path = file.path;
+			Project.export_codec = 'bedrock';
 		}
 
 		this.parse(model, file.path, args)
@@ -1477,6 +1484,7 @@ var entity_format = new ModelFormat({
 	bone_binding_expression: true,
 	locators: true,
 	texture_meshes: true,
+	bounding_boxes: true,
 	pbr: true,
 	codec,
 	onSetup(project) {
@@ -1516,6 +1524,7 @@ var block_format = new ModelFormat({
 	animation_mode: false,
 	display_mode: true,
 	texture_meshes: true,
+	bounding_boxes: true,
 	pbr: true,
 	cube_size_limiter: {
 		rotation_affected: true,

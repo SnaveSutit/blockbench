@@ -340,6 +340,7 @@ new TransformerModule('edit', {
 		} else if (tool_id === 'pivot_tool') {
 
 			var origin = Transformer.rotation_object.origin.slice()
+			let transform_space = getEditTransformSpace();
 
 			if (transform_space == 0) {
 				let vec = new THREE.Vector3();

@@ -6,6 +6,8 @@ import { clipboard, fs, ipcRenderer, nativeImage, openFileInEditor } from '../na
 import { Filesystem } from '../file_system';
 import { isImageEditorValid } from '../desktop';
 import { editUVSizeDialog } from '../uv/uv_size';
+import { decodeTga, encodeTga } from '@lunapaint/tga-codec';
+import { pathToExtension } from '../util/util';
 
 let tex_version = 1;
 
@@ -361,10 +363,14 @@ export class Texture {
 			delete this.selected_layer;
 		}
 
+		if (data.path) {
+			this.file_format = pathToExtension(this.path);
+		}
+
 		if (this.mode === 'bitmap' || !isApp) {
 			Merge.string(this, data, 'source')
 		} else if (data.path) {
-			this.source = this.path.replace(/#/g, '%23') + '?' + tex_version;
+			this.setSourceFromLocalFile();
 		}
 		return this;
 	}
@@ -373,7 +379,7 @@ export class Texture {
 		this.error = 0;
 		this.show_icon = true;
 		this.img.src = this.source;
-		this.load_callback = cb;
+		if (cb) this.load_callback = cb;
 		return this;
 	}
 	fromJavaLink(link, path_array, externalDataLoader) {
@@ -416,6 +422,7 @@ export class Texture {
 			this.folder = link.replace(/\\/g, '/').split('/')
 			this.folder = this.folder.splice(0, this.folder.length-1).join('/')
 			this.name = pathToName(path, true)
+			this.file_format = pathToExtension(this.path);
 			this.mode = 'link'
 			this.saved = true
 			this.load()
@@ -425,14 +432,19 @@ export class Texture {
 	fromFile(file, externalDataLoader) {
 		if (!file) return this;
 		if (file.name) this.name = file.name
-		if (typeof file.content === 'string' && file.content.substr(0, 4) === 'data') {
-			this.fromDataURL(file.content)
+		if ((typeof file.content === 'string' && file.content.substr(0, 4) === 'data') || !isApp) {
 
-			if (!file.path) {
-			} else if (pathToExtension(file.path) === 'png') {
-				this.path = file.path
-			} else if (pathToExtension(file.path) === 'tga') {
-				this.path = ''
+			if (file.path) {
+				this.path = file.path;
+				this.file_format = pathToExtension(this.path);
+			}
+			let file_format_data = Texture.file_formats[this.file_format];
+
+			if (file.content === 'string') {
+				this.fromDataURL(file.content);
+
+			} else if (file.content && file_format_data.decode) {
+				file_format_data.decode(file.content, this);
 			}
 
 		} else if (isApp) {
@@ -442,36 +454,6 @@ export class Texture {
 		return this;
 	}
 	fromPath(path, externalDataLoader) {
-		var scope = this;
-		if (path && pathToExtension(path) === 'tga') {
-			let load_path = path
-			const targa_loader = new Targa()
-			if (externalDataLoader) {
-				const external = externalDataLoader(path.replaceAll("\\", "/"))
-				if (external) {
-					if (typeof external === "string") {
-						load_path = external
-					} else if (external instanceof Uint8Array) {
-						const u8 = new Uint8Array(external)
-						let base64
-						if (typeof Buffer !== "undefined" && external instanceof Buffer) {
-							base64 = external.toString("base64")
-						} else {
-							base64 = btoa(String.fromCharCode(...u8))
-						}
-						load_path = `data:image/x-tga;base64,${base64}`
-					}
-				}
-			}
-			targa_loader.open(load_path, function() {
-				scope.fromFile({
-					name: pathToName(path, true),
-					path: path,
-					content: targa_loader.getDataURL()
-				})
-			})
-			return this;
-		}
 		this.path = path
 		this.name = pathToName(path, true)
 		this.mode = 'link'
@@ -508,7 +490,9 @@ export class Texture {
 					}
 				}
 			}
-			this.source = this.source || path.replace(/#/g, '%23') + '?' + tex_version;
+			let extension = pathToExtension(this.path);
+			this.file_format = Object.keys(Texture.file_formats).find(key => Texture.file_formats[key].extensions.includes(extension)) ?? 'png';
+			if (!this.source) this.setSourceFromLocalFile();
 		}
 		if (Format.texture_folder) {
 			this.generateFolder(path);
@@ -623,7 +607,7 @@ export class Texture {
 		if (Project.EditSession) {
 			this.load(() => {
 				var before = {textures: {}}
-				before.textures[scope.uuid] = true;
+				before.textures[this.uuid] = true;
 				this.edit()
 				var post = new Undo.save({textures: [this]})
 				Project.EditSession.sendEdit({
@@ -646,7 +630,7 @@ export class Texture {
 		if (path.includes('data:image')) {
 			this.source = path
 		} else {
-			this.source = path.replace(/#/g, '%23') + '?' + tex_version
+			this.setSourceFromLocalFile();
 		}
 		this.startWatcher()
 		this.load()
@@ -696,6 +680,21 @@ export class Texture {
 		this.show_icon = false;
 		return this;
 	}
+	setSourceFromLocalFile() {
+		let file_format_data = Texture.file_formats[this.file_format];
+		if (!file_format_data.decode) {
+			this.source = this.path.replace(/#/g, '%23') + '?' + tex_version;
+
+		} else if (isApp && this.path) {
+			let data = fs.readFileSync(this.path);
+			
+			let file_format_data = Texture.file_formats[this.file_format];
+			if (file_format_data.decode) {
+				file_format_data.decode(data, this);
+			}
+
+		}
+	}
 	updateSource(dataUrl) {
 		// Update the source, only used when source is secure + base64 
 		if (!dataUrl) dataUrl = this.source;
@@ -733,8 +732,8 @@ export class Texture {
 		function _replace() {
 			Blockbench.import({
 				resource_id: 'texture',
-				extensions: ['png', 'tga'],
-				type: 'PNG Texture',
+				extensions: Texture.getAllExtensions(),
+				type: 'Texture',
 				readtype: 'image',
 				startpath: scope.path
 			}, function(files) {
@@ -768,7 +767,7 @@ export class Texture {
 		if (single) {
 			tex_version++;
 		}
-		this.source = this.source.replace(/\?\d+$/, '?' + tex_version)
+		this.setSourceFromLocalFile();
 		this.load();
 		this.updateMaterial()
 		TickUpdates.UVEditor = true;
@@ -1137,14 +1136,18 @@ export class Texture {
 			variable: 	{label: 'dialog.texture.variable', value: this.id, condition: {features: ['texture_folder']}},
 			folder: 	{label: 'dialog.texture.folder', value: this.folder, condition: () => Format.texture_folder},
 			namespace: 	{label: 'dialog.texture.namespace', value: this.namespace, condition: {features: ['texture_folder']}},
+			file_format: {label: 'menu.texture.file_format', type: 'select', value: this.file_format, options: {}},
 			'render_options': '_',
 			render_mode: {label: 'menu.texture.render_mode', type: 'select', value: this.render_mode, options: {
 				default: 'menu.texture.render_mode.default',
 				emissive: 'menu.texture.render_mode.emissive',
 				additive: 'menu.texture.render_mode.additive',
-				layered: Format.single_texture && 'menu.texture.render_mode.layered',
+				layered: (Format.single_texture || Format.single_texture_default) && 'menu.texture.render_mode.layered',
 			}},
 		};
+		for (let key in Texture.file_formats) {
+			form.file_format.options[key] = Texture.file_formats[key].name;
+		}
 		if (Format.id == 'free') {
 			Object.assign(form, {
 				render_sides: {label: 'settings.render_sides', type: 'select', value: this.render_sides, options: {
@@ -1211,15 +1214,7 @@ export class Texture {
 			lines: [header],
 			form,
 			onConfirm: results => {
-
-				dialog.hide();
-				if (['name', 'variable', 'folder', 'namespace', 'fps', 'frame_time', 'frame_interpolate', 'frame_order_type', 'frame_order'].find(key => {
-					return results[key] !== undefined && results[key] !== this[key];
-				}) == undefined) {
-					return;
-				}
-
-				Undo.initEdit({textures: [this], selected_texture: true})
+				Undo.initEdit({textures: [this], selected_texture: true});
 
 				let old_render_mode = this.render_mode;
 
@@ -1231,6 +1226,17 @@ export class Texture {
 				if (results.render_sides !== undefined) this.render_sides = results.render_sides;
 				if (results.wrap_mode !== undefined) this.wrap_mode = results.wrap_mode;
 				if (results.fps !== undefined) this.fps = results.fps;
+
+				if (results.file_format && results.file_format != this.file_format) {
+					let old_extensions = Texture.file_formats[this.file_format]?.extensions;
+					let new_extensions = Texture.file_formats[results.file_format]?.extensions;
+					if (old_extensions && new_extensions) {
+						let regex = new RegExp(`\\.(${old_extensions.join('|')})$`);
+						this.name = this.name.replace(regex, '.'+new_extensions[0]);
+						this.path = this.path.replace(regex, '.'+new_extensions[0]);
+					}
+					this.file_format = results.file_format;
+				}
 				
 				if (Format.per_texture_uv_size) {
 					let changed = this.uv_width != results.uv_size[0] || this.uv_height != results.uv_size[1];
@@ -1531,7 +1537,7 @@ export class Texture {
 	}
 	//Export
 	javaTextureLink() {
-		var link = this.name.replace(/\.png$/, '')
+		var link = this.name.replace(/\.\w{2,8}$/, '')
 		if (this.folder) {
 			link = this.folder + '/' + link
 		}
@@ -1584,25 +1590,28 @@ export class Texture {
 			});
 		}
 	}
-	save(as) {
+	async save(as) {
 		var scope = this;
 		if (scope.saved && !as) {
 			return this;
 		}
 
-		if (isApp) {
-			//overwrite path
-			let image;
-			if (scope.mode === 'link') {
-				image = nativeImage.createFromPath(scope.path).toPNG()
-			} else {
-				image = nativeImage.createFromDataURL(scope.source).toPNG()
-			}
-			tex_version++;
+		let file_format_options = Texture.file_formats[this.file_format] ?? Texture.file_formats.png;
+		let export_data;
+		if (file_format_options.encode) {
+			export_data = await file_format_options.encode(this);
+		} else {
+			let encoding = 'image/'+(this.file_format??'png');
+			export_data = this.canvas.toDataURL(encoding);
+		}
+		tex_version++;
 
-			function postSave(path) {
-				if (Format.texture_mcmeta && scope.frameCount > 1) {
-					let mcmeta_content = scope.getMCMetaContent();
+
+		if (isApp) {
+
+			let postSave = (path) => {
+				if (Format.texture_mcmeta && this.frameCount > 1) {
+					let mcmeta_content = this.getMCMetaContent();
 					Blockbench.writeFile(path + '.mcmeta', {content: compileJSON(mcmeta_content)})
 				}
 			}
@@ -1610,11 +1619,11 @@ export class Texture {
 			if (!as && this.path && fs.existsSync(this.path)) {
 				this.flags.add('file_just_changed');
 				setTimeout(() => {this.flags.delete('file_just_changed')}, 100);
-				fs.writeFileSync(this.path, image);
+				Filesystem.writeFile(this.path, {content: export_data, savetype: 'image'});
 				postSave(this.path);
 				this.mode = 'link';
 				this.saved = true;
-				this.source = this.path.replace(/#/g, '%23') + '?' + tex_version;
+				this.setSourceFromLocalFile();
 				this.source_overwritten = true;
 
 			} else {
@@ -1630,33 +1639,33 @@ export class Texture {
 					var arr = Project.export_path.split(osfs);
 					var index = arr.lastIndexOf('models');
 					if (index > 1) arr.splice(index, 256, 'textures')
-					if (scope.folder) arr = arr.concat(scope.folder.split('/'));
-					arr.push(scope.name)
+					if (this.folder) arr = arr.concat(this.folder.split('/'));
+					arr.push(this.name)
 					find_path = arr.join(osfs)
 				}
 				Blockbench.export({
 					resource_id: 'texture',
-					type: 'PNG Texture',
-					extensions: ['png'],
-					name: scope.name,
-					content: image,
+					type: file_format_options.name + ' Texture',
+					extensions: file_format_options.extensions,
+					name: this.name,
+					content: export_data,
 					startpath: find_path,
 					savetype: 'image'
-				}, function(path) {
+				}, (path) => {
 					postSave(path);
-					scope.fromPath(path)
+					this.fromPath(path)
 				})
 			}
 		} else {
 			//Download
 			Blockbench.export({
-				type: 'PNG Texture',
-				extensions: ['png'],
-				name: scope.name,
-				content: scope.source,
+				type: file_format_options.name + ' Texture',
+				extensions: file_format_options.extensions,
+				name: this.name,
+				content: export_data,
 				savetype: 'image'
-			}, function() {
-				scope.saved = true;
+			}, () => {
+				this.saved = true;
 			})
 		}
 		if (Format.image_editor && !Texture.all.find(t => !t.saved)) {
@@ -1831,6 +1840,52 @@ export class Texture {
 			this.convertToInternal();
 		}
 		this.saved = false;
+	}
+
+	static file_formats = {
+		png: {
+			name: 'PNG',
+			extensions: ['png']
+		},
+		jpeg: {
+			name: 'JPEG',
+			extensions: ['jpeg', 'jpg']
+		},
+		webp: {
+			name: 'WebP',
+			extensions: ['webp']
+		},
+		tga: {
+			name: 'TGA',
+			extensions: ['tga'],
+			async encode(texture) {
+				let image_data = texture.ctx.getImageData(0, 0, texture.canvas.width, texture.canvas.height);
+				let result = await encodeTga({
+					data: image_data.data,
+					width: texture.canvas.width,
+					height: texture.canvas.height
+				});
+				return result.data;
+			},
+			async decode(data, texture) {
+				if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+				let result = await decodeTga(data);
+				texture.canvas.width = result.image.width;
+				texture.canvas.height = result.image.height;
+				let imagedata = new ImageData(result.image.width, result.image.height);
+				imagedata.data.set(result.image.data);
+				texture.ctx.putImageData(imagedata, 0, 0);
+				texture.source = texture.canvas.toDataURL('image/png', 1);
+				texture.load();
+			}
+		}
+	}
+	static getAllExtensions() {
+		let array = [];
+		for (let key in Texture.file_formats) {
+			array.safePush(...Texture.file_formats[key].extensions);
+		}
+		return array;
 	}
 }
 	Texture.prototype.menu = new Menu([
@@ -2121,7 +2176,7 @@ export class Texture {
 					texture.layers.empty();
 					texture.internal = false;
 					texture.saved = true;
-					texture.source = texture.path.replace(/#/g, '%23') + '?' + tex_version;
+					texture.setSourceFromLocalFile();
 					Texture.selected.reloadTexture();
 					Undo.finishEdit('Discard texture changes');
 					updateInterfacePanels();
@@ -2175,6 +2230,7 @@ export class Texture {
 	new Property(Texture, 'boolean', 'use_as_default')
 	new Property(Texture, 'boolean', 'layers_enabled')
 	new Property(Texture, 'string', 'sync_to_project')
+	new Property(Texture, 'enum', 'file_format', {default: 'png'})
 	new Property(Texture, 'enum', 'render_mode', {default: 'default'})
 	new Property(Texture, 'enum', 'render_sides', {default: 'auto'})
 	new Property(Texture, 'enum', 'wrap_mode', {default: () => Format.texture_wrap_default ?? 'limited'})
@@ -2348,14 +2404,14 @@ BARS.defineActions(function() {
 				arr.push('textures')
 				start_path = arr.join(osfs)
 			}
-			let extensions = ['png', 'tga'];
+			let extensions = Texture.getAllExtensions();
 			if (isApp) {
 				extensions.push('texture_set.json');
 			}
 			Blockbench.import({
 				resource_id: 'texture',
 				readtype: 'image',
-				type: 'PNG Texture',
+				type: 'Texture',
 				extensions,
 				multiple: true,
 				startpath: start_path

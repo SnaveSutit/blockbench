@@ -136,7 +136,7 @@ export abstract class OutlinerElement extends OutlinerNode {
 		Undo.initSelection();
 		//Shift
 		var just_selected = [];
-		let allow_multi_select = (!Modes.paint || (Toolbox.selected.id == 'fill_tool' && (BarItems.fill_mode as BarSelect<string>).value == 'selected_elements'));
+		let allow_multi_select = (!Modes.paint || (Toolbox.selected.id == 'fill_tool' && (BarItems.fill_mode as BarSelect).value == 'selected_elements'));
 		if (
 			event &&
 			allow_multi_select &&

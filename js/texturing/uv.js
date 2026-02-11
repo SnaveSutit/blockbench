@@ -1838,11 +1838,11 @@ BARS.defineActions(function() {
 	new BarSlider('uv_rotation', {
 		category: 'uv',
 		condition: () => UVEditor.isFaceUV() && Format.uv_rotation && Cube.selected.length,
-		min: 0, max: 270, step: 90, width: 80,
+		min: 0, max: 270, step: 90, width: 80, circular: true,
 		onBefore: () => {
 			Undo.initEdit({elements: Cube.selected, uv_only: true})
 		},
-		onChange: function(slider) {
+		onChange: function() {
 			UVEditor.rotate();
 		},
 		onAfter: () => {
@@ -2894,6 +2894,7 @@ Interface.definePanels(function() {
 				onPointerDown(event) {
 					if (this.touches_count) return;
 					setActivePanel('uv');
+					if (Menu.open) Menu.open.hide();
 					UVEditor.total_zoom_offset = [6, 6];
 					if (event.which === 2 ||
 						(Keybinds.extra.preview_drag.keybind.isTriggered(event) && !event.which == 1)
