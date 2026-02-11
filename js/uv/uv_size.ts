@@ -1,7 +1,5 @@
 
-
-
-export function setProjectResolution(width, height, modify_uv) {
+export function setProjectResolution(width: number, height: number, modify_uv: boolean = false) {
 	if (Project.texture_width / width != Project.texture_width / height) {
 		modify_uv = false;
 	}
@@ -94,7 +92,7 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 		}
 		return false;
 	}
-	function changeElementUVs(multiplier: ArrayVector2) {
+	function changeElementUVs(multiplier: ArrayVector2, update_scale: boolean = false) {
 		for (let element of elements) {
 			if (!element_backups[element.uuid]) {
 				element_backups[element.uuid] = element.getUndoCopy();
@@ -103,6 +101,10 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 			}
 		}
 		adjustElementUVToResolution(multiplier, elements, options.target);
+		if (update_scale) {
+			let groups = elements.length == Outliner.elements.length ? Group.all : [];
+			ModelScaler.scaleElements(elements, groups, multiplier[0], [0, 0, 0]);
+		}
 		Canvas.updateView({elements, element_aspects: {uv: true, transform: true, geometry: true}});
 	}
 	function revertElementChanges() {
@@ -169,13 +171,12 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 			dialog.form.form_data.output.bar.childNodes[1].textContent = getOutputText();
 
 			if (result.live_preview) {
-				if (result.adjust == 'adjust_uv') {
-					changeElementUVs([
+				if (result.adjust == 'adjust_uv' || result.adjust == 'adjust_scale') {
+					let multiplier: ArrayVector2 = [
 						result.target_size[0] / old_size[0],
 						result.target_size[1] / old_size[1],
-					]);
-				} else if (result.adjust == 'adjust_scale') {
-
+					];
+					changeElementUVs(multiplier, result.adjust == 'adjust_scale');
 				} else {
 					Canvas.updateView({elements: Outliner.elements, element_aspects: {uv: true, transform: true, geometry: true}});
 				}
