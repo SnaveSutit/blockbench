@@ -169,9 +169,10 @@ export namespace ModelScaler {
 			}
 		})
 		groups.forEach((g) => {
-			if (!axis || axis.x) g.origin[0] = ((g.temp_data.old_origin[0] - origin[0]) * size) + origin[0];
-			if (!axis || axis.y) g.origin[1] = ((g.temp_data.old_origin[1] - origin[1]) * size) + origin[1];
-			if (!axis || axis.z) g.origin[2] = ((g.temp_data.old_origin[2] - origin[2]) * size) + origin[2];
+			let old_origin = g.temp_data.old_origin ?? g.origin.slice();
+			if (!axis || axis.x) g.origin[0] = ((old_origin[0] - origin[0]) * size) + origin[0];
+			if (!axis || axis.y) g.origin[1] = ((old_origin[1] - origin[1]) * size) + origin[1];
+			if (!axis || axis.z) g.origin[2] = ((old_origin[2] - origin[2]) * size) + origin[2];
 			if (false) {
 				delete g.temp_data.old_origin
 			}

@@ -35,13 +35,13 @@ export function setProjectResolution(width: number, height: number, modify_uv: b
 	}
 }
 
-export function adjustElementUVToResolution(multiplier: ArrayVector2, elements = Outliner.elements, texture?: Texture) {
+export function adjustElementUVToResolution(multiplier: ArrayVector2, elements = Outliner.elements, textures?: Texture[]) {
 	for (let element of elements) {
 		if ('faces' in element == false) continue;
 		if (element instanceof Mesh) {
 			for (let key in element.faces) {
 				let face = element.faces[key];
-				if (texture && face.getTexture() != texture) continue;
+				if (textures && !textures.includes(face.getTexture() as Texture)) continue;
 				face.vertices.forEach(vertex_key => {
 					if (face.uv[vertex_key]) {
 						face.uv[vertex_key][0] *= multiplier[0];
@@ -56,7 +56,7 @@ export function adjustElementUVToResolution(multiplier: ArrayVector2, elements =
 		} else {
 			for (let fkey in (element.faces as Record<string, Face>)) {
 				let face = element.faces[fkey] as Face;
-				if (texture && face.getTexture() != texture) continue;
+				if (textures && !textures.includes(face.getTexture() as Texture)) continue;
 				face.uv[0] *= multiplier[0];
 				face.uv[1] *= multiplier[1];
 				face.uv[2] *= multiplier[0];
@@ -66,29 +66,41 @@ export function adjustElementUVToResolution(multiplier: ArrayVector2, elements =
 	}
 }
 
-export function editUVSizeDialog(options: {target?: Texture}): void {
-	let old_size: ArrayVector2 = [Project.getUVWidth(options.target), Project.getUVHeight(options.target)];
-	let texture = options.target;
+export function editUVSizeDialog(options: {texture?: Texture, project?: boolean}): void {
+	let old_size: ArrayVector2 = [Project.getUVWidth(options.texture), Project.getUVHeight(options.texture)];
+	let textures: Texture[] | undefined = options.texture ? [options.texture] : undefined;
+	if (options.texture && Texture.all.some(tex => tex.multi_selected)) {
+		textures.safePush(...Texture.all.filter(tex => tex.multi_selected));
+	}
 	let element_backups: Record<string, any> = {};
+	let group_backups: Record<string, any> = {};
+	const elements = Outliner.elements.filter(element => isElementAffected(element));
+	const groups = elements.length == Outliner.elements.length ? Group.all : [];
+
+	// Form options
 	const adjust_options = {
 		adjust_uv: 'Adjust UV',
-		keep: 'Keep UV Values',
-		adjust_scale: 'Adjust Scale',
+		adjust_scale: 'Adjust UV & Scale',
+		keep: 'Keep UV',
+	}
+	let target_text = 'Project';
+	if (textures?.length > 1) {
+		target_text = textures.length + ' Textures';
+	} else if (options.texture) {
+		target_text = `Texture ${(options.texture.name)}`;
 	}
 	type Results = {
 		target: any
 		target_size: ArrayVector2
 		adjust: keyof typeof adjust_options
-		live_preview: boolean
 	}
-	const elements = Outliner.elements.filter(element => isElementAffected(element));
 
 	function isElementAffected(element: OutlinerElement): boolean {
 		if ('faces' in element == false) return false;
 		if (Format.per_texture_uv_size == false) return true;
 		for (let fkey in (element.faces as Record<string, Face>)) {
 			let face = element.faces[fkey] as Face;
-			if (face.getTexture() == options.target) return true;
+			if (textures.includes(face.getTexture() as Texture)) return true;
 		}
 		return false;
 	}
@@ -100,12 +112,21 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 				element.extend(element_backups[element.uuid]);
 			}
 		}
-		adjustElementUVToResolution(multiplier, elements, options.target);
+		for (let group of groups) {
+			if (!group_backups[group.uuid]) {
+				group_backups[group.uuid] = {origin: group.origin.slice()};
+			} else {
+				group.extend(group_backups[group.uuid]);
+			}
+		}
+		adjustElementUVToResolution(multiplier, elements, textures);
 		if (update_scale) {
-			let groups = elements.length == Outliner.elements.length ? Group.all : [];
 			ModelScaler.scaleElements(elements, groups, multiplier[0], [0, 0, 0]);
 		}
-		Canvas.updateView({elements, element_aspects: {uv: true, transform: true, geometry: true}});
+		Canvas.updateView({
+			elements, element_aspects: {uv: true, transform: true, geometry: true},
+			groups, group_aspects: {transform: update_scale}
+		});
 	}
 	function revertElementChanges() {
 		for (let element of elements) {
@@ -113,30 +134,44 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 			element.extend(element_backups[element.uuid]);
 			delete element_backups[element.uuid];
 		}
-		Canvas.updateView({elements, element_aspects: {uv: true, transform: true, geometry: true}});
+		for (let group of groups) {
+			if (group_backups[group.uuid]) {
+				group.extend(group_backups[group.uuid]);
+			}
+		}
+		Canvas.updateView({
+			elements, element_aspects: {uv: true, transform: true, geometry: true},
+			groups, group_aspects: {transform: true}
+		});
 	}
 	function setValue(size: ArrayVector2) {
-		if (Format.per_texture_uv_size && options.target) {
-			let texture = options.target;
-			texture.uv_width = size[0];
-			texture.uv_height = size[1];
+		if (options.texture && textures) {
+			for (let texture of textures) {
+				texture.uv_width = size[0];
+				texture.uv_height = size[1];
+			}
 		} else {
 			Project.texture_width = size[0];
 			Project.texture_height = size[1];
 		}
 	}
 	function getOutputText() {
-		let texture = options.target ?? Texture.getDefault();
-		if (!texture) return '';
-		let uv_size = texture.width / texture.getUVWidth();
-		let x_value = uv_size * Format.block_size;
-		let ratio = uv_size < 1 ? `1:${trimFloatNumber(1/uv_size)}` : `${trimFloatNumber(uv_size)}:1`;
-		return `${trimFloatNumber(x_value, 2)}x - ${ratio}`;
+		if (options.project) {
+			return `${Project.texture_width} x ${Project.texture_height}`;
+		} else {
+			let texture = options.texture ?? Texture.getDefault();
+			if (!texture) return '';
+			let uv_size = texture.width / texture.getUVWidth();
+			let x_value = uv_size * Format.block_size;
+			let ratio = uv_size < 1 ? `1:${trimFloatNumber(1/uv_size)}` : `${trimFloatNumber(uv_size)}:1`;
+			return `${trimFloatNumber(x_value, 2)}x - ${ratio}`;
+		}
 	}
 
 	Undo.initEdit({
-		textures: texture ? [texture] : undefined,
-		elements
+		textures,
+		elements,
+		groups
 	});
 
 	let dialog = new Dialog({
@@ -144,14 +179,14 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 		title: 'Edit UV Size',
 		darken: false,
 		form: {
-			//target: {type: 'select', options: {}},
+			target: {label: 'Target', type: 'info', text: target_text},
 			adjust: {type: 'select', label: 'Adjust', options: adjust_options},
 			target_size: {type: 'vector', label: 'Target UV Size', dimensions: 2, value: old_size, linked_ratio: true, min: 1, step: 1, force_step: true},
 			preest: {type: 'buttons', label: ' ', buttons: ['Original', 'Match Texture', '2x', '0.5x'], click(button) {
 				if (button == 0) {
 					dialog.form.setValues({target_size: old_size}, true);
 				} else if (button == 1) {
-					dialog.form.setValues({target_size: [texture?.width ?? 16, texture?.height ?? 16]}, true);
+					dialog.form.setValues({target_size: [options.texture?.width ?? 16, options.texture?.height ?? 16]}, true);
 				} else {
 					let current = (dialog.form.getResult() as Results).target_size;
 					let factor = button == 2 ? 2 : 0.5;
@@ -159,7 +194,6 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 				}
 			}},
 			output: {type: 'info', label: 'Result', text: getOutputText()},
-			live_preview: {type: 'checkbox', label: 'Live Preview', value: true}
 		},
 		onOpen() {
 			let pos = window.innerHeight-this.object.clientHeight-50;
@@ -170,21 +204,16 @@ export function editUVSizeDialog(options: {target?: Texture}): void {
 
 			dialog.form.form_data.output.bar.childNodes[1].textContent = getOutputText();
 
-			if (result.live_preview) {
-				if (result.adjust == 'adjust_uv' || result.adjust == 'adjust_scale') {
-					let multiplier: ArrayVector2 = [
-						result.target_size[0] / old_size[0],
-						result.target_size[1] / old_size[1],
-					];
-					changeElementUVs(multiplier, result.adjust == 'adjust_scale');
-				} else {
-					Canvas.updateView({elements: Outliner.elements, element_aspects: {uv: true, transform: true, geometry: true}});
-				}
-				UVEditor.loadData();
+			if (result.adjust == 'adjust_uv' || result.adjust == 'adjust_scale') {
+				let multiplier: ArrayVector2 = [
+					result.target_size[0] / old_size[0],
+					result.target_size[1] / old_size[1],
+				];
+				changeElementUVs(multiplier, result.adjust == 'adjust_scale');
 			} else {
-				revertElementChanges();
-				UVEditor.loadData();
+				Canvas.updateView({elements: Outliner.elements, element_aspects: {uv: true, transform: true, geometry: true}});
 			}
+			UVEditor.loadData();
 		},
 		onConfirm(result: Results) {
 			Undo.finishEdit('Change UV Size');

@@ -1111,25 +1111,19 @@ BARS.defineActions(function() {
 				label: 'dialog.project.uv_size',
 				type: 'vector',
 				dimensions: 2,
-				linked_ratio: false,
 				value: [Project.texture_width, Project.texture_height],
-				min: 1
-				
+				min: 1,
+				linked_ratio: undefined,
+				readonly: true,
+				extra_actions: [{
+					icon: 'edit',
+					name: 'Change',
+					click: (event) => {
+						Dialog.open.close();
+						editUVSizeDialog({project: true});
+					}
+				}]
 			};
-			if (!(Format.per_texture_uv_size && Format.single_texture)) {
-				Object.assign(form.texture_size, {
-					linked_ratio: undefined,
-					readonly: true,
-					extra_actions: [{
-						icon: 'edit',
-						name: 'Change',
-						click: (event) => {
-							Dialog.open.close();
-							editUVSizeDialog({});
-						}
-					}]
-				});
-			}
 
 			var dialog = new Dialog({
 				id: 'project',
