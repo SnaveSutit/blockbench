@@ -1,4 +1,4 @@
-import { editUVSizeDialog } from "../uv/uv_size";
+import { editUVSizeDialog } from "./uv_size";
 import { PointerTarget } from "../interface/pointer_target";
 
 export const UVEditor = {
