@@ -1,4 +1,4 @@
-import { applyPalette, quantize } from "../../util/gif";
+import { applyPalette, quantize } from "../util/gif";
 
 let codec = new Codec('image', {
 	name: tl('format.image'),

@@ -4,7 +4,7 @@ import { Armature } from "../../outliner/types/armature";
 import { ArmatureBone } from "../../outliner/types/armature_bone";
 import { adjustFromAndToForInflateAndStretch } from "../../outliner/types/cube";
 import { patchedAtob } from "../../util/util";
-import { JSZip, THREE } from './../../lib/libs'
+import { JSZip, THREE } from '../../lib/libs'
 
 const _FBX_VERSION = 7300;
 
