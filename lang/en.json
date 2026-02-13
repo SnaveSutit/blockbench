@@ -1455,7 +1455,8 @@
 	"action.vertex_snap_tool": "Vertex Snap",
 	"action.vertex_snap_tool.desc": "Move one cube to another cube by connecting two vertices",
 	"action.swap_tools": "Swap Tools",
-	"action.swap_tools.desc": "Switch between the move and resize tool",
+	"action.swap_tools.desc": "Switch between alternative tools, like move and resize, or brush and color picker",
+	"action.swap_tools.hold": "Hold to swap (Color Picker)",
 
 	"action.project_window": "Project...",
 	"action.project_window.desc": "Opens the project window, where you can edit metadata of your model",
