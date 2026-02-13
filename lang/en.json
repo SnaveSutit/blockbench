@@ -686,6 +686,10 @@
 	"dialog.load_plugins_from_query.title": "Load Plugins",
 	"dialog.load_plugins_from_query.text": "You used a link that requires plugins to be installed. Would you like to install them?",
 
+	"dialog.install_plugins_from_list.ids": "Plugin IDs",
+	"dialog.install_plugins_from_list.info": "Install several plugins from a list of IDs. Before installing, please ensure that you actually need all plugins. Keeping inactive plugins can increase the risk of bugs and incompatibilities with future updates.",
+	"dialog.copy_installed_plugins.details": "Include Details",
+
 	"dialog.toolbar_edit.title": "Customize Toolbar",
 	"dialog.toolbar_edit.hidden": "Hidden",
 	"dialog.toolbar_edit.hidden_tools": "Some tools might be hidden because they are not available in the current mode, format, or situation.",
@@ -1559,8 +1563,11 @@
 	"action.load_plugin.desc": "Load a plugin by importing the source file",
 	"action.load_plugin_from_url": "Load Plugin from URL",
 	"action.load_plugin_from_url.desc": "Load a plugin from a server by specifying the URL",
-	"action.copy_installed_plugins": "Copy installed plugins",
+	"action.copy_installed_plugins": "Copy Installed Plugins",
 	"action.copy_installed_plugins.desc": "Generate and copy a list of the currently installed plugins",
+	"action.install_plugins_from_list": "Install Plugins from List",
+	"action.install_plugins_from_list.desc": "Install plugins from a list of plugin IDs",
+	"action.install_plugins_from_list.about": "Install plugins from a list of plugin IDs",
 	"action.reload_plugins": "Reload Plugins",
 	"action.reload_plugins.desc": "Reload all development plugins",
 
