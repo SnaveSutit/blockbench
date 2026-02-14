@@ -631,7 +631,7 @@ window.calculateVisibleBox = calculateVisibleBox;
 
 // Parse
 
-	function parseCube(s, group) {
+	function parseCube(s, group, bone_data) {
 		var base_cube = new Cube({
 			name: s.name || group.name,
 			autouv: 0,
@@ -689,8 +689,9 @@ window.calculateVisibleBox = calculateVisibleBox;
 			}
 			
 		}
-		if (s.inflate && typeof s.inflate === 'number') {
-			base_cube.inflate = s.inflate;
+		let inflate = s.inflate ?? bone_data?.inflate
+		if (typeof inflate === 'number') {
+			base_cube.inflate = inflate;
 		}
 		if (s.mirror === undefined) {
 			base_cube.mirror_uv = group.mirror_uv;
@@ -723,7 +724,7 @@ window.calculateVisibleBox = calculateVisibleBox;
 
 		if (b.cubes) {
 			b.cubes.forEach(function(s) {
-				parseCube(s, group)
+				parseCube(s, group, b)
 			})
 		}
 		if (b.locators) {
