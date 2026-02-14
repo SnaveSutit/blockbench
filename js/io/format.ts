@@ -311,6 +311,7 @@ export type FormatOptions = FormatFeatures & {
 	new?(): boolean
 
 	codec?: Codec
+	animation_codec?: AnimationCodec
 	onActivation?(): void
 	onDeactivation?(): void
 }
@@ -339,6 +340,7 @@ export class ModelFormat implements FormatOptions {
 	cube_size_limiter?: CubeSizeLimiter
 
 	codec?: Codec
+	animation_codec?: AnimationCodec
 	onActivation?(): void
 	onDeactivation?(): void
 
@@ -368,6 +370,7 @@ export class ModelFormat implements FormatOptions {
 		this.cube_size_limiter = data.cube_size_limiter;
 
 		this.codec = data.codec;
+		this.animation_codec = data.animation_codec;
 		this.onSetup = data.onSetup;
 		this.onFormatPage = data.onFormatPage;
 		this.onActivation = data.onActivation;

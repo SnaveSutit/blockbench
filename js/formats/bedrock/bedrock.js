@@ -2,6 +2,8 @@ import { findExistingFile } from "../../desktop";
 import { CanvasFrame } from "../../lib/CanvasFrame";
 import { currentwindow, dialog, fs } from "../../native_apis";
 import VersionUtil from '../../util/version_util'
+import {animation_codec} from "./bedrock_animation"
+import "./animation_controller_codec"
 
 if (isApp) {
 window.BedrockEntityManager = class BedrockEntityManager {
@@ -323,7 +325,7 @@ window.BedrockEntityManager = class BedrockEntityManager {
 			anim_files.forEach(path => {
 				try {
 					let content = fs.readFileSync(path, 'utf8');
-					Animator.loadFile({path, content}, animation_names);
+					animation_codec.loadFile({path, content}, animation_names);
 				} catch (err) {
 					console.error(err)
 				}
@@ -1487,6 +1489,7 @@ var entity_format = new ModelFormat({
 	bounding_boxes: true,
 	pbr: true,
 	codec,
+	animation_codec,
 	onSetup(project) {
 		if (isApp) {
 			project.BedrockEntityManager = new BedrockEntityManager(project);
