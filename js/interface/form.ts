@@ -28,6 +28,7 @@ export enum FormInputType {
 	Folder = 'folder',
 	Save = 'save',
 	InlineSelect = 'inline_select',
+	MultiSelect = 'multi_select',
 	InlineMultiSelect = 'inline_multi_select',
 	Info = 'info',
 	NumSlider = 'num_slider',
@@ -677,6 +678,72 @@ FormElement.types.inline_select = class FormElementInlineSelect extends FormElem
 	}
 	getDefault(): string {
 		return Object.keys(this.options.options)[0] ?? '';
+	}
+};
+FormElement.types.multi_select = class FormElementMultiSelect extends FormElement {
+	value: string[]
+	ul: HTMLUListElement
+	build(bar: HTMLDivElement) {
+		super.build(bar);
+		let val = this.options.value || this.options.default;
+		this.value = [];
+		if (val instanceof Array) {
+			this.value.push(...val);
+		}
+		this.ul = Interface.createElement('ul', {class: 'form_multi_select'});
+		bar.append(this.ul)
+		this.ul.addEventListener('click', event => {
+			let options = [];
+			for (let key in this.options.options) {
+				let text = this.options.options[key];
+				if (typeof text != 'string') text = text.name;
+				let value = this.value.includes(key);
+				options.push({
+					id: key,
+					name: text,
+					icon: () => value,
+					click: () => {
+						value = !value;
+						value ? this.value.safePush(key) : this.value.remove(key);
+						this.updateUI();
+						this.change();
+					}
+				})
+			}
+			new Menu('multi_select', options, {keep_open: true}).open(this.ul);
+		})
+		this.updateUI();
+	}
+	updateUI() {
+		this.ul.innerHTML = '';
+		for (let key in this.options.options) {
+			if (this.value.includes(key) == false) continue;
+			let text = this.options.options[key];
+			if (typeof text != 'string') text = text.name;
+			let remove_button = Blockbench.getIconNode('clear');
+			this.ul.append(Interface.createElement('li', {}, [
+				text,
+				remove_button
+			]));
+			remove_button.addEventListener('click', event => {
+				event.stopPropagation();
+				this.value.remove(key);
+				this.updateUI();
+				this.change();
+			})
+		}
+		let add = Interface.createElement('div', {class: 'tool'}, Blockbench.getIconNode('add'));
+		this.ul.append(add);
+	}
+	getValue(): string[] {
+		return this.value;
+	}
+	setValue(value: string[]) {
+		this.value.replace(value);
+		this.updateUI();
+	}
+	getDefault(): string[] {
+		return [];
 	}
 };
 FormElement.types.inline_multi_select = class FormElementInlineMultiSelect extends FormElement {

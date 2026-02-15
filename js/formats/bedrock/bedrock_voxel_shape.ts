@@ -1,5 +1,5 @@
 import { Filesystem } from "../../file_system";
-import { BoundingBox } from "../../outliner/types/bounding_box";
+import { BoundingBox, BoundingBoxFunction } from "../../outliner/types/bounding_box";
 
 type BoxSchema = {
 	min: ArrayVector3,
@@ -120,6 +120,7 @@ export function loadBedrockCollisionFromJSON(json: any, name: string, undo: bool
 			name,
 			from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
 			to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
+			function: [name == 'selection' ? 'hitbox' : 'collision']
 		});
 		bb.addTo().init();
 		bounding_boxes.push(bb);
@@ -170,6 +171,10 @@ BARS.defineActions(function() {
 		click() {
 			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
 				let bounding_boxes = BoundingBox.all as BoundingBox[];
+				if (bounding_boxes.some(box => box.function.length)) {
+					let func: BoundingBoxFunction = type == 'collision_box' ? 'collision' : 'hitbox';
+					bounding_boxes = bounding_boxes.filter(box => box.function.includes(func));
+				}
 				let box_data: CollisionBoxJSON[] = bounding_boxes.map(bb => {
 					return {
 						origin: [-bb.to[0], bb.from[1], bb.from[2]],

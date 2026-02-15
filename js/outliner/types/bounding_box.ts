@@ -6,13 +6,15 @@ import { OutlinerElement } from "../abstract/outliner_element";
 import { Vue } from './../../lib/libs';
 
 type AxisNumber = 0|1|2;
-interface BoundingBoxOptions {
+export type BoundingBoxFunction = 'collision' | 'hitbox';
+export interface BoundingBoxOptions {
 	name?: string
 	from?: ArrayVector3
 	to?: ArrayVector3
 	size?: ArrayVector3
 	visibility?: boolean
 	color?: number
+	function?: BoundingBoxFunction[]
 }
 
 export class BoundingBox extends OutlinerElement {
@@ -48,6 +50,7 @@ export class BoundingBox extends OutlinerElement {
 
 	visibility: boolean
 	color: number
+	function: BoundingBoxFunction[]
 
 
 	constructor(data?: BoundingBoxOptions, uuid?: string) {
@@ -343,6 +346,16 @@ export class BoundingBox extends OutlinerElement {
 
 new Property(BoundingBox, 'string', 'name', {default: 'bounding_box'});
 new Property(BoundingBox, 'boolean', 'locked');
+new Property(BoundingBox, 'array', 'function', {
+	inputs: {
+		element_panel: {
+			input: {type: 'multi_select', label: 'Function', options: {
+				collision: 'Collision',
+				hitbox: 'Hitbox',
+			}}
+		}
+	}
+});
 
 OutlinerElement.registerType(BoundingBox, 'bounding_box');
 
