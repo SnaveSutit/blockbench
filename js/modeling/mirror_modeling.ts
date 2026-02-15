@@ -1,7 +1,7 @@
 import { Blockbench } from "../api";
-import { Armature } from "../outliner/armature";
-import { ArmatureBone } from "../outliner/armature_bone";
-import { Billboard } from "../outliner/billboard";
+import { Armature } from "../outliner/types/armature";
+import { ArmatureBone } from "../outliner/types/armature_bone";
+import { Billboard } from "../outliner/types/billboard";
 import { flipNameOnAxis } from "./transform";
 
 export const MirrorModeling = {
@@ -656,7 +656,7 @@ MirrorModeling.registerElementType(Mesh, {
 				}
 			}
 		}
-		if ((BarItems.selection_mode as BarSelect<string>).value != 'object') {
+		if ((BarItems.selection_mode as BarSelect).value != 'object') {
 			let selected_vertices = mesh.getSelectedVertices(true);
 			selected_vertices.replace(selected_vertices.filter(vkey => mesh.vertices[vkey]));
 			let selected_edges = mesh.getSelectedEdges(true);
@@ -838,4 +838,10 @@ BARS.defineActions(() => {
 	})
 })
 
-Object.assign(window, {MirrorModeling});
+const global = {
+	MirrorModeling
+};
+declare global {
+	const MirrorModeling: typeof global.MirrorModeling
+}
+Object.assign(window, global);

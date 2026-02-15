@@ -25,7 +25,7 @@ export const StartScreen = {
  * @param {number} [data.graphic.aspect_ratio] Section aspect ratio
  * @param {string} [data.graphic.description] Markdown string
  * @param {string} [data.graphic.text_color]
- * @param {Array.<{text: String, type: String, [list]: Array.String, [click]: Function}>} data.text
+ * @param {Array.<{text: String, {type}: [String], [list]: Array.String, {click}: [Function]}>} data.text
  * @param {'vertical'|'horizontal'} data.layout
  * @param {Array} data.features
  * @param {boolean} data.closable
@@ -531,6 +531,10 @@ onVueSetup(async function() {
 
 
 export class ModelLoader {
+	/**
+	 * @param {string} id
+	 * @param {ModelLoaderOptions} options
+	 */
 	constructor(id, options) {
 		this.id = id;
 		this.name = tl(options.name);

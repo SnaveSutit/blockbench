@@ -37,6 +37,8 @@ type EventName =
 	| 'process_chat_message'
 	| 'loaded_plugin'
 	| 'unloaded_plugin'
+	| 'installed_plugin'
+	| 'uninstalled_plugin'
 	| 'update_settings'
 	| 'update_project_settings'
 	| 'save_project'
@@ -52,6 +54,7 @@ type EventName =
 	| 'add_texture_mesh'
 	| 'add_armature'
 	| 'add_armature_bone'
+	| 'add_bounding_box'
 	| 'group_elements'
 	| 'update_selection'
 	| 'compile_bedrock_animations'
@@ -74,6 +77,8 @@ type EventName =
 	| 'redo'
 	| 'load_undo_save'
 	| 'create_undo_save'
+	| 'drop_text'
+	| 'paste_text'
 	| 'change_color'
 	| 'select_mode'
 	| 'unselect_mode'
@@ -137,9 +142,14 @@ declare function updateSelection(): void
 
 declare var LZUTF8: any
 
-declare function unselectAllElements(): void
+declare function unselectAllElements(exceptions?: OutlinerNode[]): void
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number
+/**
+ * Get the world-space center of the selection
+ * @param all If true, calculate the center of all elements instead of just selected
+ */
+declare function getSelectionCenter(all: boolean = false): ArrayVector3
 
 declare const Pressing: {
 	shift: boolean
@@ -151,6 +161,22 @@ declare const Pressing: {
 		alt: boolean
 	}
 }
+
+type RecentProjectData = {
+	name: string
+	path: string
+	icon: string
+	day: number
+	favorite: boolean
+	textures?: string[]
+	animation_files?: string[]
+}
+declare const recent_projects: RecentProjectData[]
+
+declare const Prop = {
+	active_panel: string
+}
+declare const Project: ModelProject
 
 declare function updateCubeHighlights(hover_cube: Cube, force_off: boolean): void
 declare function getRescalingFactor(angle: number): number

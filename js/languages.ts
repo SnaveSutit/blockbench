@@ -41,6 +41,9 @@ export const data: Record<string, Language> = {
 	zh_tw: zh_tw,
 };
 
+// @ts-ignore
+const prerelease = appVersion.includes('-');
+
 /**
  * Returns a translated string in the current language
  * @param key Translation key
@@ -49,7 +52,10 @@ export const data: Record<string, Language> = {
  */
 export const tl = function(string: string, variables?: string | number | (string|number)[], default_value?: string): string {
 	if (string && string.length > 100) return string;
-	var result = Language.data[string]
+	var result = Language.data[string];
+	if (prerelease && !result) {
+		result = data.en[string];
+	}
 	if (result && result.length > 0) {
 		if (variables) {
 			if (variables instanceof Array == false) {
@@ -139,7 +145,12 @@ if (code && Language.options[code]) {
 
 Language.data = data[Language.code];
 
-Object.assign(window, {
+const global = {
 	tl,
 	Language
-})
+};
+declare global {
+	const Language: typeof global.Language
+	const tl: typeof global.tl
+}
+Object.assign(window, global);

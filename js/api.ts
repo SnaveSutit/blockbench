@@ -36,8 +36,11 @@ interface ToastNotificationOptions {
 }
 export const LastVersion = localStorage.getItem('last_version') || localStorage.getItem('welcomed_version') || appVersion;
 
+// @ts-ignore
+// const previous_data = window.Blockbench as {};
+
 export const Blockbench = {
-	...window.Blockbench,
+	//...previous_data,
 	isWeb: !isApp,
 	isMobile: (window.innerWidth <= 960 || window.innerHeight <= 500) && 'ontouchend' in document,
 	isLandscape: window.innerWidth > window.innerHeight,
@@ -82,7 +85,7 @@ export const Blockbench = {
 		console.warn('Blockbench.registerEdit is outdated. Please use Undo.initEdit and Undo.finishEdit')
 	},
 	//Interface
-	getIconNode(icon: IconString | boolean | HTMLElement | (() => (IconString | boolean | HTMLElement)), color?: string) {
+	getIconNode(icon: IconString | boolean | HTMLElement | (() => (IconString | boolean | HTMLElement)), color?: string): HTMLElement {
 		let node;
 		if (typeof icon === 'function') {
 			icon = icon()
@@ -368,7 +371,7 @@ export const Blockbench = {
 	Format: 0 as (ModelFormat | number),
 	Project: 0 as (ModelProject | number),
 	get Undo() {
-		return Project?.undo;
+		return Blockbench.Project instanceof ModelProject ? Blockbench.Project.undo : undefined;
 	},
 	// File System
 	import: Filesystem.importFile,
@@ -408,8 +411,13 @@ if (isApp) {
 	if (Blockbench.platform.includes('win32') === true) window.osfs = '\\';
 }
 
-Object.assign(window, {
+const global = {
 	LastVersion,
 	Blockbench,
 	isApp
-});
+}
+declare global {
+	const LastVersion: typeof global.LastVersion
+	const Blockbench: typeof global.Blockbench
+}
+Object.assign(window, global);

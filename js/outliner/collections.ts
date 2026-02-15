@@ -3,9 +3,8 @@ import { SharedActions } from "../interface/shared_actions";
 import { Prop } from "../misc";
 import { guid } from "../util/math_util";
 import { Property } from "../util/property";
-import { OutlinerElement, OutlinerNode } from "./outliner";
 import { Toolbar } from '../interface/toolbars'
-import { Group } from "./group";
+import { Group } from "./types/group";
 import { Interface } from "../interface/interface";
 import { Menu } from "../interface/menu";
 import { Blockbench } from "../api";
@@ -20,6 +19,8 @@ import { FormElementOptions } from "../interface/form";
 import { fs } from "../native_apis";
 import { Filesystem } from "../file_system";
 import { loadModelFile } from "../io/io";
+import { OutlinerElement } from "./abstract/outliner_element";
+import { OutlinerNode } from "./abstract/outliner_node";
 
 export interface CollectionOptions {
 	children?: string[]
@@ -129,7 +130,7 @@ export class Collection {
 			}
 		}
 		for (let element of Outliner.selected) {
-			if (!(element instanceof OutlinerNode && element.parent.selected)) {
+			if (!(element instanceof OutlinerNode && element.parent instanceof OutlinerNode && element.parent.selected)) {
 				this.children.safePush(element.uuid);
 			}
 		}
@@ -164,11 +165,12 @@ export class Collection {
 	 * @returns {true} if the collection contains the node
 	 */
 	contains(node: OutlinerNode): boolean {
-		while (node instanceof OutlinerNode) {
-			if (this.children.includes(node.uuid)) {
+		let node_match: OutlinerNode | typeof Outliner.ROOT = node;
+		while (node_match instanceof OutlinerNode) {
+			if (this.children.includes(node_match.uuid)) {
 				return true;
 			}
-			node = node.parent;
+			node_match = node_match.parent;
 		}
 		return false;
 	}
@@ -481,7 +483,7 @@ new Property(Collection, 'string', 'model_identifier', {
 });
 new Property(Collection, 'string', 'export_codec');
 new Property(Collection, 'string', 'export_path', {
-	condition: (collection: Collection) => (isApp && collection.export_codec),
+	condition: (collection: Collection) => (isApp && !!collection.export_codec),
 	inputs: {
 		dialog: {
 			input: {
@@ -511,7 +513,7 @@ Object.defineProperty(Collection, 'selected', {
 
 SharedActions.add('delete', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		let selected = Collection.selected.slice();
 		Undo.initEdit({collections: selected});
@@ -524,7 +526,7 @@ SharedActions.add('delete', {
 })
 SharedActions.add('duplicate', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		let new_collections = [];
 		Undo.initEdit({collections: new_collections});
@@ -539,7 +541,7 @@ SharedActions.add('duplicate', {
 })
 SharedActions.add('copy', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		Clipbench.collections = Collection.selected.map(collection => collection.getUndoCopy());
 	}
@@ -577,7 +579,7 @@ BARS.defineActions(() => {
 	new Action('set_collection_content_to_selection', {
 		icon: 'unarchive',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
@@ -591,7 +593,7 @@ BARS.defineActions(() => {
 	new Action('add_to_collection', {
 		icon: 'box_add',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
@@ -839,7 +841,11 @@ Interface.definePanels(function() {
 		])
 	})
 })
-
-Object.assign(window, {
+const global = {
 	Collection
-});
+};
+declare global {
+	type Collection = import('./collections').Collection
+	const Collection: typeof global.Collection
+}
+Object.assign(window, global);

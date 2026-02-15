@@ -2,7 +2,7 @@ import { BBPlugin } from "./plugin_loader";
 import { createScopedFS } from "./util/scoped_fs";
 
 const electron: typeof import("@electron/remote") = require('@electron/remote');
-const {clipboard, shell, nativeImage, ipcRenderer, webUtils} = require('electron') as typeof import('electron');
+const {shell, nativeImage, ipcRenderer, webUtils} = require('electron') as typeof import('electron');
 const app = electron.app;
 const fs: typeof import("node:fs") = require('node:fs');
 const NodeBuffer: typeof import("node:buffer") = require('buffer');
@@ -13,6 +13,7 @@ const PathModule: typeof import("node:path") = require('path');
 const os: typeof import("node:os") = require('os');
 const currentwindow = electron.getCurrentWindow();
 const dialog = electron.dialog;
+const clipboard = electron.clipboard;
 
 /** @internal */
 export {
@@ -207,12 +208,21 @@ export function getPluginScopedRequire(plugin: PluginOrDevTools) {
 const originalRequire = window.require;
 delete window.require;
 
+/**
+ * Revoke the permissions of a plugin
+ * @param plugin 
+ * @returns List of revoked permissions
+ * @private
+ */
 export function revokePluginPermissions(plugin: PluginOrDevTools): string[] {
 	let permissions = Object.keys(PluginSettings[plugin.id]?.allowed ?? {});
 	delete PluginSettings[plugin.id];
 	savePluginSettings();
 	return permissions;
 }
+/**
+ * @private
+ */
 export function getPluginPermissions(plugin: PluginOrDevTools) {
 	let data = PluginSettings[plugin.id]?.allowed;
 	if (data) return parse(stringify(data)) as Record<string, (boolean | any)>;
@@ -274,14 +284,14 @@ export function openDevTools() {
 	currentwindow.webContents.openDevTools();
 }
 
-Object.assign(window, {
+
+const global = {
 	openDevTools,
 	SystemInfo,
 	Buffer,
-});
-
-/**
- * TODO:
- * - Ensure it still works in the web app
- */
-
+};
+declare global {
+	const openDevTools: typeof global.openDevTools
+	const SystemInfo: typeof global.SystemInfo
+}
+Object.assign(window, global);

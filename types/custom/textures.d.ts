@@ -24,6 +24,7 @@ declare global {
 		visible?: boolean
 		render_mode?: 'default' | 'emissive' | 'additive' | 'layered' | string
 		render_sides?: 'auto' | 'front' | 'double' | string
+		wrap_mode?: 'limited' | 'repeat' | 'clamp'
 		pbr_channel?: 'color' | 'normal' | 'height' | 'mer'
 		/**
 		 * UUID of the texture group that the texture is in
@@ -108,6 +109,7 @@ declare global {
 		particle: boolean
 		render_mode: 'default' | 'emissive' | 'additive' | 'layered' | string
 		render_sides: 'auto' | 'front' | 'double' | string
+		wrap_mode: 'limited' | 'repeat' | 'clamp'
 		pbr_channel: 'color' | 'normal' | 'height' | 'mer'
 		use_as_default: boolean
 		/** UUID of the TextureGroup that this texture is in, if set */
@@ -381,6 +383,7 @@ declare global {
 
 		static all: Texture[]
 		static getDefault(): Texture
+		static properties: Record<string, Property<any>>
 	}
 	/**
 	 * Saves all textures

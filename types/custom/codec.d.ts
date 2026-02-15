@@ -1,4 +1,5 @@
 /// <reference types="./blockbench"/>
+
 interface LoadOptions {
 	import_to_current_project?: boolean
 	externalDataLoader?: (path: string) => any
@@ -42,7 +43,7 @@ interface CodecOptions {
 	 * List of export option inputs, based on the Dialog form API
 	 */
 	export_options?: {
-		[key: string]: FormElement
+		[key: string]: FormElementOptions
 	}
 	/**
 	 * Default action that is used to export to the codec
