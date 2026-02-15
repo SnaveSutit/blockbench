@@ -185,6 +185,7 @@
 	"keys.ctrl": "Ctrl",
 	"keys.shift": "Shift",
 	"keys.alt": "Alt",
+	"keys.option": "Option",
 	"keys.meta": "Cmd",
 	"keys.delete": "Delete",
 	"keys.space": "Space",

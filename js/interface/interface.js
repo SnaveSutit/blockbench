@@ -1,6 +1,7 @@
 import { Blockbench } from "../api";
 import { translateUI } from "../languages";
 import { currentwindow } from "../native_apis";
+import { isMac } from "./keyboard";
 import { ResizeLine, setupResizeLines } from "./resize_lines";
 
 
@@ -754,7 +755,7 @@ onVueSetup(function() {
 						<span>{{ tl(modifier_keys.shift.last()) }}</span>
 					</div>
 					<div class="status_bar_modifier_key" v-if="modifier_keys.alt.length" @click="clickModifiers()">
-						<kbd>${tl('keys.alt')}</kbd>
+						<kbd>${tl(isMac ? 'keys.option' : 'keys.alt')}</kbd>
 						<span>{{ tl(modifier_keys.alt.last()) }}</span>
 					</div>
 				</template>

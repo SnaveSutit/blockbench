@@ -10,7 +10,7 @@ const KeymapPresets = {
 	cinema4d,
 	maya,
 }
-const isMac = window.SystemInfo?.platform == 'darwin' || navigator.userAgent.includes('Mac OS');
+export const isMac = window.SystemInfo?.platform == 'darwin' || navigator.userAgent.includes('Mac OS');
 
 export const Keybinds = {
 	actions: [],
@@ -162,8 +162,8 @@ export class Keybind {
 		if (this.ctrl === null) 	modifiers.push(`[${tl('keys.ctrl')}]`)
 		if (this.shift) modifiers.push(tl('keys.shift'))	
 		if (this.shift === null) modifiers.push(`[${tl('keys.shift')}]`)
-		if (this.alt) 	modifiers.push(tl('keys.alt'))	
-		if (this.alt === null) 	modifiers.push(`[${tl('keys.alt')}]`)
+		if (this.alt) 	modifiers.push(tl(isMac ? 'keys.option' : 'keys.alt'))	
+		if (this.alt === null) 	modifiers.push(`[${tl(isMac ? 'keys.option' : 'keys.alt')}]`)
 		if (this.meta) 	modifiers.push(tl('keys.meta'))	
 		if (this.meta === null) 	modifiers.push(`[${tl('keys.meta')}]`)
 
@@ -451,7 +451,7 @@ export class Keybind {
 			let modifiers = [];
 			if (event.ctrlKey) 	modifiers.push(tl('keys.ctrl'))	
 			if (event.shiftKey)	modifiers.push(tl('keys.shift'))	
-			if (event.altKey) 	modifiers.push(tl('keys.alt'))	
+			if (event.altKey) 	modifiers.push(tl(isMac ? 'keys.option' : 'keys.alt'))	
 			if (event.metaKey) 	modifiers.push(tl('keys.meta'))	
 
 			modifiers.forEach((text, i) => {

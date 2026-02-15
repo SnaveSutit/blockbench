@@ -1,5 +1,5 @@
 import MolangParser from "molangjs";
-import { Keybinds } from "./keyboard";
+import { isMac, Keybinds } from "./keyboard";
 import tinycolor from "tinycolor2";
 
 type ActionEventName =
@@ -524,7 +524,7 @@ export class Action extends BarItem {
 	updateKeybindingLabel(): this {
 		let keybind_text = this.keybind?.toString() || '';
 		if (!keybind_text && this.id == 'color_picker') {
-			keybind_text = tl('keys.alt');
+			keybind_text = tl(isMac ? 'keys.option' : 'keys.alt');
 		}
 		this.menu_node.querySelector('.keybinding_label').textContent = keybind_text;
 		this.nodes.forEach(node => {
