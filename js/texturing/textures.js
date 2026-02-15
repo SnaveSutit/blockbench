@@ -598,7 +598,7 @@ export class Texture {
 					})
 				}
 			}
-			duplicate.remove(false);
+			duplicate.remove(true);
 		}
 
 		this.startWatcher()
