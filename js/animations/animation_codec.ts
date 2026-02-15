@@ -64,6 +64,10 @@ interface AnimationCodecMultiplePerFileOptions extends SharedOptions {
 }
 
 export interface AnimationCodec extends SharedOptions {}
+/**
+ * AnimationCodecs serve as a way to bundle import and export functionality of a specific animation format in one place, that way completely different animation formats can be supported.
+ * When creating a new animation codec, add it to the respective ModelFormat as `animation_codec`.
+ */
 export class AnimationCodec implements SharedOptions {
 	id: string
 

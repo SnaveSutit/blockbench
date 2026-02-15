@@ -6,7 +6,6 @@
  * Handlers can be added for existing actions like this:
 
 ### Example:
-
 ```javascript
 	// Duplicate layers when using "Duplicate" in the layers panel
 	SharedActions.add('duplicate', {
@@ -24,7 +23,6 @@
 		}
 	})
 ```
- * @module
  */
 export const SharedActions = {
 	/**
@@ -219,4 +217,8 @@ BARS.defineActions(() => {
 	})
 })
 
-Object.assign(window, {SharedActions});
+const global = {SharedActions};
+declare global {
+	const SharedActions: typeof global.SharedActions;
+}
+Object.assign(window, global);

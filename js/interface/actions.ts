@@ -57,7 +57,11 @@ export interface BarItemOptions extends KeybindItemOptions {
 		}
 	}
 }
-export class BarItem extends EventSystem {
+/**
+ * BarItem, the base abstract class for anything that can be added to a toolbar
+ * @module Actions
+ */
+export abstract class BarItem extends EventSystem {
 	static constructing: BarItem | undefined;
 
 	id: string
@@ -965,7 +969,7 @@ export class Toggle extends Action {
 interface WidgetOptions extends BarItemOptions {
 	id?: string
 }
-export class Widget extends BarItem {
+export abstract class Widget extends BarItem {
 	constructor(id: string, data: WidgetOptions) {
 		if (typeof id == 'object') {
 			data = id;

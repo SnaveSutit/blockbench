@@ -208,12 +208,21 @@ export function getPluginScopedRequire(plugin: PluginOrDevTools) {
 const originalRequire = window.require;
 delete window.require;
 
+/**
+ * Revoke the permissions of a plugin
+ * @param plugin 
+ * @returns List of revoked permissions
+ * @private
+ */
 export function revokePluginPermissions(plugin: PluginOrDevTools): string[] {
 	let permissions = Object.keys(PluginSettings[plugin.id]?.allowed ?? {});
 	delete PluginSettings[plugin.id];
 	savePluginSettings();
 	return permissions;
 }
+/**
+ * @private
+ */
 export function getPluginPermissions(plugin: PluginOrDevTools) {
 	let data = PluginSettings[plugin.id]?.allowed;
 	if (data) return parse(stringify(data)) as Record<string, (boolean | any)>;
