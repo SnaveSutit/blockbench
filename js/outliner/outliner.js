@@ -478,6 +478,15 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 		}
 		updateTransformRecursive(obj);
 
+		if (old_parent != obj.parent && !adjust_position_viable) {
+			scene_object.updateMatrixWorld(true);
+			let elements1 = scene_object.matrixWorld.elements;
+			let elements2 = matrix_world.elements;
+			if (elements1.some((v, i) => !Math.epsilon(v, elements2[i], 0.00001))) {
+				adjust_position_viable = true;
+			}
+		}
+
 		if (options.adjust_position) {
 
 			// Calculate matrix
@@ -500,13 +509,6 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			}
 			updateTransformRecursive(obj);
 
-		} else if (old_parent != obj.parent && !adjust_position_viable) {
-			scene_object.updateMatrixWorld(true);
-			let elements1 = scene_object.matrixWorld.elements;
-			let elements2 = matrix_world.elements;
-			if (elements1.some((v, i) => !Math.epsilon(v, elements2[i], 0.00001))) {
-				adjust_position_viable = true;
-			}
 		}
 	}
 	items.forEach(function(item) {
@@ -537,19 +539,22 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 	}
 	return adjust_position_viable;
 }
+let move_outliner_options = {
+	adjust_position: false
+}
 export function moveOutlinerSelectionAmend(item, target, event, order) {
-	let default_options = {event, adjust_position: false};
-	let open_amend = moveOutlinerSelectionTo(item, target, order, default_options);
+	let open_amend = moveOutlinerSelectionTo(item, target, order, {event, ...move_outliner_options});
 
 	if (open_amend) {
 		Undo.amendEdit({
-			adjust_position: {type: 'checkbox', value: default_options.adjust_position, label: 'edit.reparent_selection.adjust_position'},
+			adjust_position: {type: 'checkbox', value: move_outliner_options.adjust_position, label: 'edit.reparent_selection.adjust_position'},
 		}, form => {
 			moveOutlinerSelectionTo(item, target, order, {
 				amended: true,
 				event,
 				adjust_position: form.adjust_position,
 			});
+			move_outliner_options.adjust_position = form.adjust_position;
 		})
 	}
 }
