@@ -1,6 +1,87 @@
 import { editUVSizeDialog } from "./uv_size";
 import { PointerTarget } from "../interface/pointer_target";
 
+// Image manipulation helpers for UV+texture transforms
+function flipImageDataH(imageData) {
+	const { width, height, data } = imageData;
+	const flipped = new ImageData(width, height);
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const srcIdx = (y * width + x) * 4;
+			const dstIdx = (y * width + (width - 1 - x)) * 4;
+			flipped.data[dstIdx] = data[srcIdx];
+			flipped.data[dstIdx + 1] = data[srcIdx + 1];
+			flipped.data[dstIdx + 2] = data[srcIdx + 2];
+			flipped.data[dstIdx + 3] = data[srcIdx + 3];
+		}
+	}
+	return flipped;
+}
+
+function flipImageDataV(imageData) {
+	const { width, height, data } = imageData;
+	const flipped = new ImageData(width, height);
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const srcIdx = (y * width + x) * 4;
+			const dstIdx = ((height - 1 - y) * width + x) * 4;
+			flipped.data[dstIdx] = data[srcIdx];
+			flipped.data[dstIdx + 1] = data[srcIdx + 1];
+			flipped.data[dstIdx + 2] = data[srcIdx + 2];
+			flipped.data[dstIdx + 3] = data[srcIdx + 3];
+		}
+	}
+	return flipped;
+}
+
+function rotateImageDataCW(imageData) {
+	const { width, height, data } = imageData;
+	const rotated = new ImageData(height, width);
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const srcIdx = (y * width + x) * 4;
+			const dstX = height - 1 - y;
+			const dstY = x;
+			const dstIdx = (dstY * height + dstX) * 4;
+			rotated.data[dstIdx] = data[srcIdx];
+			rotated.data[dstIdx + 1] = data[srcIdx + 1];
+			rotated.data[dstIdx + 2] = data[srcIdx + 2];
+			rotated.data[dstIdx + 3] = data[srcIdx + 3];
+		}
+	}
+	return rotated;
+}
+
+function rotateImageDataCCW(imageData) {
+	const { width, height, data } = imageData;
+	const rotated = new ImageData(height, width);
+	for (let y = 0; y < height; y++) {
+		for (let x = 0; x < width; x++) {
+			const srcIdx = (y * width + x) * 4;
+			const dstX = y;
+			const dstY = width - 1 - x;
+			const dstIdx = (dstY * height + dstX) * 4;
+			rotated.data[dstIdx] = data[srcIdx];
+			rotated.data[dstIdx + 1] = data[srcIdx + 1];
+			rotated.data[dstIdx + 2] = data[srcIdx + 2];
+			rotated.data[dstIdx + 3] = data[srcIdx + 3];
+		}
+	}
+	return rotated;
+}
+
+// Rotates ImageData to match UV rotation
+function rotateImageDataByDegrees(imageData, degrees) {
+	switch ((degrees + 360) % 360) {
+		case 0:   return imageData;
+		case 90:  return rotateImageDataCCW(imageData);
+		case 180: return rotateImageDataCW(rotateImageDataCW(imageData));
+		case 270: return rotateImageDataCW(imageData);
+		default:  return imageData;
+	}
+}
+
+
 export const UVEditor = {
 	face: 'north',
 	size: 320,
@@ -1273,12 +1354,35 @@ export const UVEditor = {
 	},
 	mirrorX(event) {
 		var scope = this;
+		let do_move_texture = !!(BarItems.move_texture_with_uv.value && this.texture);
+		let texturesModified = new Set();
+
 		this.forElements(obj => {
 			if (obj.getTypeBehavior('cube_faces')) {
 				scope.getFaces(obj, event, BarItems.uv_mirror_x).forEach((side) => {
-					var proxy = obj.faces[side].uv[0]
-					obj.faces[side].uv[0] = obj.faces[side].uv[2]
-					obj.faces[side].uv[2] = proxy
+					let face = obj.faces[side];
+
+					if (do_move_texture && face.texture !== null) {
+						let texture = face.getTexture();
+						if (texture && texture.ctx) {
+							let factor_x = texture.width / UVEditor.getUVWidth();
+							let factor_y = texture.height / UVEditor.getUVHeight();
+							let uv = face.uv;
+							let x = Math.floor(Math.min(uv[0], uv[2]) * factor_x);
+							let y = Math.floor(Math.min(uv[1], uv[3]) * factor_y);
+							let w = Math.ceil(Math.abs(uv[2] - uv[0]) * factor_x) || 1;
+							let h = Math.ceil(Math.abs(uv[3] - uv[1]) * factor_y) || 1;
+
+							let pixels = texture.ctx.getImageData(x, y, w, h);
+							let flipped = flipImageDataH(pixels);
+							texture.ctx.putImageData(flipped, x, y);
+							texturesModified.add(texture);
+						}
+					}
+
+					var proxy = face.uv[0]
+					face.uv[0] = face.uv[2]
+					face.uv[2] = proxy
 				})
 			} else if (obj instanceof Mesh) {
 				let min = Infinity;
@@ -1300,17 +1404,45 @@ export const UVEditor = {
 			if (obj.autouv) obj.autouv = 0
 			obj.preview_controller.updateUV(obj);
 		})
+
+		for (let texture of texturesModified) {
+			texture.updateChangesAfterEdit();
+		}
+
 		this.message('uv_editor.mirrored')
 		this.loadData()
 	},
 	mirrorY(event) {
 		var scope = this;
+		let do_move_texture = !!(BarItems.move_texture_with_uv.value && this.texture);
+		let texturesModified = new Set();
+
 		this.forElements(obj => {
 			if (obj.getTypeBehavior('cube_faces')) {
 				scope.getFaces(obj, event, BarItems.uv_mirror_y).forEach((side) => {
-					var proxy = obj.faces[side].uv[1]
-					obj.faces[side].uv[1] = obj.faces[side].uv[3]
-					obj.faces[side].uv[3] = proxy
+					let face = obj.faces[side];
+
+					if (do_move_texture && face.texture !== null) {
+						let texture = face.getTexture();
+						if (texture && texture.ctx) {
+							let factor_x = texture.width / UVEditor.getUVWidth();
+							let factor_y = texture.height / UVEditor.getUVHeight();
+							let uv = face.uv;
+							let x = Math.floor(Math.min(uv[0], uv[2]) * factor_x);
+							let y = Math.floor(Math.min(uv[1], uv[3]) * factor_y);
+							let w = Math.ceil(Math.abs(uv[2] - uv[0]) * factor_x) || 1;
+							let h = Math.ceil(Math.abs(uv[3] - uv[1]) * factor_y) || 1;
+
+							let pixels = texture.ctx.getImageData(x, y, w, h);
+							let flipped = flipImageDataV(pixels);
+							texture.ctx.putImageData(flipped, x, y);
+							texturesModified.add(texture);
+						}
+					}
+
+					var proxy = face.uv[1]
+					face.uv[1] = face.uv[3]
+					face.uv[3] = proxy
 				})
 			} else if (obj instanceof Mesh) {
 				let min = Infinity;
@@ -1332,6 +1464,11 @@ export const UVEditor = {
 			if (obj.autouv) obj.autouv = 0;
 			obj.preview_controller.updateUV(obj);
 		})
+
+		for (let texture of texturesModified) {
+			texture.updateChangesAfterEdit();
+		}
+
 		this.message('uv_editor.mirrored')
 		this.loadData()
 	},
@@ -1405,6 +1542,36 @@ export const UVEditor = {
 	rotate(mesh_angle) {
 		var value = parseInt(BarItems.uv_rotation.get());
 		let ref_face = this.getReferenceFace();
+		let do_move_texture = !!(BarItems.move_texture_with_uv.value && this.texture && this._originalRotations && this._originalPixels);
+		let texturesModified = new Set();
+
+		if (do_move_texture && Format.uv_rotation) {
+			this.forCubes(obj => {
+				this.getSelectedFaces(obj).forEach(fkey => {
+					let face = obj.faces[fkey];
+					if (face.texture === null) return;
+
+					let key = obj.uuid + ':' + fkey;
+					let oldRot = this._originalRotations[key] || 0;
+					let delta = (value - oldRot + 360) % 360;
+
+					let data = this._originalPixels[key];
+					if (!data || !data.pixels) return;
+
+					let rotated = rotateImageDataByDegrees(data.pixels, delta);
+
+					let clearSize = Math.max(data.w, data.h);
+					data.texture.ctx.clearRect(data.x, data.y, clearSize, clearSize);
+					data.texture.ctx.putImageData(rotated, data.x, data.y);
+					texturesModified.add(data.texture);
+				})
+			})
+			// Update texture display
+			for (let texture of texturesModified) {
+				texture.updateSource(texture.canvas.toDataURL());
+			}
+		}
+
 		if (Cube.selected[0] && ref_face instanceof CubeFace && Math.abs(ref_face.rotation - value) % 180 == 90) {
 			UVEditor.turnMapping();
 		}
@@ -1840,12 +2007,58 @@ BARS.defineActions(function() {
 		condition: () => UVEditor.isFaceUV() && Format.uv_rotation && Cube.selected.length,
 		min: 0, max: 270, step: 90, width: 80, circular: true,
 		onBefore: () => {
-			Undo.initEdit({elements: Cube.selected, uv_only: true})
+			let do_move_texture = !!(BarItems.move_texture_with_uv.value && UVEditor.texture);
+			Undo.initEdit({
+				elements: Cube.selected,
+				uv_only: true,
+				bitmap: do_move_texture,
+				textures: do_move_texture ? [UVEditor.texture] : undefined
+			})
+			if (do_move_texture) {
+				UVEditor._originalRotations = {};
+				UVEditor._originalPixels = {};
+				Cube.selected.forEach(cube => {
+					UVEditor.getSelectedFaces(cube).forEach(fkey => {
+						let face = cube.faces[fkey];
+						let key = cube.uuid + ':' + fkey;
+						UVEditor._originalRotations[key] = face.rotation || 0;
+
+						if (face.texture !== null) {
+							let texture = face.getTexture();
+							if (texture && texture.ctx) {
+								let factor_x = texture.width / UVEditor.getUVWidth();
+								let factor_y = texture.height / UVEditor.getUVHeight();
+								let uv = face.uv;
+								let x = Math.floor(Math.min(uv[0], uv[2]) * factor_x);
+								let y = Math.floor(Math.min(uv[1], uv[3]) * factor_y);
+								let w = Math.ceil(Math.abs(uv[2] - uv[0]) * factor_x) || 1;
+								let h = Math.ceil(Math.abs(uv[3] - uv[1]) * factor_y) || 1;
+								UVEditor._originalPixels[key] = {
+									texture,
+									x, y, w, h,
+									pixels: texture.ctx.getImageData(x, y, w, h)
+								};
+							}
+						}
+					});
+				});
+			}
 		},
 		onChange: function() {
 			UVEditor.rotate();
 		},
 		onAfter: () => {
+			if (UVEditor._originalPixels) {
+				let texturesModified = new Set();
+				for (let key in UVEditor._originalPixels) {
+					texturesModified.add(UVEditor._originalPixels[key].texture);
+				}
+				for (let texture of texturesModified) {
+					texture.updateChangesAfterEdit();
+				}
+			}
+			delete UVEditor._originalRotations;
+			delete UVEditor._originalPixels;
 			Undo.finishEdit('Rotate UV')
 		}
 	})
@@ -2007,7 +2220,13 @@ BARS.defineActions(function() {
 			all_faces: {name: 'action.uv_maximize.all_faces'}
 		},
 		click: function (event) {
-			Undo.initEdit({elements: UVEditor.getMappableElements(), uv_only: true})
+			let do_move_texture = !!(BarItems.move_texture_with_uv.value && UVEditor.texture);
+			Undo.initEdit({
+				elements: UVEditor.getMappableElements(),
+				uv_only: true,
+				bitmap: do_move_texture,
+				textures: do_move_texture ? [UVEditor.texture] : undefined
+			})
 			UVEditor.forSelection('mirrorX', event)
 			Undo.finishEdit('Mirror UV')
 		}
@@ -2023,7 +2242,13 @@ BARS.defineActions(function() {
 			all_faces: {name: 'action.uv_maximize.all_faces'}
 		},
 		click: function (event) {
-			Undo.initEdit({elements: UVEditor.getMappableElements(), uv_only: true})
+			let do_move_texture = !!(BarItems.move_texture_with_uv.value && UVEditor.texture);
+			Undo.initEdit({
+				elements: UVEditor.getMappableElements(),
+				uv_only: true,
+				bitmap: do_move_texture,
+				textures: do_move_texture ? [UVEditor.texture] : undefined
+			})
 			UVEditor.forSelection('mirrorY', event)
 			Undo.finishEdit('Mirror UV')
 		}
@@ -3512,7 +3737,16 @@ Interface.definePanels(function() {
 					convertTouchEvent(event);
 					let scope = this;
 					let elements = UVEditor.getMappableElements();
-					Undo.initEdit({elements, uv_only: true})
+					let do_move_texture = !!(BarItems.move_texture_with_uv.value && this.texture);
+					let texturesModified = new Set();
+					let originalFaceData = {};
+
+					Undo.initEdit({
+						elements,
+						uv_only: true,
+						bitmap: do_move_texture,
+						textures: do_move_texture ? [this.texture] : undefined
+					})
 
 					let face_center = [0, 0];
 					let points = 0;
@@ -3524,6 +3758,23 @@ Interface.definePanels(function() {
 								face_center[0] += face.uv[0] + face.uv[2];
 								face_center[1] += face.uv[1] + face.uv[3];
 								points += 2;
+								if (do_move_texture && face.texture !== null) {
+									let texture = face.getTexture();
+									if (texture && texture.ctx) {
+										let factor_x = texture.width / UVEditor.getUVWidth();
+										let factor_y = texture.height / UVEditor.getUVHeight();
+										let uv = face.uv;
+										let x = Math.floor(Math.min(uv[0], uv[2]) * factor_x);
+										let y = Math.floor(Math.min(uv[1], uv[3]) * factor_y);
+										let w = Math.ceil(Math.abs(uv[2] - uv[0]) * factor_x) || 1;
+										let h = Math.ceil(Math.abs(uv[3] - uv[1]) * factor_y) || 1;
+										originalFaceData[element.uuid + ':' + fkey] = {
+											texture,
+											x, y, w, h,
+											pixels: texture.ctx.getImageData(x, y, w, h)
+										};
+									}
+								}
 							} else if (element instanceof Mesh) {
 								face.old_uv = {};
 								face.vertices.forEach(vkey => {
@@ -3548,6 +3799,7 @@ Interface.definePanels(function() {
 					let last_angle;
 					let original_angle;
 					let straight_angle;
+					let cumulative_rotation = 0;
 					let snap = elements[0] instanceof Cube ? 90 : 1;
 					function drag(e1) {
 						convertTouchEvent(e1);
@@ -3563,16 +3815,31 @@ Interface.definePanels(function() {
 						if (Math.abs(angle - last_angle) > 300) last_angle = angle;
 
 						if (angle != last_angle && (straight_angle == undefined || Math.abs(straight_angle - angle) > 6 || e1.ctrlOrCmd || Pressing.overrides.ctrl)) {
-							
+
 							straight_angle = undefined;
 							scope.helper_lines.x = scope.helper_lines.y = -1;
+							let rotation_step = 90 * Math.sign(last_angle - angle);
+							cumulative_rotation = (cumulative_rotation + rotation_step + 360) % 360;
+
 							elements.forEach(element => {
 								if (element.getTypeBehavior('cube_faces') && Format.uv_rotation) {
 									UVEditor.getSelectedFaces(element).forEach(key => {
 										if (element.faces[key]) {
-											element.faces[key].rotation += 90 * Math.sign(last_angle - angle);
+											element.faces[key].rotation += rotation_step;
 											if (element.faces[key].rotation == 360) element.faces[key].rotation = 0;
 											if (element.faces[key].rotation < 0) element.faces[key].rotation += 360;
+
+											if (do_move_texture) {
+												let dataKey = element.uuid + ':' + key;
+												let data = originalFaceData[dataKey];
+												if (data && data.pixels) {
+													let rotated = rotateImageDataByDegrees(data.pixels, cumulative_rotation);
+													let clearSize = Math.max(data.w, data.h);
+													data.texture.ctx.clearRect(data.x, data.y, clearSize, clearSize);
+													data.texture.ctx.putImageData(rotated, data.x, data.y);
+													texturesModified.add(data.texture);
+												}
+											}
 										}
 									})
 
@@ -3615,7 +3882,7 @@ Interface.definePanels(function() {
 													if (scope.helper_lines.y == -1) scope.helper_lines.y = face.uv[vkey][1];
 													break;
 												}
-											} 
+											}
 										})
 									})
 									if (straight_angle) {
@@ -3624,6 +3891,13 @@ Interface.definePanels(function() {
 								}
 							})
 							UVEditor.turnMapping()
+
+							// Update texture display during drag
+							if (do_move_texture) {
+								for (let texture of texturesModified) {
+									texture.updateSource(texture.canvas.toDataURL());
+								}
+							}
 
 							last_angle = angle;
 							UVEditor.loadData();
@@ -3638,6 +3912,11 @@ Interface.definePanels(function() {
 						removeEventListeners(document, 'mouseup touchend', stop);
 						scope.helper_lines.x = scope.helper_lines.y = -1;
 						if (scope.dragging_uv) {
+							if (do_move_texture) {
+								for (let texture of texturesModified) {
+									texture.updateChangesAfterEdit();
+								}
+							}
 							UVEditor.disableAutoUV()
 							Undo.finishEdit('Rotate UV')
 							setTimeout(() => scope.dragging_uv = false, 10);
