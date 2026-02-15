@@ -4,6 +4,7 @@ import { currentwindow, dialog, fs } from "../../native_apis";
 import VersionUtil from '../../util/version_util'
 import {animation_codec} from "./bedrock_animation"
 import "./animation_controller_codec"
+import { loadBedrockCollisionFromJSON } from "./bedrock_voxel_shape";
 
 if (isApp) {
 window.BedrockEntityManager = class BedrockEntityManager {
@@ -581,6 +582,19 @@ window.BedrockBlockManager = class BedrockBlockManager {
 			}
 			Canvas.updateView({elements: Cube.all, element_aspects: {faces: true}})
 			UVEditor.loadData()
+		}
+		if (this.client_block?.components) {
+			let boxes = {
+				collision: this.client_block?.components["minecraft:collision_box"],
+				selection: this.client_block?.components["minecraft:selection_box"],
+			}
+			for (let key in boxes) {
+				try {
+					loadBedrockCollisionFromJSON(boxes[key], key, false);
+				} catch (err) {
+					console.error(err);
+				}
+			}
 		}
 	}
 }

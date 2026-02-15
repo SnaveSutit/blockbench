@@ -108,6 +108,28 @@ var codec = new Codec('bedrock_voxel_shape', {
 })
 codec.format = Formats.bedrock_block;
 
+export function loadBedrockCollisionFromJSON(json: any, name: string, undo: boolean = false): BoundingBox[] {
+	if (json instanceof Array == false) json = [json];
+	let bounding_boxes: BoundingBox[] = [];
+	for (let box of json) {
+		if (typeof box != 'object' || box.origin instanceof Array == false || box.size instanceof Array == false) return;
+		if (bounding_boxes.length == 0 && undo) {
+			Undo.initEdit({elements: bounding_boxes, outliner: true});
+		}
+		let bb = new BoundingBox({
+			name,
+			from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
+			to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
+		});
+		bb.addTo().init();
+		bounding_boxes.push(bb);
+	}
+	if (bounding_boxes.length && undo) {
+		Undo.finishEdit('Paste bounding boxes');
+	}
+	return bounding_boxes;
+}
+
 BARS.defineActions(function() {
 	codec.export_action = new Action('export_bedrock_voxel_shape', {
 		icon: 'fa-cubes',
@@ -203,22 +225,15 @@ BARS.defineActions(function() {
 			let json = autoParseJSON(data, true) as (CollisionBoxJSON | CollisionBoxJSON[]);
 			if (!json) return;
 			let name = /minecraft:(\w+)/.exec(text)?.[1] ?? 'box';
-			if (json instanceof Array == false) json = [json];
-			let bounding_boxes: OutlinerElement[] = [];
-			for (let box of json) {
-				if (box.origin instanceof Array == false || box.size instanceof Array == false) return;
-				if (bounding_boxes.length == 0) {
-					Undo.initEdit({elements: bounding_boxes, outliner: true});
-				}
-				let bb = new BoundingBox({
-					name,
-					from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
-					to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
-				});
-				bb.addTo().init();
-				bounding_boxes.push(bb);
-			}
-			if (bounding_boxes.length) Undo.finishEdit('Paste bounding boxes')
+			loadBedrockCollisionFromJSON(json, name, true);
 		}
 	})
 })
+
+const global = {
+	loadBedrockCollisionFromJSON
+}
+declare global {
+	//const loadBedrockCollisionFromJSON: typeof global.loadBedrockCollisionFromJSON
+}
+Object.assign(window, global);
