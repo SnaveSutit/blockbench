@@ -283,7 +283,7 @@
 		position: absolute;
 		z-index: 10;
 	}
-	.panel.bottommost_panel > .panel_sidebar_resize_handle {
+	.panel_container.bottommost_panel > .panel_sidebar_resize_handle {
 		top: -3px;
 		bottom: unset;
 	}
@@ -294,7 +294,7 @@
 		background-color: var(--color-accent);
 		opacity: 0.3;
 	}
-	.panel:not(.floating) > .panel_resize_handle_wrapper {
+	.panel_container:not(.floating) > .panel_resize_handle_wrapper {
 		display: none;
 	}
 	.panel_resize_side {
