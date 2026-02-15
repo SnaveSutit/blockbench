@@ -1,3 +1,4 @@
+import { markerColors } from "../marker_colors";
 import { clipboard } from "../native_apis";
 import { invertMolang } from "../util/molang";
 import { openMolangEditor } from "./molang_editor";

@@ -10,6 +10,7 @@ import { Filesystem } from "./file_system";
 import { app, fs, getPluginPermissions, getPluginScopedRequire, https, revokePluginPermissions } from "./native_apis";
 import { Panels } from "./interface/panels";
 import VersionUtil from './util/version_util'
+import { markerColors } from "./marker_colors";
 
 
 export const Plugins = {
@@ -1208,6 +1209,7 @@ BARS.defineActions(function() {
 				settings: settings,
 				isMobile: Blockbench.isMobile,
 				isApp,
+				markerColors,
 				online: navigator.onLine
 			},
 			computed: {

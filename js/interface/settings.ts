@@ -3,6 +3,7 @@ import { Blockbench } from "../api";
 import { Dialog } from "./dialog";
 import { FormInputType } from "./form";
 import { ipcRenderer } from "../native_apis";
+import { markerColors } from "../marker_colors";
 
 export const settings: Record<string, Setting> = {};
 export type settings_type = typeof settings;

@@ -1,3 +1,4 @@
+import { markerColors } from "../marker_colors";
 import { dragHelper } from "../util/drag_helper";
 
 export class TimelineMarker {
