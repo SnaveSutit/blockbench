@@ -492,7 +492,7 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			// Calculate matrix
 			scene_object.parent.updateMatrixWorld(true);
 			matrix1.copy(scene_object.parent.matrixWorld).invert();
-			matrix1.multiply(old_parent.scene_object.matrixWorld);
+			if (old_parent instanceof OutlinerNode) matrix1.multiply(old_parent.scene_object.matrixWorld);
 			matrix2.premultiply(matrix1);
 
 			let position_change = Reusable.vec1;

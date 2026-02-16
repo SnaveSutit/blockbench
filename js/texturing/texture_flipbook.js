@@ -140,7 +140,7 @@ BARS.defineActions(function() {
 		category: 'textures',
 		condition: textureAnimationCondition,
 		click() {
-			Texture.getDefault().openMenu()
+			Texture.getDefault().propertiesDialog()
 			if (Format.texture_mcmeta && Texture.all.length) {
 				Texture.getDefault().propertiesDialog()
 				$('dialog div.form_bar_frame_time input').trigger('focus');

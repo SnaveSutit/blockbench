@@ -25,7 +25,7 @@ export const animation_codec = new AnimationCodec('bedrock', {
 		})
 	},
 	importFile(file, auto_loaded) {
-		
+		let codec = this;
 		let form = {};
 		if (auto_loaded && file.path) {
 			form['_path'] = {type: 'info', text: file.path};
@@ -55,7 +55,7 @@ export const animation_codec = new AnimationCodec('bedrock', {
 
 		} else if (keys.length == 1) {
 			Undo.initEdit({animations: []})
-			let new_animations = this.loadFile(file, keys);
+			let new_animations = codec.loadFile(file, keys);
 			Undo.finishEdit('Import animations', {animations: new_animations})
 
 		} else {
@@ -79,7 +79,7 @@ export const animation_codec = new AnimationCodec('bedrock', {
 							}
 						}
 						Undo.initEdit({animations: []})
-						let new_animations = this.loadFile(file, names);
+						let new_animations = codec.loadFile(file, names);
 						Undo.finishEdit('Import animations', {animations: new_animations})
 						resolve();
 					},

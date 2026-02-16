@@ -697,13 +697,14 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 			var next = $(all_visible_inputs[index])
 
 			if (next.length) {
+				stopRenameOutliner();
+
 				if (next.hasClass('cube_name')) {
 					let uuid = next.parent().parent().attr('id');
 					var target = OutlinerNode.uuids[uuid];
 					if (target) {
-						stopRenameOutliner();
 						setTimeout(() => {
-							target.select(e, true).rename();
+							target.select({}, true).rename();
 						}, 50)
 					}
 
