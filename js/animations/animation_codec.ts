@@ -83,6 +83,8 @@ export class AnimationCodec implements SharedOptions {
 			return AnimationCodec.codecs.bedrock_controller;
 		} else if (Format.animation_codec) {
 			return Format.animation_codec;
+		} else if (Format.animation_files) {
+			return AnimationCodec.codecs.bedrock;
 		}
 	}
 }
