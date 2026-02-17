@@ -513,7 +513,7 @@ Object.defineProperty(Collection, 'selected', {
 
 SharedActions.add('delete', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		let selected = Collection.selected.slice();
 		Undo.initEdit({collections: selected});
@@ -526,7 +526,7 @@ SharedActions.add('delete', {
 })
 SharedActions.add('duplicate', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		let new_collections = [];
 		Undo.initEdit({collections: new_collections});
@@ -541,7 +541,7 @@ SharedActions.add('duplicate', {
 })
 SharedActions.add('copy', {
 	subject: 'collection',
-	condition: () => Prop.active_panel == 'collections' && Collection.selected.length,
+	condition: () => Prop.active_panel == 'collections' && Collection.selected.length > 0,
 	run() {
 		Clipbench.collections = Collection.selected.map(collection => collection.getUndoCopy());
 	}
@@ -579,7 +579,7 @@ BARS.defineActions(() => {
 	new Action('set_collection_content_to_selection', {
 		icon: 'unarchive',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
@@ -593,7 +593,7 @@ BARS.defineActions(() => {
 	new Action('add_to_collection', {
 		icon: 'box_add',
 		category: 'select',
-		condition: () => Collection.selected.length,
+		condition: () => Collection.selected.length > 0,
 		click() {
 			let collections = Collection.selected;
 			Undo.initEdit({collections});
@@ -845,6 +845,7 @@ const global = {
 	Collection
 };
 declare global {
+	type Collection = import('./collections').Collection
 	const Collection: typeof global.Collection
 }
 Object.assign(window, global);

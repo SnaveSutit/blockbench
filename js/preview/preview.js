@@ -2228,6 +2228,9 @@ export function animate() {
 	if (Modes.display === true && Canvas.ground_animation === true && !Transformer.hoverAxis) {
 		DisplayMode.groundAnimation()
 	}
+	if (TextureAnimator.isPlaying) {
+		TextureAnimator.playAnimationFrame();
+	}
 	Blockbench.dispatchEvent('render_frame');
 }
 

@@ -51,6 +51,7 @@ export class Codec extends EventSystem {
 			var name = pathToName(file.path, true);
 			Project.name = pathToName(name, false);
 			Project.export_path = file.path;
+			Project.export_codec = this.id;
 		}
 
 		this.parse(model, file.path, args)
@@ -200,6 +201,7 @@ export class Codec extends EventSystem {
 				Project.save_path = path;
 			} else {
 				Project.export_path = path;
+				Project.export_codec = this.id;
 			}
 			Project.name = pathToName(path, false);
 			Project.saved = true;
@@ -223,9 +225,13 @@ export class Codec extends EventSystem {
 }
 Codec.getAllExtensions = function() {
 	let extensions = [];
-	for (var id in Codecs) {
-		if (Codecs[id].load_filter && Codecs[id].load_filter.extensions) {
-			extensions.safePush(...Codecs[id].load_filter.extensions);
+	for (let id in Codecs) {
+		let codec = Codecs[id];
+		if (codec.load_filter && codec.load_filter.extensions) {
+			let list = typeof codec.load_filter.extensions == 'function'
+				? codec.load_filter.extensions()
+				: codec.load_filter.extensions ?? [];
+			extensions.safePush(...list);
 		}
 	}
 	return extensions;

@@ -539,8 +539,13 @@ Interface.CustomElements.NumericInput = function(id, data) {
 	this.node = Interface.createElement('div', {class: 'numeric_input'}, [
 		input, slider
 	])
+	if (data.readonly) {
+		input.readOnly = true;
+		slider.remove();
+	}
 
 	addEventListeners(slider, 'mousedown touchstart', e1 => {
+		if (data.readonly) return;
 		convertTouchEvent(e1);
 		let last_difference = 0;
 		let move = e2 => {
@@ -570,6 +575,7 @@ Interface.CustomElements.NumericInput = function(id, data) {
 	})
 
 	addEventListeners(input, 'focusout dblclick', () => {
+		if (data.readonly) return;
 		input.value = Math.clamp(NumSlider.MolangParser.parse(input.value), data.min, data.max);
 	})
 	input.addEventListener('input', (event) => {

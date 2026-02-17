@@ -860,7 +860,7 @@ export const TextureGenerator = {
 						sorted_vertices.forEach((vkey, vi) => {
 							let vkey2 = sorted_vertices[vi+1] || sorted_vertices[0];
 							let vkey0 = sorted_vertices[vi-1] || sorted_vertices.last();
-							let snap = 1;
+							let snap = res_multiple;
 							let vertex_uvs_1 = vertex_uvs[face_group.keys[0]];
 	
 							if (Math.epsilon(vertex_uvs_1[vkey][0], vertex_uvs_1[vkey2][0], 0.001)) {

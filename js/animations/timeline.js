@@ -5,6 +5,7 @@ export class TimelineMarker {
 		this.uuid = guid();
 		this.time = 0;
 		this.color = 0;
+		this.name = 0;
 		if (data) {
 			this.extend(data);
 		}
@@ -12,11 +13,13 @@ export class TimelineMarker {
 	extend(data) {
 		Merge.number(this, data, 'color');
 		Merge.number(this, data, 'time');
+		Merge.string(this, data, 'name');
 	}
 	getUndoCopy() {
 		return {
 			color: this.color,
 			time: this.time,
+			name: this.name,
 		}
 	}
 	callPlayhead() {
@@ -27,6 +30,20 @@ export class TimelineMarker {
 	showContextMenu(event) {
 		this.menu.open(event, this);
 		return this;
+	}
+	propertiesDialog() {
+		new Dialog({
+			id: 'timeline_marker_properties',
+			title: 'menu.animation.properties',
+			form: {
+				time: {label: 'action.slider_keyframe_time', value: Math.roundTo(this.time, 4), type: 'number', min: 0},
+				name: {label: 'generic.name', value: this.name, type: 'text'}
+			},
+			onConfirm: (form) => {
+				this.time = form.time;
+				this.name = form.name;
+			}
+		}).show();
 	}
 }
 TimelineMarker.prototype.menu = new Menu([
@@ -41,26 +58,18 @@ TimelineMarker.prototype.menu = new Menu([
 			}})
 		];
 	}},
-	{
-		name: 'menu.timeline_marker.set_time',
-		icon: 'schedule',
-		click(marker) {
-			new Dialog({
-				id: 'timeline_marker_set_time',
-				title: 'menu.timeline_marker.set_time',
-				form: {
-					time: {label: 'action.slider_keyframe_time', value: Math.roundTo(marker.time, 4), type: 'number', min: 0}
-				},
-				onConfirm(form) {
-					marker.time = form.time;
-				}
-			}).show();
-		}
-	},
 	new MenuSeparator('manage'),
 	{icon: 'delete', name: 'generic.delete', click: function(marker) {
 		if (Animation.selected) Animation.selected.markers.remove(marker);
-	}}
+	}},
+	new MenuSeparator('properties'),
+	{
+		name: 'menu.animation.properties',
+		icon: 'list',
+		click(marker) {
+			marker.propertiesDialog();
+		}
+	},
 ])
 
 export const Timeline = {
@@ -1705,13 +1714,15 @@ Interface.definePanels(() => {
 								/>
 								<div
 									v-for="marker in markers"
-									class="timeline_marker"
+									class="timeline_marker tool"
 									:style="{left: (marker.time * size) + 'px', '--color': getColor(marker.color)}"
 									:uuid="marker.uuid"
 									@contextmenu.prevent="marker.showContextMenu($event)"
+									@dblclick.prevent="marker.propertiesDialog()"
 									v-on:click="marker.callPlayhead()"
 								>
 									<i class="material-icons icon">sports_score</i>
+									<div class="tooltip" v-if="marker.name">{{ marker.name }}</div>
 								</div>
 							</div>
 						</div>

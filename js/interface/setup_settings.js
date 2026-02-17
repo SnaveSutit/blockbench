@@ -120,18 +120,16 @@ function setupSettings() {
 			model.material.needsUpdate = true;
 		}
 	}});
-	new Setting('fps_limit',				{category: 'preview', value: 144, min: 10, max: 1024, type: 'number'});
-	new Setting('background_rendering', 	{category: 'preview', value: true});
-	new Setting('texture_fps',   			{category: 'preview', value: 7, type: 'number', min: 0, max: 120, onChange() {
-		TextureAnimator.updateSpeed()
-	}});
-	new Setting('particle_tick_rate',		{category: 'preview', value: 30, type: 'number', min: 1, max: 1000, onChange() {
+	new Setting('fps_limit',						{category: 'preview', value: 144, min: 10, max: 1024, type: 'number'});
+	new Setting('background_rendering', 			{category: 'preview', value: true});
+	new Setting('flipbook_textures_in_animation',	{category: 'preview', value: true});
+	new Setting('particle_tick_rate',				{category: 'preview', value: 30, type: 'number', min: 1, max: 1000, onChange() {
 		WinterskyScene.global_options.tick_rate = this.value;
 	}});
-	new Setting('volume', 					{category: 'preview', value: 80, min: 0, max: 200, type: 'number'});
-	new Setting('audio_scrubbing',			{category: 'preview', value: true});
-	new Setting('save_view_per_tab',		{category: 'preview', value: true});
-	new Setting('display_skin',				{category: 'preview', value: false, type: 'click', icon: 'icon-player', click: function() { changeDisplaySkin() }});
+	new Setting('volume', 							{category: 'preview', value: 80, min: 0, max: 200, type: 'number'});
+	new Setting('audio_scrubbing',					{category: 'preview', value: true});
+	new Setting('save_view_per_tab',				{category: 'preview', value: true});
+	new Setting('display_skin',						{category: 'preview', value: false, type: 'click', icon: 'icon-player', click: function() { changeDisplaySkin() }});
 
 	new Setting('viewport_rotate_speed',	{category: 'controls', value: 100, min: 10, max: 1000, type: 'number', onChange(value) {
 		Preview.all.forEach(viewport => viewport.controls.rotateSpeed = value / 100)

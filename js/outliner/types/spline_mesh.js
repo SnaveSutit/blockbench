@@ -212,15 +212,13 @@ export class SplineMesh extends OutlinerElement {
         super(data, uuid)
 		this.texture = false;
 
-        this._static = {
-            // Both Handles and Curves must ALWAYS be in proper rendering order, or a lot of features will break.
-            properties: {
-                handles: {}, // Main component of the spline
-                curves: {}, // Segments of the spline
-                vertices: {}, // Points of the handles
-                faces: {} // Solely here so we can paint on splines (yeah, that's a bit silly). These don't even get saved, they serve a runtime purpose.
-            }
-        }
+        // Both Handles and Curves must ALWAYS be in proper rendering order, or a lot of features will break.
+		Object.assign(this._static.properties, {
+            handles: {}, // Main component of the spline
+            curves: {}, // Segments of the spline
+            vertices: {}, // Points of the handles
+            faces: {} // Solely here so we can paint on splines (yeah, that's a bit silly). These don't even get saved, they serve a runtime purpose.
+        });
         Object.freeze(this._static);
 
         // Base points of the curve, a chain of point triplets frorming a series of curve between their origins & control points.

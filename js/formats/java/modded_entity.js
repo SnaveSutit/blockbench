@@ -966,6 +966,7 @@ var codec = new Codec('modded_entity', {
 		var name = pathToName(path, true)
 		if (Format.codec == this || this.id == 'project') {
 			Project.export_path = path;
+			Project.export_codec = this.id;
 			Project.name = pathToName(path, false);
 		}
 		if (this.remember) {
@@ -993,76 +994,79 @@ Object.defineProperty(codec, 'remember', {
 	}
 })
 
-codec.compileAnimations = function(animations = Animation.all) {
-	let R = Templates.getVariableRegex;
-	let identifier = getIdentifier();
-	let interpolations = AnimationTemplates.get('interpolations');
+const animation_codec = new AnimationCodec('modded_entity', {
+	multiple_per_file: true,
+	compileFile(animations = Animation.all) {
+		let R = Templates.getVariableRegex;
+		let identifier = getIdentifier();
+		let interpolations = AnimationTemplates.get('interpolations');
 
-	let file = AnimationTemplates.get('file');
-	file = file.replace(R('bb_version'), Blockbench.version);
-	file = file.replace(R('author'), Settings.get('username') || 'Author');
-	file = file.replace(R('identifier'), identifier);
+		let file = AnimationTemplates.get('file');
+		file = file.replace(R('bb_version'), Blockbench.version);
+		file = file.replace(R('author'), Settings.get('username') || 'Author');
+		file = file.replace(R('identifier'), identifier);
 
-	let anim_strings = [];
-	animations.forEach(animation => {
-		let anim_string = AnimationTemplates.get('animation');
-		anim_string = anim_string.replace(R('name'), animation.name);
-		anim_string = anim_string.replace(R('length'), F(animation.length));
-		anim_string = anim_string.replace(R('looping'), animation.loop == 'loop' ? AnimationTemplates.get('looping') : '');
+		let anim_strings = [];
+		animations.forEach(animation => {
+			let anim_string = AnimationTemplates.get('animation');
+			anim_string = anim_string.replace(R('name'), animation.name);
+			anim_string = anim_string.replace(R('length'), F(animation.length));
+			anim_string = anim_string.replace(R('looping'), animation.loop == 'loop' ? AnimationTemplates.get('looping') : '');
 
-		let channel_strings = [];
-		let channel_types = AnimationTemplates.get('channel_types');
-		for (let id in animation.animators) {
-			let animator = animation.animators[id];
-			if (animator instanceof BoneAnimator == false) continue;
-			
-			for (let channel_id in channel_types) {
-				if (!(animator[channel_id] && animator[channel_id].length)) continue;
-				let keyframes = animator[channel_id].slice().sort((a, b) => a.time - b.time);
-				let keyframe_strings = [];
-				function addKeyframe(time, x, y, z, interpolation) {
-					if (channel_id == 'position') {
-						x *= -1;
-					}
-					if (channel_id == 'rotation') {
-						x *= -1;
-						y *= -1;
-					}
-					let kf_string = AnimationTemplates.get('keyframe_'+channel_id);
-					kf_string = kf_string.replace(R('time'), F(time));
-					kf_string = kf_string.replace(R('x'), F(x));
-					kf_string = kf_string.replace(R('y'), F(y));
-					kf_string = kf_string.replace(R('z'), F(z));
-					kf_string = kf_string.replace(R('interpolation'), interpolations[interpolation] || interpolations.linear);
-					keyframe_strings.push(kf_string);
-				}
+			let channel_strings = [];
+			let channel_types = AnimationTemplates.get('channel_types');
+			for (let id in animation.animators) {
+				let animator = animation.animators[id];
+				if (animator instanceof BoneAnimator == false) continue;
 				
-				keyframes.forEach((kf, i) => {
-					addKeyframe(kf.time, kf.calc('x'), kf.calc('y'), kf.calc('z'), kf.interpolation);
-					if (kf.data_points[1]) {
-						addKeyframe(kf.time+0.001, kf.calc('x', 1), kf.calc('y', 1), kf.calc('z', 1), kf.interpolation);
-					} else if (kf.interpolation == 'step' && keyframes[i+1]) {
-						let next = keyframes[i+1];
-						addKeyframe(next.time-0.001, kf.calc('x'), kf.calc('y'), kf.calc('z'), 'linear');
+				for (let channel_id in channel_types) {
+					if (!(animator[channel_id] && animator[channel_id].length)) continue;
+					let keyframes = animator[channel_id].slice().sort((a, b) => a.time - b.time);
+					let keyframe_strings = [];
+					function addKeyframe(time, x, y, z, interpolation) {
+						if (channel_id == 'position') {
+							x *= -1;
+						}
+						if (channel_id == 'rotation') {
+							x *= -1;
+							y *= -1;
+						}
+						let kf_string = AnimationTemplates.get('keyframe_'+channel_id);
+						kf_string = kf_string.replace(R('time'), F(time));
+						kf_string = kf_string.replace(R('x'), F(x));
+						kf_string = kf_string.replace(R('y'), F(y));
+						kf_string = kf_string.replace(R('z'), F(z));
+						kf_string = kf_string.replace(R('interpolation'), interpolations[interpolation] || interpolations.linear);
+						keyframe_strings.push(kf_string);
 					}
-				})
+					
+					keyframes.forEach((kf, i) => {
+						addKeyframe(kf.time, kf.calc('x'), kf.calc('y'), kf.calc('z'), kf.interpolation);
+						if (kf.data_points[1]) {
+							addKeyframe(kf.time+0.001, kf.calc('x', 1), kf.calc('y', 1), kf.calc('z', 1), kf.interpolation);
+						} else if (kf.interpolation == 'step' && keyframes[i+1]) {
+							let next = keyframes[i+1];
+							addKeyframe(next.time-0.001, kf.calc('x'), kf.calc('y'), kf.calc('z'), 'linear');
+						}
+					})
 
-				let channel_string = AnimationTemplates.get('channel');
-				channel_string = channel_string.replace(R('name'), animator.name);
-				channel_string = channel_string.replace(R('channel_type'), channel_types[channel_id]);
-				channel_string = channel_string.replace(R('keyframes'), '\n\t\t\t' + keyframe_strings.join(',\n\t\t\t') + '\n\t\t');
+					let channel_string = AnimationTemplates.get('channel');
+					channel_string = channel_string.replace(R('name'), animator.name);
+					channel_string = channel_string.replace(R('channel_type'), channel_types[channel_id]);
+					channel_string = channel_string.replace(R('keyframes'), '\n\t\t\t' + keyframe_strings.join(',\n\t\t\t') + '\n\t\t');
 
-				channel_strings.push(channel_string);
+					channel_strings.push(channel_string);
+				}
 			}
-		}
 
-		anim_string = anim_string.replace(R('channels'), '\n\t\t' + channel_strings.join('\n\t\t') + '\n\t\t');
+			anim_string = anim_string.replace(R('channels'), '\n\t\t' + channel_strings.join('\n\t\t') + '\n\t\t');
 
-		anim_strings.push(anim_string);
-	})
-	file = file.replace(R('animations'), anim_strings.join('\n\n\t'));
-	return file;
-}
+			anim_strings.push(anim_string);
+		})
+		file = file.replace(R('animations'), anim_strings.join('\n\n\t'));
+		return file;
+	}
+})
 
 var format = new ModelFormat({
 	id: 'modded_entity',
@@ -1078,6 +1082,7 @@ var format = new ModelFormat({
 		]
 	},
 	codec,
+	animation_codec,
 	node_name_regex: '\\w',
 	box_uv: true,
 	box_uv_float_size: true,
@@ -1125,7 +1130,7 @@ BARS.defineActions(function() {
 					dialog.hide();
 					keys = keys.filter(key => form_result[key.hashCode()]);
 					let animations = keys.map(k => Animation.all.find(anim => anim.name == k));
-					let content = Codecs.modded_entity.compileAnimations(animations);
+					let content = AnimationCodec.codecs.modded_entity.compileFile(animations);
 					Blockbench.export({
 						resource_id: 'modded_animation',
 						type: 'Modded Entity Animation',

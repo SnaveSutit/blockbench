@@ -171,6 +171,10 @@ export interface FormatFeatures {
 	 */
 	billboards: boolean
 	/**
+	 * Enable bounding box elements
+	 */
+	bounding_boxes: boolean
+	/**
 	 * Enable locators
 	 */
 	locators: boolean
@@ -307,6 +311,7 @@ export type FormatOptions = FormatFeatures & {
 	new?(): boolean
 
 	codec?: Codec
+	animation_codec?: AnimationCodec
 	onActivation?(): void
 	onDeactivation?(): void
 }
@@ -335,6 +340,7 @@ export class ModelFormat implements FormatOptions {
 	cube_size_limiter?: CubeSizeLimiter
 
 	codec?: Codec
+	animation_codec?: AnimationCodec
 	onActivation?(): void
 	onDeactivation?(): void
 
@@ -364,6 +370,7 @@ export class ModelFormat implements FormatOptions {
 		this.cube_size_limiter = data.cube_size_limiter;
 
 		this.codec = data.codec;
+		this.animation_codec = data.animation_codec;
 		this.onSetup = data.onSetup;
 		this.onFormatPage = data.onFormatPage;
 		this.onActivation = data.onActivation;
@@ -450,6 +457,7 @@ export class ModelFormat implements FormatOptions {
 		Undo.history.empty();
 		Undo.index = 0;
 		Project.export_path = '';
+		Project.export_codec = '';
 		Project.unhandled_root_fields = {};
 
 		var old_format = Blockbench.Format as ModelFormat;
@@ -577,6 +585,13 @@ export class ModelFormat implements FormatOptions {
 				b.remove()
 			})
 		}
+		//Billboards
+		if (!this.bounding_boxes && old_format.bounding_boxes) {
+			// @ts-ignore
+			BoundingBox.all.slice().forEach(b => {
+				b.remove()
+			})
+		}
 
 		//Canvas Limit
 		if (this.cube_size_limiter && !old_format.cube_size_limiter && !settings.deactivate_size_limit.value) {
@@ -598,6 +613,12 @@ export class ModelFormat implements FormatOptions {
 					cube.rotation.V3_set(0, 0, 0)
 					cube.rotation[axis] = angle;
 				}
+			})
+		}
+
+		if (Format.per_texture_wrap_mode == false) {
+			Texture.all.forEach(texture => {
+				texture.wrap_mode = Texture.properties.wrap_mode.getDefault()
 			})
 		}
 
@@ -655,6 +676,7 @@ new Property(ModelFormat, 'boolean', 'meshes');
 new Property(ModelFormat, 'boolean', 'splines');
 new Property(ModelFormat, 'boolean', 'texture_meshes');
 new Property(ModelFormat, 'boolean', 'billboards');
+new Property(ModelFormat, 'boolean', 'bounding_boxes');
 new Property(ModelFormat, 'boolean', 'locators');
 new Property(ModelFormat, 'boolean', 'rotation_limit');
 new Property(ModelFormat, 'boolean', 'rotation_snap');
@@ -688,6 +710,7 @@ const global = {
 };
 declare global {
 	const ModelFormat: typeof global.ModelFormat
+	type ModelFormat = import('./format').ModelFormat
 	const Format: ModelFormat
 	const Formats: Record<string, ModelFormat>
 }

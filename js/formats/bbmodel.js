@@ -1,7 +1,7 @@
-import { invertMolang } from '../../util/molang';
-import LZUTF8 from '../../lib/lzutf8'
-import { fs } from '../../native_apis';
-import VersionUtil from '../../util/version_util';
+import { invertMolang } from '../util/molang';
+import LZUTF8 from '../lib/lzutf8'
+import { fs } from '../native_apis';
+import VersionUtil from '../util/version_util';
 
 const FORMATV = '5.0';
 

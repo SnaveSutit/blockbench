@@ -531,6 +531,7 @@ onVueSetup(async function() {
 });
 
 
+
 (function() {
 	/*$.getJSON('./content/news.json').then(data => {
 		addStartScreenSection('new_version', data.new_version)

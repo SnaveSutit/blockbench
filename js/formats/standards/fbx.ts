@@ -4,7 +4,7 @@ import { Armature } from "../../outliner/types/armature";
 import { ArmatureBone } from "../../outliner/types/armature_bone";
 import { adjustFromAndToForInflateAndStretch } from "../../outliner/types/cube";
 import { patchedAtob } from "../../util/util";
-import { JSZip, THREE } from './../../lib/libs'
+import { JSZip, THREE } from '../../lib/libs'
 
 const _FBX_VERSION = 7300;
 
@@ -1397,7 +1397,7 @@ var codec = new Codec('fbx', {
 		scale: {label: 'settings.model_export_scale', type: 'number', value: Settings.get('model_export_scale')},
 		embed_textures: {type: 'checkbox', label: 'codec.common.embed_textures', value: false},
 		include_animations: {label: 'codec.common.export_animations', type: 'checkbox', value: true},
-		armature_note: {type: 'info', condition: () => Armature.all.length, text: '⚠️ Armature export to FBX is currently experimental, glTF is recommended instead.'}
+		armature_note: {type: 'info', condition: () => Armature.all.length > 0, text: '⚠️ Armature export to FBX is currently experimental, glTF is recommended instead.'}
 	},
 	async export() {
 		if (Object.keys(this.export_options).length) {

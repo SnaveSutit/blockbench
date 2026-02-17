@@ -992,7 +992,7 @@ export class Plugin {
 
 // Alias for typescript
 export const BBPlugin = Plugin;
-
+export type BBPlugin = Plugin;
 
 if (isApp) {
 	Plugins.path = app.getPath('userData')+osfs+'plugins'+osfs
@@ -1009,6 +1009,7 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 	$.ajax({
 		cache: false,
 		url: Plugins.api_path+'.json',
+		timeout: 5_000,
 		dataType: 'json',
 		success(data) {
 			Plugins.json = data;
@@ -1016,8 +1017,8 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 			resolve();
 			Plugins.loading_promise = null;
 		},
-		error() {
-			console.log('Could not connect to plugin server')
+		error(response, type) {
+			console.error('Could not connect to plugin server:', type, response)
 			$('#plugin_available_empty').text('Could not connect to plugin server')
 			resolve();
 			Plugins.loading_promise = null;
@@ -1182,10 +1183,11 @@ BARS.defineActions(function() {
 					icon: 'more_vert',
 					click(e) {
 						let target = ('target' in e && e.target) as HTMLElement | undefined;
-						new Menu('apply_display_preset', this.children).open(target);
+						new Menu('plugin_browser', this.children).open(target);
 					},
 					children: [
 						'copy_installed_plugins',
+						'install_plugins_from_list',
 					]
 				})
 
@@ -1937,12 +1939,57 @@ BARS.defineActions(function() {
 				title: 'action.copy_installed_plugins',
 				form: {
 					output: {type: 'text', value: getList(true), readonly: true, share_text: true},
-					details: {type: 'checkbox', label: 'Include Details', value: true},
+					details: {type: 'checkbox', label: 'dialog.copy_installed_plugins.details', value: true},
 				},
 				onFormChange(result) {
 					Dialog.open.form.setValues({
 						output: getList(result.details as boolean)
 					}, false);
+				},
+				singleButton: true,
+			}).show();
+		}
+	})
+	new Action('install_plugins_from_list', {
+		icon: 'list_alt_add',
+		category: 'blockbench',
+		click() {
+			new Dialog({
+				title: 'action.install_plugins_from_list',
+				form: {
+					// TODO: Localize
+					about: {type: 'info', text: 'dialog.install_plugins_from_list.info'},
+					input: {type: 'text', label: 'dialog.install_plugins_from_list.ids'},
+				},
+				onConfirm(result) {
+					let entries = result.input.split(/,\s*/);
+					let plugins = [];
+					for (let entry of entries) {
+						let id = entry.match(/\w+/)?.[0];
+						let matches = id && Plugins.all.filter(plugin => plugin.id == id);
+						if (matches.length == 0 || matches.some(p => p.installed)) continue;
+						plugins.push(matches[0]);
+					}
+
+					// Confirm and install
+					let form = {}
+					plugins.forEach(plugin => {
+						form[plugin.id.replace(/\./g, '_')] = {type: 'checkbox', label: plugin.name, description: plugin.description, value: true}
+					})
+					new Dialog({
+						id: 'install_plugins_from_list_check',
+						title: 'action.install_plugins_from_list',
+						form,
+						buttons: ['dialog.plugins.install', 'dialog.cancel'],
+						onConfirm(result) {
+							plugins.forEach(plugin => {
+								if (result[plugin.id.replace(/\./g, '_')]) {
+									plugin.download();
+								}
+							})
+						}
+					}).show();
+
 				}
 			}).show();
 		}
@@ -1963,8 +2010,6 @@ BARS.defineActions(function() {
 	})
 })
 
-declare global {
-}
 const global = {
 	Plugins,
 	Plugin,
@@ -1972,6 +2017,7 @@ const global = {
 };
 declare global {
 	const BBPlugin: typeof Plugin;
+	type BBPlugin = import('./plugin_loader').Plugin
 	const Plugins: typeof global.Plugins
 }
 Object.assign(window, global);

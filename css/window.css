@@ -297,7 +297,7 @@
 		margin-top: -0.6px;
 	}
 	div#corner_logo img {
-		margin-top: 3px;
+		margin-top: 4px;
 		width: 134px;
 	}
 	@media (max-width:950px)  {
@@ -735,6 +735,9 @@
 		flex: 1 1 auto;
 		padding: 0 4px;
 		pointer-events: none;
+	}
+	.project_tab label span {
+		color: var(--color-subtle_text);
 	}
 	#tab_bar .project_tab > * {
 		cursor: inherit

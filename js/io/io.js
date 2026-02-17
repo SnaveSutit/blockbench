@@ -4,7 +4,12 @@ import { shell } from "../native_apis";
 export function setupDragHandlers() {
 	Blockbench.addDragHandler(
 		'texture',
-		{extensions: ['png', 'tga'], propagate: true, readtype: 'image', condition: () => !Dialog.open},
+		{
+			extensions: Texture.getAllExtensions,
+			propagate: true,
+			readtype: 'image',
+			condition: () => !Dialog.open
+		},
 		function(files, event) {
 			loadImages(files, event)
 		}
@@ -73,7 +78,10 @@ export function loadModelFile(file, args) {
 
 	function loadIfCompatible(codec, type, content) {
 		if (codec.load_filter && codec.load_filter.type == type) {
-			if (codec.load_filter.extensions.includes(extension) && Condition(codec.load_filter.condition, content)) {
+			let extensions = typeof codec.load_filter.extensions == 'function'
+				? codec.load_filter.extensions()
+				: codec.load_filter.extensions ?? [];
+			if (extensions.includes(extension) && Condition(codec.load_filter.condition, content)) {
 				if (existing_tab && !codec.multiple_per_file) {
 					existing_tab.select();
 				} else {
@@ -605,6 +613,16 @@ BARS.defineActions(function() {
 			}, {placeholder: 'https://blckbn.ch/123abc'});
 		}
 	})
+	Blockbench.on('drop_text', ({text}) => {
+		if (text && text.startsWith('https://blckbn.ch/')) {
+			let code = text.replace(/\/$/, '').split('/').last();
+			$.getJSON(`https://blckbn.ch/api/models/${code}`, (model) => {
+				Codecs.project.load(model, {path: ''});
+			}).fail(error => {
+				Blockbench.showQuickMessage('message.invalid_link')
+			})
+		}
+	})
 	new Action('extrude_texture', {
 		icon: 'eject',
 		category: 'file',
@@ -630,10 +648,10 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 's', ctrl: true}),
 		condition: () => Project,
 		click: async function(event) {
+			let export_codec = Codecs[Project.export_codec] ?? Format?.codec;
 			if (isApp) {
 				await saveTextures()
 				if (Format) {
-					let export_codec = Format.codec;
 					if (Project.save_path) {
 						Codecs.project.write(Codecs.project.compile(), Project.save_path);
 					}

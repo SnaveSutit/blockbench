@@ -64,15 +64,28 @@ declare class Menu extends Deletable {
 	 * @param path Path pointing to the location. Use the ID of each level of the menu, or index within a level, or item ID, separated by a point. For example, `export.export_special_format` removes the action "Export Special Format" from the Export submenu.
 	 */
 	removeAction(path: string | Action): void
+	/**
+	 * @deprecated
+	 */
+	deleteItem(rm_item: Action): void
+	hover(node: HTMLElement, event: Event, expand?: boolean): void
 	structure: MenuItem[]
+	node: HTMLUListElement
 	static open: Menu | null
+	static closed_in_this_click?: string
+}
+
+declare interface BarMenuOptions {
+	name?: string
+	icon?: IconString
+	condition?: ConditionResolvable
 }
 
 /**
  * Creates a new menu in the menu bar
  */
 declare class BarMenu extends Menu {
-	constructor(id: string, structure: MenuItem[], condition?: ConditionResolvable)
+	constructor(id: string, structure: MenuItem[], options?: BarMenuOptions)
 	type: 'bar_menu'
 	id: string
 	condition?: ConditionResolvable

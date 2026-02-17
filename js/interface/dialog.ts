@@ -125,7 +125,7 @@ function makeDraggable(dialog: Dialog | MessageBox, handle: HTMLElement) {
 }
 
 const toggle_sidebar = window.innerWidth < 640;
-interface DialogSidebarOptions {
+export interface DialogSidebarOptions {
 	pages?: {
 		[key: string]: string | { label: string; icon: IconString; color?: string } | MenuSeparator
 	}
@@ -240,7 +240,7 @@ export class DialogSidebar {
 }
 
 
-interface DialogOptions {
+export interface DialogOptions {
 	title: string
 	id?: string
 	icon?: IconString
@@ -698,6 +698,7 @@ export class Dialog {
 		// Hide previous
 		// @ts-ignore Need to replace this variable still
 		if (window.open_interface && open_interface instanceof Dialog == false && typeof open_interface.hide == 'function') {
+			// @ts-ignore Need to replace this variable still
 			open_interface.hide();
 		}
 
@@ -1222,10 +1223,16 @@ const global = {
 };
 declare global {
 	const Dialog: typeof global.Dialog
+	type Dialog = import('./dialog').Dialog
 	const ConfigDialog: typeof global.ConfigDialog
+	type ConfigDialog = import('./dialog').ConfigDialog
 	const DialogSidebar: typeof global.DialogSidebar
+	type DialogSidebar = import('./dialog').DialogSidebar
 	const MessageBox: typeof global.MessageBox
+	type MessageBox = import('./dialog').MessageBox
 	const ShapelessDialog: typeof global.ShapelessDialog
+	type ShapelessDialog = import('./dialog').ShapelessDialog
 	const ToolConfig: typeof global.ToolConfig
+	type ToolConfig = import('./dialog').ToolConfig
 }
 Object.assign(window, global);

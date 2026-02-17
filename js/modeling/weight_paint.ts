@@ -5,12 +5,7 @@ import { ArmatureBone } from '../outliner/types/armature_bone';
 import { Preview } from '../preview/preview';
 import { symmetrizeArmature } from './mirror_modeling';
 
-type CanvasClickData = {event: MouseEvent} | {
-	event: MouseEvent
-	element: OutlinerElement
-	face: string
-	intersects: Array<THREE.Intersection>
-}
+type CanvasClickData = RaycastResult
 
 let brush_outline: HTMLElement;
 function updateBrushOutline(event: PointerEvent) {
@@ -82,7 +77,7 @@ new Tool('weight_brush', {
 	modes: ['edit'],
 	condition: {modes: ['edit'], method: () => !!Armature.all.length},
 	
-	onCanvasClick(data: CanvasClickData) {
+	onCanvasClick(data) {
 		let element = 'element' in data && data.element;
 		if (element instanceof ArmatureBone) {
 			return element.select(data.event);
@@ -129,7 +124,7 @@ new Tool('weight_brush', {
 			if (Preview.selected.controls.hasMoved) return;
 			last_click_pos = click_pos;
 
-			data = data ?? preview.raycast(event);
+			data = data ?? preview.raycast(event) as any;
 			let mesh = element;
 			if (mesh instanceof Mesh == false) return;
 			let vec = new THREE.Vector2();
@@ -191,7 +186,7 @@ new Tool('weight_brush', {
 		}
 		document.addEventListener('pointermove', draw);
 		document.addEventListener('pointerup', stop);
-		draw(data.event, data);
+		draw(data.event as MouseEvent, data);
 
 	},
 	onSelect() {

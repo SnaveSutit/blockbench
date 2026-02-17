@@ -98,6 +98,33 @@ export const Outliner = {
 		},
 	},
 
+	isNodeDisplayed(node) {
+		for (let rule of Outliner.node_display_rules) {
+			let result = rule.test(node);
+			if (result == false) return false;
+		}
+		return true;
+	},
+	node_display_rules: [
+		{
+			id: 'mode_hidden_types',
+			test(node) {
+				if (Mode.selected?.hidden_node_types?.length) {
+					return !Mode.selected.hidden_node_types.includes(node.type);
+				}
+				return true;
+			}
+		},
+		{
+			id: 'search',
+			test(node) {
+				if (Outliner.vue._data.options.search_term == '') return true;
+				return node.matchesFilter(Outliner.vue.search_term_lowercase);
+			}
+		},
+	],
+
+
 	toJSON() {
 		let result = [];
 		function iterate(array, save_array) {
@@ -464,12 +491,21 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 		}
 		updateTransformRecursive(obj);
 
+		if (old_parent != obj.parent && !adjust_position_viable) {
+			scene_object.updateMatrixWorld(true);
+			let elements1 = scene_object.matrixWorld.elements;
+			let elements2 = matrix_world.elements;
+			if (elements1.some((v, i) => !Math.epsilon(v, elements2[i], 0.00001))) {
+				adjust_position_viable = true;
+			}
+		}
+
 		if (options.adjust_position) {
 
 			// Calculate matrix
 			scene_object.parent.updateMatrixWorld(true);
 			matrix1.copy(scene_object.parent.matrixWorld).invert();
-			matrix1.multiply(old_parent.scene_object.matrixWorld);
+			if (old_parent instanceof OutlinerNode) matrix1.multiply(old_parent.scene_object.matrixWorld);
 			matrix2.premultiply(matrix1);
 
 			let position_change = Reusable.vec1;
@@ -486,13 +522,6 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 			}
 			updateTransformRecursive(obj);
 
-		} else if (old_parent != obj.parent && !adjust_position_viable) {
-			scene_object.updateMatrixWorld(true);
-			let elements1 = scene_object.matrixWorld.elements;
-			let elements2 = matrix_world.elements;
-			if (elements1.some((v, i) => !Math.epsilon(v, elements2[i], 0.00001))) {
-				adjust_position_viable = true;
-			}
 		}
 	}
 	items.forEach(function(item) {
@@ -523,19 +552,22 @@ export function moveOutlinerSelectionTo(item, target, order = 0, options = {}) {
 	}
 	return adjust_position_viable;
 }
+let move_outliner_options = {
+	adjust_position: false
+}
 export function moveOutlinerSelectionAmend(item, target, event, order) {
-	let default_options = {event, adjust_position: false};
-	let open_amend = moveOutlinerSelectionTo(item, target, order, default_options);
+	let open_amend = moveOutlinerSelectionTo(item, target, order, {event, ...move_outliner_options});
 
 	if (open_amend) {
 		Undo.amendEdit({
-			adjust_position: {type: 'checkbox', value: default_options.adjust_position, label: 'edit.reparent_selection.adjust_position'},
+			adjust_position: {type: 'checkbox', value: move_outliner_options.adjust_position, label: 'edit.reparent_selection.adjust_position'},
 		}, form => {
 			moveOutlinerSelectionTo(item, target, order, {
 				amended: true,
 				event,
 				adjust_position: form.adjust_position,
 			});
+			move_outliner_options.adjust_position = form.adjust_position;
 		})
 	}
 }
@@ -859,6 +891,7 @@ BARS.defineActions(function() {
 			'add_armature_bone',
 			'add_locator',
 			'add_null_object',
+			'add_bounding_box',
 			'add_texture_mesh',
 		]),
 		click(event) {
@@ -1168,7 +1201,7 @@ Interface.definePanels(function() {
 				//Opener
 				
 				`<i
-					v-if="node.children && node.children.length > 0 && (!options.hidden_types.length || node.children.some(node => !options.hidden_types.includes(node.type)))"
+					v-if="node.children && node.children.some(isNodeDisplayed)"
 					@click.stop="node.isOpen = !node.isOpen" class="icon-open-state fa"
 					:class='{"fa-angle-right": !node.isOpen, "fa-angle-down": node.isOpen}'
 				></i>
@@ -1210,19 +1243,13 @@ Interface.definePanels(function() {
 				return limitNumber(this.depth, 0, (this.width-100) / 16);
 			},
 			visible_children() {
-				let filtered = this.node.children;
-				if (this.options.search_term) {
-					let search_term_lowercase = this.options.search_term.toLowerCase();
-					filtered = this.node.children.filter(child => child.matchesFilter(search_term_lowercase));
-				}
-				if (!this.options.hidden_types.length) {
-					return filtered;
-				} else {
-					return filtered.filter(node => !this.options.hidden_types.includes(node.type));
-				}
+				return this.node.children.filter(Outliner.isNodeDisplayed);
 			}
 		},
 		methods: {
+			isNodeDisplayed(node) {
+				return Outliner.isNodeDisplayed(node)
+			},
 			nodeClass: function (node) {
 				if (node.isOpen) {
 					return node.openedIcon || node.icon;
@@ -1345,8 +1372,7 @@ Interface.definePanels(function() {
 				options: {
 					width: 300,
 					show_advanced_toggles: StateMemory.advanced_outliner_toggles,
-					hidden_types: [],
-					search_term: ''
+					search_term: '',
 				}
 			}},
 			methods: {
@@ -1604,13 +1630,11 @@ Interface.definePanels(function() {
 				}
 			},
 			computed: {
+				search_term_lowercase() {
+					return this.options.search_term.toLowerCase();
+				},
 				filtered_root() {
-					if (!this.options.search_term) {
-						return this.root;
-					} else {
-						let search_term_lowercase = this.options.search_term.toLowerCase();
-						return this.root.filter(node => node.matchesFilter(search_term_lowercase))
-					}
+					return this.root.filter(Outliner.isNodeDisplayed)
 				}
 			},
 			template: `

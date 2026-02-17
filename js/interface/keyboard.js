@@ -584,9 +584,30 @@ export function updateKeybindConflicts() {
 	}
 }
 
+function isSwapToolsEnabled(event) {
+	let keybind = BarItems.swap_tools.sub_keybinds.hold.keybind;
+	if (keybind.key == 18 || keybind.alt) {
+		return event ? event.altKey : Pressing.alt;
+	} else if (keybind.key == 17 || keybind.ctrl) {
+		return event ? event.ctrlKey : Pressing.ctrl;
+	} else if (keybind.key == 16 || keybind.shift) {
+		return event ? event.shiftKey : Pressing.shift;
+	}
+}
+function isSwapToolsHoldKey(key) {
+	let keybind = BarItems.swap_tools.sub_keybinds.hold.keybind;
+	if (key == keybind.key) return true;
+	if (keybind.alt) {
+		return key == 18;
+	} else if (keybind.ctrl) {
+		return key == 17;
+	} else if (keybind.shift) {
+		return key == 16;
+	}
+}
 
 window.addEventListener('blur', event => {
-	if (Pressing.alt) {
+	if (isSwapToolsEnabled()) {
 		if (Toolbox.original && Toolbox.original.alt_tool) {
 			Toolbox.original.select()
 			delete Toolbox.original;
@@ -604,7 +625,7 @@ window.addEventListener('blur', event => {
 
 window.addEventListener('focus', event => {
 	function click_func(event) {
-		if (event.altKey && Toolbox.selected.alt_tool && !Toolbox.original && !open_interface) {
+		if (isSwapToolsEnabled(event) && Toolbox.selected.alt_tool && !Toolbox.original && !open_interface) {
 			var orig = Toolbox.selected;
 			var alt = BarItems[Toolbox.selected.alt_tool];
 			if (alt && Condition(alt) && (Modes.paint || BarItems.swap_tools.keybind.key == 18)) {
@@ -676,13 +697,14 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 			var next = $(all_visible_inputs[index])
 
 			if (next.length) {
+				stopRenameOutliner();
+
 				if (next.hasClass('cube_name')) {
 					let uuid = next.parent().parent().attr('id');
 					var target = OutlinerNode.uuids[uuid];
 					if (target) {
-						stopRenameOutliner();
 						setTimeout(() => {
-							target.select(e, true).rename();
+							target.select({}, true).rename();
 						}, 50)
 					}
 
@@ -738,7 +760,7 @@ addEventListeners(document, 'keydown mousedown', function(e) {
 	}
 
 	//Hardcoded Keys
-	if (e.which === 18 && Toolbox.selected.alt_tool && !Toolbox.original && !open_interface) {
+	if (isSwapToolsHoldKey(e.which) && Toolbox.selected.alt_tool && !Toolbox.original && !open_interface) {
 		//Alt Tool
 		var orig = Toolbox.selected;
 		var alt = BarItems[Toolbox.selected.alt_tool]
@@ -889,7 +911,7 @@ $(document).keyup(function(e) {
 	if(e.which == 18) {
 		e.preventDefault();
 	}
-	if (e.which === 18 && Toolbox.original && Toolbox.original.alt_tool) {
+	if (isSwapToolsHoldKey(e.which) && Toolbox.original && Toolbox.original.alt_tool) {
 		Toolbox.original.select()
 		delete Toolbox.original;
 	}

@@ -283,7 +283,7 @@
 		position: absolute;
 		z-index: 10;
 	}
-	.panel.bottommost_panel > .panel_sidebar_resize_handle {
+	.panel_container.bottommost_panel > .panel_sidebar_resize_handle {
 		top: -3px;
 		bottom: unset;
 	}
@@ -294,7 +294,7 @@
 		background-color: var(--color-accent);
 		opacity: 0.3;
 	}
-	.panel:not(.floating) > .panel_resize_handle_wrapper {
+	.panel_container:not(.floating) > .panel_resize_handle_wrapper {
 		display: none;
 	}
 	.panel_resize_side {
@@ -1460,7 +1460,7 @@
 		position: absolute;
 		margin-left: -9px;
 		z-index: 5;
-		height: 10px;
+		height: 16px;
 		width: 20px;
 		cursor: pointer;
 	}
@@ -1473,6 +1473,12 @@
 	}
 	.timeline_marker:hover > i {
 		top: -3px;
+	}
+	.timeline_marker:hover > .tooltip {
+		visibility: visible;
+		margin-top: -10px;
+		right: 0;
+		left: 0;
 	}
 	#timeline_time.holding_ctrl .timeline_marker {
 		cursor: ew-resize;
