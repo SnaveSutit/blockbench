@@ -130,6 +130,7 @@ type EventName =
 	| 'update_scene_shading'
 	| 'edit_layer_properties'
 	| 'select_texture'
+	| 'get_face_texture'
 	| 'compile_texture_mcmeta'
 	| 'register_element_type'
 	| 'edit_collection_properties'

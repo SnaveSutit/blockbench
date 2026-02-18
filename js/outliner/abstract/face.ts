@@ -37,6 +37,11 @@ export abstract class Face {
 		return this;
 	}
 	getTexture(): Texture | undefined | null | false {
+		let event_result = Blockbench.dispatchEvent('get_face_texture', {face: this, element: this.element});
+		if (event_result) {
+			let result = event_result.find(v => v != undefined);
+			if (result) return result;
+		}
 		if (Format.per_group_texture && this.element.parent instanceof Group && this.element.parent.texture) {
 			return Texture.all.find(texture => texture.uuid == (this.element.parent as Group).texture);
 		}
