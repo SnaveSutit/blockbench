@@ -6,6 +6,7 @@ import { Armature } from "./armature";
 import { Vue } from '../../lib/libs'
 import { OutlinerElement } from "../abstract/outliner_element";
 import { OutlinerNode } from "../abstract/outliner_node";
+import { markerColors } from "../../marker_colors";
 
 interface ArmatureBoneOptions {
 	name?: string

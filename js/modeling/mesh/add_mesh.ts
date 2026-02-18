@@ -1,3 +1,5 @@
+import { markerColors } from "../../marker_colors";
+
 BARS.defineActions(function() {
 	let add_mesh_dialog = new Dialog({
 		id: 'add_primitive',
