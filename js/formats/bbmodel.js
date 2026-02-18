@@ -680,7 +680,7 @@ var codec = new Codec('project', {
 				new TextureGroup(tex_group, tex_group.uuid).add(false);
 			})
 		}
-		if (model.textures && (!Format.single_texture || Texture.all.length == 0)) {
+		if (model.textures) {
 			new_textures.replace(model.textures.map(loadTexture))
 		}
 

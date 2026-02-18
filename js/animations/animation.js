@@ -275,7 +275,6 @@ export class Animation extends AnimationItem {
 		}
 	}
 	createUniqueName(arr) {
-		var scope = this;
 		var others = Animator.animations.slice();
 		if (arr && arr.length) {
 			arr.forEach(g => {
@@ -284,9 +283,9 @@ export class Animation extends AnimationItem {
 		}
 		others = others.filter(a => a.path == this.path);
 		var name = this.name.replace(/\d+$/, '');
-		function check(n) {
+		const check = (n) => {
 			for (var i = 0; i < others.length; i++) {
-				if (others[i] !== scope && others[i].name == n) return false;
+				if (others[i] !== this && others[i].name == n) return false;
 			}
 			return true;
 		}
@@ -295,19 +294,18 @@ export class Animation extends AnimationItem {
 		}
 		for (var num = 2; num < 8e2; num++) {
 			if (check(name+num)) {
-				scope.name = name+num;
-				return scope.name;
+				this.name = name+num;
+				return this.name;
 			}
 		}
 		return false;
 	}
 	rename() {
-		var scope = this;
-		Blockbench.textPrompt('generic.rename', this.name, function(name) {
-			if (name && name !== scope.name) {
-				Undo.initEdit({animations: [scope]});
-				scope.name = name;
-				scope.createUniqueName();
+		Blockbench.textPrompt('generic.rename', this.name, (name) => {
+			if (name && name !== this.name) {
+				Undo.initEdit({animations: [this]});
+				this.name = name;
+				this.createUniqueName();
 				Undo.finishEdit('Rename animation');
 			}
 		})

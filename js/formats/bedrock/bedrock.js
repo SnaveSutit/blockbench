@@ -6,6 +6,7 @@ import { ModelLoader } from "./../../io/model_loader";
 import {animation_codec} from "./bedrock_animation"
 import "./animation_controller_codec"
 import { loadBedrockCollisionFromJSON } from "./bedrock_voxel_shape";
+import PlayerTexture from './../../../assets/player_skin.png'
 
 if (isApp) {
 window.BedrockEntityManager = class BedrockEntityManager {
@@ -1792,25 +1793,47 @@ BARS.defineActions(function() {
 		show_on_start_screen: false,
 		icon: 'icon-player',
 		target: 'Minecraft: Bedrock Edition',
-		onStart(import_as_attachable) {
-			let import_bbmodel = import_as_attachable ? Codecs.project.compile() : null;
+		onStart: async function() {
+			
+			let form_config = await new Promise((resolve, reject) => {
+				new Dialog({
+					title: 'Bedrock Player Model',
+					form: {
+						import_as_attachable: {label: 'Import current model as attachable', value: true, type: 'checkbox'},
+					},
+					onConfirm(result) {
+						resolve(result)
+					},
+					onCancel() {
+						reject();
+					}
+				}).show();
+			});
+
+			let import_bbmodel = form_config.import_as_attachable ? Codecs.project.compile() : null;
 
 			setupProject(entity_format);
 			parseGeometry({object: player_geo}, {});
 
+
+
+			new Texture({name: 'player.png'}).fromDataURL(PlayerTexture).add(true, true);
+
 			let elements_before = Outliner.elements.slice();
 			let groups_before = Group.all.slice();
+			let textures_before = Texture.all.slice();
+			let animations_before = Animation.all.slice();
 			Outliner.nodes.forEach(node => {
 				node.scope = 1;
 			})
 
-			if (import_as_attachable) {
+			if (form_config.import_as_attachable) {
 				Codecs.project.merge(JSON.parse(import_bbmodel));
 				Outliner.nodes.forEach(node => {
 					if (!elements_before.includes(node) && !groups_before.includes(node)) {
 						node.scope = 2;
 					}
-				})
+				});
 			}
 		}
 	})
