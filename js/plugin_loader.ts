@@ -10,6 +10,7 @@ import { Filesystem } from "./file_system";
 import { app, fs, getPluginPermissions, getPluginScopedRequire, https, revokePluginPermissions } from "./native_apis";
 import { Panels } from "./interface/panels";
 import VersionUtil from './util/version_util'
+import { markerColors } from "./marker_colors";
 
 
 export const Plugins = {
@@ -153,7 +154,8 @@ interface PluginOptions {
 	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
 	 */
 	contributes?: {
-		formats: string[]
+		formats?: string[]
+		open_extensions?: string[]
 	}
 	creation_date?: string
 	has_changelog?: boolean
@@ -221,7 +223,13 @@ export class Plugin {
 	bug_tracker: string
 	source: PluginSource
 	creation_date: string|number
-	contributes: {}
+	/**
+	 * Can be used to specify which features a plugin adds. This allows Blockbench to be aware of and suggest even plugins that are not installed.
+	 */
+	contributes?: {
+		formats?: string[]
+		open_extensions?: string[]
+	}
 	await_loading: boolean
 	has_changelog: boolean
 	changelog: null|PluginChangelog
@@ -984,7 +992,7 @@ export class Plugin {
 
 // Alias for typescript
 export const BBPlugin = Plugin;
-
+export type BBPlugin = Plugin;
 
 if (isApp) {
 	Plugins.path = app.getPath('userData')+osfs+'plugins'+osfs
@@ -1001,6 +1009,7 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 	$.ajax({
 		cache: false,
 		url: Plugins.api_path+'.json',
+		timeout: 5_000,
 		dataType: 'json',
 		success(data) {
 			Plugins.json = data;
@@ -1008,8 +1017,8 @@ Plugins.loading_promise = new Promise((resolve, reject) => {
 			resolve();
 			Plugins.loading_promise = null;
 		},
-		error() {
-			console.log('Could not connect to plugin server')
+		error(response, type) {
+			console.error('Could not connect to plugin server:', type, response)
 			$('#plugin_available_empty').text('Could not connect to plugin server')
 			resolve();
 			Plugins.loading_promise = null;
@@ -1168,8 +1177,23 @@ BARS.defineActions(function() {
 		resizable: 'xy',
 		onOpen() {
 			if (!actions_setup) {
-				BarItems.load_plugin.toElement(document.getElementById('plugins_list_main_bar'));
-				BarItems.load_plugin_from_url.toElement(document.getElementById('plugins_list_main_bar'));
+				let bar = document.getElementById('plugins_list_main_bar');
+				let menu_action = new Action('plugins_window_menu', {
+					private: true,
+					icon: 'more_vert',
+					click(e) {
+						let target = ('target' in e && e.target) as HTMLElement | undefined;
+						new Menu('plugin_browser', this.children).open(target);
+					},
+					children: [
+						'copy_installed_plugins',
+						'install_plugins_from_list',
+					]
+				})
+
+				BarItems.load_plugin.toElement(bar);
+				BarItems.load_plugin_from_url.toElement(bar);
+				menu_action.toElement(bar);
 				actions_setup = true;
 			}
 		},
@@ -1185,6 +1209,7 @@ BARS.defineActions(function() {
 				settings: settings,
 				isMobile: Blockbench.isMobile,
 				isApp,
+				markerColors,
 				online: navigator.onLine
 			},
 			computed: {
@@ -1897,6 +1922,79 @@ BARS.defineActions(function() {
 			})
 		}
 	})
+	new Action('copy_installed_plugins', {
+		icon: 'assignment',
+		category: 'blockbench',
+		click() {
+			function getList(details: boolean): string {
+				let plugins = Plugins.all.filter(p => p.installed);
+				if (details) {
+					return plugins.map(p => 
+						(`${p.id}@${p.version}${p.source == 'store' ? '' : ('('+p.source+')')}`)
+					).join(', ');
+				} else {
+					return plugins.map(p => p.id).join(', ');
+				}
+			}
+			new Dialog({
+				title: 'action.copy_installed_plugins',
+				form: {
+					output: {type: 'text', value: getList(true), readonly: true, share_text: true},
+					details: {type: 'checkbox', label: 'dialog.copy_installed_plugins.details', value: true},
+				},
+				onFormChange(result) {
+					Dialog.open.form.setValues({
+						output: getList(result.details as boolean)
+					}, false);
+				},
+				singleButton: true,
+			}).show();
+		}
+	})
+	new Action('install_plugins_from_list', {
+		icon: 'list_alt_add',
+		category: 'blockbench',
+		click() {
+			new Dialog({
+				title: 'action.install_plugins_from_list',
+				form: {
+					// TODO: Localize
+					about: {type: 'info', text: 'dialog.install_plugins_from_list.info'},
+					input: {type: 'text', label: 'dialog.install_plugins_from_list.ids'},
+				},
+				onConfirm(result) {
+					let entries = result.input.split(/,\s*/);
+					let plugins = [];
+					for (let entry of entries) {
+						let id = entry.match(/\w+/)?.[0];
+						let matches = id && Plugins.all.filter(plugin => plugin.id == id);
+						if (matches.length == 0 || matches.some(p => p.installed)) continue;
+						plugins.push(matches[0]);
+					}
+
+					// Confirm and install
+					let form = {}
+					plugins.forEach(plugin => {
+						form[plugin.id.replace(/\./g, '_')] = {type: 'checkbox', label: plugin.name, description: plugin.description, value: true}
+					})
+					new Dialog({
+						id: 'install_plugins_from_list_check',
+						title: 'action.install_plugins_from_list',
+						form,
+						buttons: ['dialog.plugins.install', 'dialog.cancel'],
+						onConfirm(result) {
+							plugins.forEach(plugin => {
+								if (result[plugin.id.replace(/\./g, '_')]) {
+									plugin.download();
+								}
+							})
+						}
+					}).show();
+
+				}
+			}).show();
+		}
+	})
 	new Action('add_plugin', {
 		icon: 'add',
 		category: 'blockbench',
@@ -1913,8 +2011,6 @@ BARS.defineActions(function() {
 	})
 })
 
-declare global {
-}
 const global = {
 	Plugins,
 	Plugin,
@@ -1922,6 +2018,7 @@ const global = {
 };
 declare global {
 	const BBPlugin: typeof Plugin;
+	type BBPlugin = import('./plugin_loader').Plugin
 	const Plugins: typeof global.Plugins
 }
 Object.assign(window, global);

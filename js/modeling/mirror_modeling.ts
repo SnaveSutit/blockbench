@@ -656,7 +656,7 @@ MirrorModeling.registerElementType(Mesh, {
 				}
 			}
 		}
-		if ((BarItems.selection_mode as BarSelect<string>).value != 'object') {
+		if ((BarItems.selection_mode as BarSelect).value != 'object') {
 			let selected_vertices = mesh.getSelectedVertices(true);
 			selected_vertices.replace(selected_vertices.filter(vkey => mesh.vertices[vkey]));
 			let selected_edges = mesh.getSelectedEdges(true);

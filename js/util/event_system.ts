@@ -81,5 +81,6 @@ const global = {
 };
 declare global {
 	const EventSystem: typeof global.EventSystem
+	type EventSystem = import('./event_system').EventSystem
 }
 Object.assign(window, global);

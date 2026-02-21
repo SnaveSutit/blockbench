@@ -6,6 +6,7 @@ import { Armature } from "./armature";
 import { Vue } from '../../lib/libs'
 import { OutlinerElement } from "../abstract/outliner_element";
 import { OutlinerNode } from "../abstract/outliner_node";
+import { markerColors } from "../../marker_colors";
 
 interface ArmatureBoneOptions {
 	name?: string
@@ -33,7 +34,6 @@ export class ArmatureBone extends OutlinerElement {
 	width: number
 	connected: boolean
 	color: number
-	old_size?: number | ArrayVector3
 	
 
 	static preview_controller: NodePreviewController
@@ -200,14 +200,14 @@ export class ArmatureBone extends OutlinerElement {
 	}
 	resize(move_value: number | ((input: number) => number), axis_number?: axisNumber, invert?: boolean) {
 		if (axis_number == 1) {
-			let previous_length = (this.old_size instanceof Array) ? this.old_size[1] : this.old_size ?? this.length;
+			let previous_length = (this.temp_data.old_size instanceof Array) ? this.temp_data.old_size[1] : this.temp_data.old_size ?? this.length;
 			if (typeof move_value == 'function') {
 				this.length = move_value(previous_length);
 			} else {
 				this.length = previous_length + move_value * (invert ? -1 : 1);
 			}
 		} else {
-			let previous_width = (this.old_size instanceof Array) ? this.old_size[0] : this.old_size ?? this.width;
+			let previous_width = (this.temp_data.old_size instanceof Array) ? this.temp_data.old_size[0] : this.temp_data.old_size ?? this.width;
 			if (typeof move_value == 'function') {
 				this.width = move_value(previous_width);
 			} else {
@@ -568,13 +568,15 @@ BARS.defineActions(function() {
 		keybind: new Keybind({key: 'e', shift: true}),
 		condition: {modes: ['edit'], selected: {mesh: false, spline: false}, method: () => ((ArmatureBone.hasSelected() || Armature.hasSelected()))},
 		click: function () {
-			Undo.initEdit({outliner: true, elements: []});
+			Undo.initEdit({outliner: true, elements: [], selection: true});
 			let add_to_node = Outliner.selected[0] || Group.first_selected;
 			if (!add_to_node && selected.length) {
 				add_to_node = selected.last();
 			}
 			let new_instance = new ArmatureBone({
 				origin: add_to_node instanceof ArmatureBone ? [0, add_to_node.length??8, 0] : undefined,
+				width: add_to_node instanceof ArmatureBone ? add_to_node.width : undefined,
+				length: add_to_node instanceof ArmatureBone ? add_to_node.length : undefined,
 			})
 			new_instance.addTo(add_to_node)
 			new_instance.isOpen = true
@@ -583,7 +585,7 @@ BARS.defineActions(function() {
 				new_instance.createUniqueName()
 			}
 			new_instance.init().select()
-			Undo.finishEdit('Add armature bone', {outliner: true, elements: [new_instance]});
+			Undo.finishEdit('Add armature bone', {outliner: true, elements: [new_instance], selection: true});
 			Vue.nextTick(function() {
 				updateSelection()
 				if (settings.create_rename.value) {
@@ -602,6 +604,7 @@ const global = {
 };
 declare global {
 	const ArmatureBone: typeof global.ArmatureBone
+	type ArmatureBone = import('./armature_bone').ArmatureBone
 	const getAllArmatureBones: typeof global.getAllArmatureBones
 }
 Object.assign(window, global);

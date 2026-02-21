@@ -471,17 +471,6 @@ export const BARS = {
 					Blockbench.removeListener('update_selection', Vertexsnap.select)
 				}
 			})
-			new Action('swap_tools', {
-				icon: 'swap_horiz',
-				category: 'tools',
-				condition: {modes: ['edit', 'paint', 'display'], project: true},
-				keybind: new Keybind({key: 32}),
-				click: function () {
-					if (BarItems[Toolbox.selected.alt_tool] && Condition(BarItems[Toolbox.selected.alt_tool].condition)) {
-						BarItems[Toolbox.selected.alt_tool].select()
-					}
-				}
-			})
 			new Tool('stretch_tool', {
 				icon: 'expand',
 				category: 'tools',
@@ -494,6 +483,20 @@ export const BARS = {
 				modes: ['edit'],
 				keybind: new Keybind({key: 's', alt: true}),
 			})
+
+			let swap_tools = new Action('swap_tools', {
+				icon: 'swap_horiz',
+				category: 'tools',
+				condition: {modes: ['edit', 'paint', 'display'], project: true},
+				keybind: new Keybind({key: 32}),
+				click: function () {
+					if (BarItems[Toolbox.selected.alt_tool] && Condition(BarItems[Toolbox.selected.alt_tool].condition)) {
+						BarItems[Toolbox.selected.alt_tool].select()
+					}
+				}
+			})
+			swap_tools.addSubKeybind('hold', 'action.swap_tools.hold', new Keybind({key: 18}), () => {});
+			
 			new Action('set_element_marker_color', {
 				name: 'menu.cube.color',
 				icon: 'color_lens',
@@ -786,6 +789,7 @@ export const BARS = {
 				'invert_face',
 				'_',
 				'mirror_modeling',
+				'mirror_animating',
 			]
 		})
 

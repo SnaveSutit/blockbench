@@ -103,7 +103,7 @@ export abstract class OutlinerElement extends OutlinerNode {
 			copy.name = copy.name.split((number).toString()).join((number+1).toString())
 		}
 		if (Condition(this.getTypeBehavior('unique_name'))) {
-			copy.old_name = this.name;
+			copy.temp_data.old_name = this.name;
 		}
 		//Rest
 		let last_selected = this.getParentArray().findLast(el => el.selected || el == this);
@@ -136,7 +136,7 @@ export abstract class OutlinerElement extends OutlinerNode {
 		Undo.initSelection();
 		//Shift
 		var just_selected = [];
-		let allow_multi_select = (!Modes.paint || (Toolbox.selected.id == 'fill_tool' && (BarItems.fill_mode as BarSelect<string>).value == 'selected_elements'));
+		let allow_multi_select = (!Modes.paint || (Toolbox.selected.id == 'fill_tool' && (BarItems.fill_mode as BarSelect).value == 'selected_elements'));
 		if (
 			event &&
 			allow_multi_select &&
@@ -317,3 +317,12 @@ Object.defineProperty(OutlinerElement, 'selected', {
 		console.warn('You cannot modify this')
 	}
 })
+
+const global = {
+	OutlinerElement
+}
+declare global {
+	type OutlinerElement = import('./outliner_element').OutlinerElement
+	const OutlinerElement: typeof global.OutlinerElement
+}
+Object.assign(window, global);

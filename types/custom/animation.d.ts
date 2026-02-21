@@ -58,6 +58,7 @@ declare class _Animation extends AnimationItem {
 	getUndoCopy(options?: {}, save?: any): AnimationUndoCopy
 	/**
 	 * Compiles the JSON tree of the animation for the Minecraft Bedrock Edition animation format.
+	 * @deprecated
 	 */
 	compileBedrockAnimation(): any
 	save(): this | undefined
@@ -146,10 +147,20 @@ declare namespace Animator {
 	 * Import a Bedrock animation file
 	 * @param file File any
 	 * @param animation_filter List of names of animations to import
+	 * @deprecated AnimationCodec should be used instead
 	 */
 	function loadFile(file: any, animation_filter?: string[]): void
+	/**
+	 * @deprecated AnimationCodec should be used instead
+	 */
 	function exportAnimationFile(path: string, save_as?: boolean): void
+	/**
+	 * @deprecated AnimationCodec should be used instead
+	 */
 	function exportAnimationControllerFile(path: string, save_as?: boolean): void
+	/**
+	 * @deprecated AnimationCodec should be used instead
+	 */
 	function resetLastValues(): void
 	function autocompleteMolang(
 		text: string,

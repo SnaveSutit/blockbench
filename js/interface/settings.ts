@@ -3,6 +3,7 @@ import { Blockbench } from "../api";
 import { Dialog } from "./dialog";
 import { FormInputType } from "./form";
 import { ipcRenderer } from "../native_apis";
+import { markerColors } from "../marker_colors";
 
 export const settings: Record<string, Setting> = {};
 export type settings_type = typeof settings;
@@ -600,7 +601,9 @@ const globals = {
 declare global {
 	const settings: typeof globals.settings
 	const Setting: typeof globals.Setting
+	type Setting = import('./settings').Setting
 	const SettingsProfile: typeof globals.SettingsProfile
+	type SettingsProfile = import('./settings').SettingsProfile
 	const Settings: typeof globals.Settings
 }
 
