@@ -163,12 +163,16 @@ BARS.defineActions(function() {
 		origin: ArrayVector3
 		size: ArrayVector3
 	}
-	// TODO: Add a way to import this back via paste text and drag-drop text
-	new Action('generate_bedrock_collision_box', {
+
+	new Action('generate_bedrock_block_box', {
 		icon: 'fa-cubes',
 		category: 'file',
 		condition: {formats: ['bedrock_block']},
 		click() {
+			if (!BoundingBox.all.length) {
+				return Blockbench.showQuickMessage('dialog.bedrock_bounding_box.no_bounding_boxes');
+			}
+
 			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
 				let bounding_boxes = BoundingBox.all as BoundingBox[];
 				if (bounding_boxes.some(box => box.function.length)) {
@@ -194,13 +198,13 @@ BARS.defineActions(function() {
 				return key + compileJSON(data, {small: minify})
 			}
 			new Dialog({
-				id: 'generate_bedrock_collision_box',
-				title: 'action.generate_bedrock_collision_box',
+				id: 'generate_bedrock_block_box',
+				title: 'action.generate_bedrock_block_box',
 				form: {
 					// Todo: translations
-					type: {label: 'Type', type: 'inline_select', options: {
-						collision_box: 'Collision',
-						selection_box: 'Selection Box'
+					type: {label: 'dialog.bedrock_bounding_box.type', type: 'inline_select', options: {
+						collision_box: 'dialog.bedrock_bounding_box.type.collision_box',
+						selection_box: 'dialog.bedrock_bounding_box.type.selection_box'
 					}},
 					minify: {type: 'checkbox', label: 'Minify'},
 					output: {
@@ -220,10 +224,76 @@ BARS.defineActions(function() {
 			}).show();
 		}
 	})
+
+	new Action('generate_bedrock_entity_box', {
+		icon: 'fa-cubes',
+		category: 'file',
+		condition: {formats: ['bedrock']},
+		click() {
+			if (!BoundingBox.all.length) {
+				return Blockbench.showQuickMessage('dialog.bedrock_bounding_box.no_bounding_boxes');
+			}
+
+			function generate(type: 'collision_box' | 'selection_box', minify: boolean) {
+				let bounding_boxes = BoundingBox.all as BoundingBox[];
+				if (bounding_boxes.some(box => box.function.length)) {
+					let func: BoundingBoxFunction = type == 'collision_box' ? 'collision' : 'hitbox';
+					bounding_boxes = bounding_boxes.filter(box => box.function.includes(func));
+				}
+				if (type == 'collision_box') {
+					let key = `"minecraft:collision_box": `;
+					let bb = bounding_boxes[0];
+					let box = {
+						width: bb.size(0) / 16,
+						height: bb.size(1) / 16
+					}
+					return key + compileJSON(box, {small: minify})
+				} else {
+					let key = `"minecraft:custom_hit_test": `;
+					let hitboxes = bounding_boxes.map(bb => {
+						let center = bb.to.slice().V3_add(bb.from).V3_divide(2);
+						return {
+							width: bb.size(0) / 16,
+							height: bb.size(1) / 16,
+							pivot: [-center[0] / 16, center[1] / 16, center[2] / 16],
+						}
+					})
+					return key + compileJSON({hitboxes}, {small: minify});
+				}
+			}
+			new Dialog({
+				id: 'generate_bedrock_entity_box',
+				title: 'action.generate_bedrock_entity_box',
+				form: {
+					type: {label: 'dialog.bedrock_bounding_box.type', type: 'inline_select', options: {
+						collision_box: 'dialog.bedrock_bounding_box.type.collision_box',
+						hitbox: 'dialog.bedrock_bounding_box.type.hitbox'
+					}},
+					minify: {type: 'checkbox', label: 'Minify'},
+					output: {
+						type: 'textarea',
+						style: 'code',
+						value: generate('collision_box', false),
+						full_width: true,
+						readonly: true,
+						share_text: true
+					},
+					collision_note: {type: 'info', text: 'dialog.bedrock_bounding_box.collision_note', condition: (r) => r.type == 'collision_box'},
+					hitbox_note: {type: 'info', text: 'dialog.bedrock_bounding_box.hitbox_note', condition: (r) => r.type == 'hitbox'},
+				},
+				onFormChange(result) {
+					let text = generate(result.type as 'collision_box' | 'selection_box', result.minify as boolean);
+					Dialog.open.setFormValues({output: text}, false);
+				},
+				singleButton: true,
+			}).show();
+		}
+	})
 	
+	const formats = ['bedrock', 'bedrock_block'];
 	// @ts-ignore
 	Blockbench.on('drop_text paste_text', (arg: {text: string}) => {
-		if (!Format || Format.id != 'bedrock_block') return;
+		if (!Format || !formats.includes(Format.id)) return;
 		let text = arg.text.replace(/\s+/g, '');
 		if (text.startsWith('"minecraft:selection_box"') || text.startsWith('"minecraft:collision_box"')) {
 			let data = text.replace(/^"[^"]*"\s*:\s*/, '').replace(/[,\s]+$/, '');

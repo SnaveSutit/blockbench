@@ -18,6 +18,6 @@ export const markerColors: MarkerColor[] = [
 ]
 const global = {markerColors};
 declare global {
-	//const markerColors: typeof global.markerColors
+	const markerColors: typeof global.markerColors
 }
 Object.assign(window, global);
