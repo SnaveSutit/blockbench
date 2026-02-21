@@ -288,7 +288,6 @@ new TransformerModule('edit', {
 					let bidirectional = ((event.altKey || Pressing.overrides.alt) && BarItems.swap_tools.keybind.key != 18) !== Mesh.hasSelected();
 
 					if (axis == 'e') {
-						let value = value;
 						obj.resize(value, 0, false, null, true);
 						obj.resize(value, 1, false, null, true);
 						obj.resize(value, 2, false, null, true);
@@ -297,7 +296,6 @@ new TransformerModule('edit', {
 						obj.resize(value, axis_number, context.direction == -1, null, bidirectional);
 
 					} else {
-						let value = value;
 						obj.resize(value, axis_number, false, null, true);
 						obj.resize(value, second_axis_number, false, null, true);
 					}
