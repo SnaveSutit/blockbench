@@ -404,6 +404,14 @@ export const Timeline = {
 				}
 			}
 		})
+		function displayTimeOnCursor(time) {
+			if (settings.timecode_frame_number.value) {
+				time = Math.round(time / Timeline.getStep());
+			} else {
+				time = Math.roundTo(time, 2);
+			}
+			Blockbench.setCursorTooltip(time);
+		}
 		addEventListeners(document, 'mousemove touchmove', e => {
 			if (Timeline.dragging_playhead) {
 
@@ -421,7 +429,7 @@ export const Timeline = {
 					if (rounded) {
 						Timeline.playAudioStutter();
 					}
-					Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+					displayTimeOnCursor(time);
 				}
 			} else if (Timeline.dragging_endbracket) {
 
@@ -431,7 +439,7 @@ export const Timeline = {
 				
 				Animation.selected.setLength(time)
 				Timeline.revealTime(time)
-				Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+				displayTimeOnCursor(time);
 
 			} else if (Timeline.dragging_onion_skin_point) {
 
@@ -443,7 +451,7 @@ export const Timeline = {
 					Timeline.vue.onion_skin_time = time;
 					Timeline.revealTime(time);
 					Animator.updateOnionSkin();
-					Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+					displayTimeOnCursor(time);
 				}
 			}
 		});
