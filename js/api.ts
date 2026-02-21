@@ -332,7 +332,7 @@ export const Blockbench = {
 		return this.flags[flag];
 	},
 	//Events
-	dispatchEvent(event_name: EventName, data: any): any[] {
+	dispatchEvent<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, data: D): any[] {
 		let list = this.events[event_name];
 		let results: any[];
 		if (list) {
@@ -349,16 +349,16 @@ export const Blockbench = {
 		}
 		return results;
 	},
-	on(event_name: EventName, cb) {
+	on<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.on.call(this, event_name, cb);
 	},
-	once(event_name: EventName, cb) {
+	once<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.once.call(this, event_name, cb);
 	},
-	addListener(event_name: EventName, cb) {
+	addListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.addListener.call(this, event_name, cb);
 	},
-	removeListener(event_name: EventName, cb) {
+	removeListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
 		return EventSystem.prototype.removeListener.call(this, event_name, cb);
 	},
 	// Update
@@ -409,6 +409,12 @@ if (isApp) {
 	}
 	// @ts-ignore
 	if (Blockbench.platform.includes('win32') === true) window.osfs = '\\';
+}
+
+declare global {
+	interface window {
+		Blockbench: typeof Blockbench
+	}
 }
 
 const global = {

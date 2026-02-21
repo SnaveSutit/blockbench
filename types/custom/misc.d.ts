@@ -9,7 +9,6 @@ declare class Deletable {
 }
 type UUID = string
 
-
 declare global {
 	const settings: typeof settings
 }
@@ -21,122 +20,125 @@ declare const isApp: boolean
 
 declare const VuePrismEditor: Vue.Component
 
-type EventName =
-	| 'remove_animation'
-	| 'display_animation_frame'
-	| 'display_default_pose'
-	| 'interpolate_keyframes'
-	| 'before_closing'
-	| 'create_session'
-	| 'join_session'
-	| 'quit_session'
-	| 'send_session_data'
-	| 'receive_session_data'
-	| 'user_joins_session'
-	| 'user_leaves_session'
-	| 'process_chat_message'
-	| 'loaded_plugin'
-	| 'unloaded_plugin'
-	| 'installed_plugin'
-	| 'uninstalled_plugin'
-	| 'update_settings'
-	| 'update_project_settings'
-	| 'save_project'
-	| 'load_project'
-	| 'new_project'
-	| 'reset_project'
-	| 'close_project'
-	| 'saved_state_changed'
-	| 'save_model_action'
-	| 'add_cube'
-	| 'add_mesh'
-	| 'add_group'
-	| 'add_texture_mesh'
-	| 'add_armature'
-	| 'add_armature_bone'
-	| 'add_bounding_box'
-	| 'group_elements'
-	| 'update_selection'
-	| 'compile_bedrock_animations'
-	| 'load_animation'
-	| 'load_animation_controller'
-	| 'update_keyframe_selection'
-	| 'select_all'
-	| 'added_to_selection'
-	| 'invert_selection'
-	| 'canvas_select'
-	| 'canvas_click'
-	| 'change_texture_path'
-	| 'add_texture'
-	| 'generate_texture_template'
-	| 'update_texture_selection'
-	| 'init_edit'
-	| 'finish_edit'
-	| 'finished_edit'
-	| 'undo'
-	| 'redo'
-	| 'load_undo_save'
-	| 'create_undo_save'
-	| 'drop_text'
-	| 'paste_text'
-	| 'change_color'
-	| 'select_mode'
-	| 'unselect_mode'
-	| 'change_active_panel'
-	| 'resize_window'
-	| 'press_key'
-	| 'select_format'
-	| 'convert_format'
-	| 'construct_format'
-	| 'delete_format'
-	| 'select_project'
-	| 'unselect_project'
-	| 'setup_project'
-	| 'update_project_resolution'
-	| 'merge_project'
-	| 'display_model_stats'
-	| 'update_view'
-	| 'update_camera_position'
-	| 'render_frame'
-	| 'construct_model_loader'
-	| 'delete_model_loader'
-	| 'update_recent_project_data'
-	| 'update_recent_project_thumbnail'
-	| 'load_from_recent_project_data'
-	| 'edit_animation_properties'
-	| 'select_preview_scene'
-	| 'unselect_preview_scene'
-	| 'compile_bedrock_animation_controller_state'
-	| 'select_animation_controller_state'
-	| 'add_animation_controller_animation'
-	| 'add_animation_controller_transition'
-	| 'add_animation_controller_particle'
-	| 'add_animation_controller_sound'
-	| 'compile_bedrock_animation_controller'
-	| 'add_animation_controller'
-	| 'edit_animation_controller_properties'
-	| 'timeline_play'
-	| 'timeline_pause'
-	| 'unselect_interface'
-	| 'reset_layout'
-	| 'update_pressed_modifier_keys'
-	| 'open_bar_menu'
-	| 'unselect_all'
-	| 'quick_save_model'
-	| 'save_editor_state'
-	| 'load_editor_state'
-	| 'select_no_project'
-	| 'flip_node_name'
-	| 'update_scene_shading'
-	| 'edit_layer_properties'
-	| 'select_texture'
-	| 'compile_texture_mcmeta'
-	| 'register_element_type'
-	| 'edit_collection_properties'
+interface BlockbenchEventMap {
+	remove_animation: any
+	display_animation_frame: any
+	display_default_pose: any
+	interpolate_keyframes: any
+	before_closing: any
+	create_session: any
+	join_session: any
+	quit_session: any
+	send_session_data: any
+	receive_session_data: any
+	user_joins_session: any
+	user_leaves_session: any
+	process_chat_message: any
+	loaded_plugin: { plugin: BBPlugin }
+	unloaded_plugin: { plugin: BBPlugin }
+	installed_plugin: { plugin: BBPlugin }
+	uninstalled_plugin: { plugin: BBPlugin }
+	update_settings: any
+	update_project_settings: Record<string, any>
+	save_project: any
+	load_project: any
+	new_project: any
+	reset_project: any
+	close_project: any
+	saved_state_changed: any
+	save_model_action: any
+	add_cube: any
+	add_mesh: any
+	add_group: any
+	add_texture_mesh: any
+	add_armature: any
+	add_armature_bone: any
+	add_bounding_box: any
+	group_elements: any
+	update_selection: any
+	compile_bedrock_animations: any
+	load_animation: any
+	load_animation_controller: any
+	update_keyframe_selection: any
+	select_all: any
+	added_to_selection: any
+	invert_selection: any
+	canvas_select: any
+	canvas_click: any
+	change_texture_path: any
+	add_texture: any
+	generate_texture_template: any
+	update_texture_selection: any
+	init_edit: any
+	finish_edit: any
+	finished_edit: any
+	undo: { entry: UndoEntry }
+	redo: { entry: UndoEntry }
+	load_undo_save: any
+	create_undo_save: any
+	drop_text: { text: string }
+	paste_text: { text: string }
+	change_color: any
+	select_mode: { mode: Mode }
+	unselect_mode: { mode: Mode }
+	change_active_panel: any
+	resize_window: any
+	press_key: any
+	select_format: any
+	convert_format: any
+	construct_format: any
+	delete_format: any
+	select_project: { project: Project }
+	unselect_project: { project: Project }
+	setup_project: any
+	update_project_resolution: any
+	merge_project: any
+	display_model_stats: any
+	update_view: any
+	update_camera_position: any
+	render_frame: any
+	construct_model_loader: any
+	delete_model_loader: any
+	update_recent_project_data: any
+	update_recent_project_thumbnail: any
+	load_from_recent_project_data: any
+	edit_animation_properties: any
+	select_preview_scene: any
+	unselect_preview_scene: any
+	compile_bedrock_animation_controller_state: any
+	select_animation_controller_state: any
+	add_animation_controller_animation: any
+	add_animation_controller_transition: any
+	add_animation_controller_particle: any
+	add_animation_controller_sound: any
+	compile_bedrock_animation_controller: any
+	add_animation_controller: any
+	edit_animation_controller_properties: any
+	timeline_play: any
+	timeline_pause: any
+	unselect_interface: any
+	reset_layout: any
+	update_pressed_modifier_keys: any
+	open_bar_menu: any
+	unselect_all: any
+	quick_save_model: any
+	save_editor_state: any
+	load_editor_state: any
+	select_no_project: any
+	flip_node_name: any
+	update_scene_shading: any
+	edit_layer_properties: any
+	select_texture: any
+	compile_texture_mcmeta: any
+	register_element_type: any
+	edit_collection_properties: any
+}
+
+type BlockbenchEventName = keyof BlockbenchEventMap
 
 type IconString = string
 
-declare const osfs: '\\' | '/';
+declare const osfs: '\\' | '/'
 
 declare function updateSelection(): void
 
