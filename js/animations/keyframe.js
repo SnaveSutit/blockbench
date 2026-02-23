@@ -1147,14 +1147,24 @@ BARS.defineActions(function() {
 		icon: 'add_road',
 		category: 'animation',
 		condition: () => Animator.open,
-		click() {
+		keybind: new Keybind({}, {
+			all_channels: 'shift'
+		}),
+		variations: {
+			all_channels: {
+				name: 'action.keyframe_column_create.all_channels',
+				description: 'action.keyframe_column_create.all_channels.desc'
+			}
+		},
+		click(event) {
+			let all_channels = BarItems.keyframe_column_create.keybind.additionalModifierTriggered(event) == 'all_channels';
 			Timeline.selected.empty();
 			let new_keyframes = [];
 			Undo.initEdit({keyframes: new_keyframes})
 			Timeline.animators.forEach(animator => {
 				if (animator instanceof BoneAnimator == false) return;
 				channels.forEach(channel => {
-					if (Timeline.vue.channels[channel] !== false && animator[channel] && animator[channel].length) {
+					if (Timeline.vue.channels[channel] !== false && animator[channel] && (animator[channel].length || all_channels)) {
 						let kf = animator[channel].find(kf => Math.epsilon(kf.time, Timeline.time, 1e-5));
 						if (!kf) {
 							kf = animator.createKeyframe(null, Timeline.time, channel, false, false);

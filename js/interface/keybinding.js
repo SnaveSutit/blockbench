@@ -180,7 +180,7 @@ onVueSetup(function() {
 					return keybind[keybind.variations[variation_key]];
 				},
 				getVariationText(action, variation) {
-					return tl(action.variations?.[variation]?.name, null, variation);
+					return tl(action.variations?.[variation]?.name, null, action.variations?.[variation]?.name ?? variation);
 				},
 				getVariationDescription(action, variation) {
 					return action.variations?.[variation]?.description ? tl(action.variations[variation].description, null, '') : '';
