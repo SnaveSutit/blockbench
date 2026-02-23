@@ -140,7 +140,11 @@ declare namespace Outliner {
 	/**
 	 * A list of rules regarding which nodes are displayed in the outliner. If any rule returns false, the node is not displayed
 	 */
-	const node_display_rules: OutlinerDisplayRule[]	
+	const node_display_rules: OutlinerDisplayRule[]
+	/**
+	 * Update which nodes are displayed in the outliner
+	 */
+	function updateNodeDisplayRules(): void
 
 	function toJSON(): []
 	function loadJSON(array: [], add_to_project?: boolean): void;

@@ -111,7 +111,9 @@ export const Outliner = {
 			}
 		},
 	],
-
+	updateNodeDisplayRules() {
+		Outliner.vue.options.update_conditions++;
+	},
 
 	toJSON() {
 		let result = [];
@@ -1216,7 +1218,7 @@ Interface.definePanels(function() {
 				return limitNumber(this.depth, 0, (this.width-100) / 16);
 			},
 			visible_children() {
-				return this.node.children.filter(Outliner.isNodeDisplayed);
+				return this.options.update_conditions && this.node.children.filter(Outliner.isNodeDisplayed);
 			}
 		},
 		methods: {
@@ -1341,6 +1343,7 @@ Interface.definePanels(function() {
 				options: {
 					width: 300,
 					show_advanced_toggles: StateMemory.advanced_outliner_toggles,
+					update_conditions: 1,
 					search_term: '',
 				}
 			}},

@@ -1072,8 +1072,7 @@ Interface.definePanels(() => {
 				},
 				updateGraph() {
 					if (this.graph_editor_open) {
-						this.graph_size++;
-						this.graph_size--;
+						this.graph_size += 1e-7;
 					}
 				},
 				toggleAnimator(animator) {

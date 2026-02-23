@@ -132,6 +132,7 @@ export class Mode extends KeybindItem {
 		}
 		updateInterface();
 		updateSelection();
+		Outliner.updateNodeDisplayRules();
 		Blockbench.dispatchEvent('select_mode', {mode: this})
 	}
 	/**Unselects the mode */
