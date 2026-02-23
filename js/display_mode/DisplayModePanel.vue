@@ -93,6 +93,15 @@
 				</div>
 			</template>
 			
+			<template v-if="slot.slot_id == 'ground'">
+				<div class="bar display_slot_section_bar">
+					<p class="panel_toolbar_label">{{ tl('display.animate_preview') }}</p>
+				</div>
+				<div class="bar slider_input_combo">
+					<input type="checkbox" v-model.number="animate_preview" >
+				</div>
+			</template>
+			
 			<template v-if="isBedrockStyle()">
 				<div class="bar display_slot_section_bar">
 					<p class="panel_toolbar_label">{{ tl('display.rotation_pivot') }}</p>
@@ -140,12 +149,16 @@ export default {
 		reference_model: 'player',
 		pose_angle: 0,
 		slot: new DisplaySlot(''),
-		allow_mirroring: Settings.get('allow_display_slot_mirror')
+		allow_mirroring: Settings.get('allow_display_slot_mirror'),
+		animate_preview: DisplayMode.animate_preview
 	}},
 	watch: {
 		pose_angle(value) {
 			displayReferenceObjects.active.pose_angles[DisplayMode.display_slot] = value;
 			if (displayReferenceObjects.active.updateBasePosition) displayReferenceObjects.active.updateBasePosition();
+		},
+		animate_preview(value) {
+			DisplayMode.animate_preview = value;
 		}
 	},
 	methods: {
