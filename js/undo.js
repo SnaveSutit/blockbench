@@ -72,7 +72,18 @@ export class UndoSystem {
 		if (this.history.length > settings.undo_limit.value) {
 			this.history.shift()
 		}
-		this.index = this.history.length
+		this.index = this.history.length;
+
+		if (Collection.all.length) {
+			let nodes = [];
+			if (aspects.elements) nodes.push(aspects.elements);
+			if (aspects.groups) nodes.push(aspects.groups);
+			for (let collection of Collection.all) {
+				if (nodes.some(node => node.scope == collection.scope)) {
+					collection.saved = false;
+				}
+			}
+		}
 		if (!aspects || !aspects.keep_saved) {
 			Project.saved = false;
 		}

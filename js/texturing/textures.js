@@ -14,7 +14,7 @@ let tex_version = 1;
 //Textures
 export class Texture {
 	constructor(data, uuid) {
-		let scope = this;
+		let self = this;
 		//Info
 		for (let key in Texture.properties) {
 			Texture.properties[key].reset(this);
@@ -96,7 +96,7 @@ export class Texture {
 
 		this.img.onload = () => {
 			let dimensions_changed = tex.width !== img.naturalWidth || tex.height !== img.naturalHeight;
-			if (scope.width && dimensions_changed) {
+			if (self.width && dimensions_changed) {
 				tex = new THREE.Texture(this.canvas);
 				tex.magFilter = THREE.NearestFilter;
 				tex.minFilter = THREE.NearestFilter;
@@ -107,47 +107,47 @@ export class Texture {
 			}
 			tex.needsUpdate = true;
 
-			scope.width = tex.width = img.naturalWidth;
-			scope.height = tex.height = img.naturalHeight;
-			if (scope.selection) scope.selection.changeSize(scope.width, scope.height);
+			self.width = tex.width = img.naturalWidth;
+			self.height = tex.height = img.naturalHeight;
+			if (self.selection) self.selection.changeSize(self.width, self.height);
 			if (img.naturalWidth > 16384 || img.naturalHeight > 16384) {
-				scope.error = 2;
+				self.error = 2;
 			}
-			scope.currentFrame = Math.min(scope.currentFrame, (scope.frameCount||1)-1)
+			self.currentFrame = Math.min(self.currentFrame, (self.frameCount||1)-1)
 
 			if (img.update_from_canvas) {
 				delete img.update_from_canvas;
-			} else if (!scope.layers_enabled) {
-				scope.canvas.width = scope.width;
-				scope.canvas.height = scope.height;
-				scope.ctx.drawImage(img, 0, 0);
+			} else if (!self.layers_enabled) {
+				self.canvas.width = self.width;
+				self.canvas.height = self.height;
+				self.ctx.drawImage(img, 0, 0);
 				if (UVEditor.vue.texture == this) UVEditor.updateOverlayCanvas();
 			}
 
 			if (this.flags.has('update_uv_size_from_resolution')) {
 				this.flags.delete('update_uv_size_from_resolution');
-				let size = [scope.width, scope.display_height];
-				let frames = scope.frameCount;
+				let size = [self.width, self.display_height];
+				let frames = self.frameCount;
 				if (settings.detect_flipbook_textures.value == false || frames <= 2 || (frames%1)) {
-					size[1] = scope.height;
+					size[1] = self.height;
 				}
 				this.uv_width = size[0];
 				this.uv_height = size[1];
 			}
 
-			if (scope.isDefault) {
-				console.log('Successfully loaded '+scope.name+' from default pack')
+			if (self.isDefault) {
+				console.log('Successfully loaded '+self.name+' from default pack')
 			}
 
-			let project = Texture.all.includes(scope) ? Project : ModelProject.all.find(project => project.textures.includes(scope));
+			let project = Texture.all.includes(self) ? Project : ModelProject.all.find(project => project.textures.includes(self));
 			if(!project) return;
 			project.whenNextOpen(() => {
 
-				if (Project.box_uv && Format.single_texture && !scope.error) {
+				if (Project.box_uv && Format.single_texture && !self.error) {
 
-					if (!scope.keep_size) {
-						let pw = scope.getUVWidth();
-						let ph = scope.getUVHeight();
+					if (!self.keep_size) {
+						let pw = self.getUVWidth();
+						let ph = self.getUVHeight();
 						let nw = img.naturalWidth;
 						let nh = img.naturalHeight;
 
@@ -178,7 +178,7 @@ export class Texture {
 							})
 						}
 					}
-					delete scope.keep_size;
+					delete self.keep_size;
 					size_control.old_width = img.naturalWidth
 					size_control.old_height = img.naturalHeight
 				}
@@ -186,23 +186,23 @@ export class Texture {
 				if (dimensions_changed) {
 					TextureAnimator.updateButton()
 					if (UVEditor.vue && UVEditor.vue.texture == this) UVEditor.vue.updateTexture()
-					Canvas.updateAllFaces(scope)
+					Canvas.updateAllFaces(self)
 				}
-				if (typeof scope.load_callback === 'function') {
-					scope.load_callback(scope);
-					delete scope.load_callback;
+				if (typeof self.load_callback === 'function') {
+					self.load_callback(self);
+					delete self.load_callback;
 				}
 			})
 		}
 		this.img.onerror = (error) => {
 			if (isApp &&
-				!scope.isDefault &&
-				scope.mode !== 'bitmap' &&
-				scope.fromDefaultPack()
+				!self.isDefault &&
+				self.mode !== 'bitmap' &&
+				self.fromDefaultPack()
 			) {
 				return true;
 			} else {
-				scope.loadEmpty()
+				self.loadEmpty()
 			}
 		}
 
@@ -2222,6 +2222,7 @@ export class Texture {
 	new Property(Texture, 'string', 'namespace')
 	new Property(Texture, 'string', 'id')
 	new Property(Texture, 'string', 'group')
+	new Property(Texture, 'number', 'scope')
 	new Property(Texture, 'number', 'width')
 	new Property(Texture, 'number', 'height')
 	new Property(Texture, 'number', 'uv_width')

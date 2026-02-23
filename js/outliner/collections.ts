@@ -44,6 +44,8 @@ export class Collection {
 	export_path: string
 	export_codec: string
 	visibility: boolean
+	scope: number
+	saved: boolean
 
 	static properties: Record<string, Property<any>>
 	/**
@@ -481,6 +483,8 @@ new Property(Collection, 'string', 'model_identifier', {
 		}
 	}
 });
+new Property(Collection, 'number', 'scope');
+new Property(Collection, 'boolean', 'saved', {default: true});
 new Property(Collection, 'string', 'export_codec');
 new Property(Collection, 'string', 'export_path', {
 	condition: (collection: Collection) => (isApp && !!collection.export_codec),

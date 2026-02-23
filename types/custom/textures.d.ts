@@ -30,6 +30,7 @@ declare global {
 		 * UUID of the texture group that the texture is in
 		 */
 		group?: string
+		scope?: number
 
 		/**
 		 * Texture animation frame time
@@ -114,6 +115,7 @@ declare global {
 		use_as_default: boolean
 		/** UUID of the TextureGroup that this texture is in, if set */
 		group: string
+		scope: number
 
 		/** Texture animation frame time */
 		frame_time: number
