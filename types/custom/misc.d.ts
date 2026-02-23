@@ -21,10 +21,9 @@ declare const isApp: boolean
 declare const VuePrismEditor: Vue.Component
 
 interface BlockbenchEventMap {
-	remove_animation: any
-	display_animation_frame: any
-	display_default_pose: any
-	interpolate_keyframes: any
+	display_animation_frame: {in_loop: true}
+	display_default_pose: {reduced_updates: boolean}
+	interpolate_keyframes: {animator: BoneAnimator, t: number, time: number, use_quaternions: boolean, keyframe_before: _Keyframe, keyframe_after: _Keyframe}
 	before_closing: any
 	create_session: any
 	join_session: any
@@ -40,8 +39,8 @@ interface BlockbenchEventMap {
 	uninstalled_plugin: { plugin: BBPlugin }
 	update_settings: any
 	update_project_settings: Record<string, any>
-	save_project: any
-	load_project: any
+	save_project: {model: any, options?: any}
+	load_project: {model: any, path: string}
 	new_project: any
 	reset_project: any
 	close_project: any
@@ -65,61 +64,71 @@ interface BlockbenchEventMap {
 	invert_selection: any
 	canvas_select: any
 	canvas_click: any
-	change_texture_path: any
-	add_texture: any
+	change_texture_path: {texture: Texture}
+	add_texture: {texture: Texture}
 	generate_texture_template: any
 	update_texture_selection: any
-	init_edit: any
-	finish_edit: any
-	finished_edit: any
+	init_edit: {aspects: UndoAspects, amended: boolean, save: UndoSave}
+	finish_edit: {aspects: UndoAspects, message: string}
+	finished_edit: {aspects: UndoAspects, message: string} | {remote: true}
+	init_selection_change: {aspects: UndoAspects, save: UndoSelectionSave}
+	finish_selection_change: {aspects: UndoAspects}
+	finished_selection_change: {aspects: UndoAspects}
+	cancel_selection_change: {selection_before: UndoSelectionSave}
 	undo: { entry: UndoEntry }
 	redo: { entry: UndoEntry }
-	load_undo_save: any
-	create_undo_save: any
+	load_undo_save: {save: UndoSave, reference: UndoSave, mode: undefined | 'session'}
+	create_undo_save: {save: UndoSave, aspects: UndoAspects}
 	drop_text: { text: string }
 	paste_text: { text: string }
 	change_color: any
 	select_mode: { mode: Mode }
 	unselect_mode: { mode: Mode }
 	change_active_panel: any
-	resize_window: any
-	press_key: any
-	select_format: any
-	convert_format: any
-	construct_format: any
-	delete_format: any
+	resize_window: {event?: Event}
+	press_key: {input_in_focus?: HTMLElement, event: KeyboardEvent, capture: () => void}
+	select_format: {format: ModelFormat, project: ModelProject}
+	convert_format: {format: ModelFormat, old_format: ModelFormat}
+	construct_format: {format: ModelFormat}
+	delete_format: {format: ModelFormat}
 	select_project: { project: Project }
 	unselect_project: { project: Project }
 	setup_project: any
 	update_project_resolution: any
 	merge_project: any
 	display_model_stats: any
-	update_view: any
-	update_camera_position: any
+	update_view: UpdateViewOptions
+	update_camera_position: {preview: Preview}
 	render_frame: any
 	construct_model_loader: any
 	delete_model_loader: any
 	update_recent_project_data: any
 	update_recent_project_thumbnail: any
 	load_from_recent_project_data: any
-	edit_animation_properties: any
+	edit_animation_properties: {animation: _Animation}
 	select_preview_scene: any
 	unselect_preview_scene: any
-	compile_bedrock_animation_controller_state: any
-	select_animation_controller_state: any
-	add_animation_controller_animation: any
-	add_animation_controller_transition: any
-	add_animation_controller_particle: any
-	add_animation_controller_sound: any
-	compile_bedrock_animation_controller: any
-	add_animation_controller: any
-	edit_animation_controller_properties: any
+	select_animation: {animation: _Animation}
+	remove_animation: {animations: _Animation[]}
+	compile_bedrock_animation_controller_state: {state: AnimationControllerState, json: any}
+	select_animation_controller_state: {state: AnimationControllerState}
+	add_animation_controller_animation: {state: AnimationControllerState}
+	add_animation_controller_transition: {state: AnimationControllerState}
+	add_animation_controller_particle: {state: AnimationControllerState}
+	add_animation_controller_sound: {state: AnimationControllerState}
+	compile_bedrock_animation_controller: {state: AnimationController, json: any}
+	add_animation_controller: {state: AnimationController}
+	edit_animation_controller_properties: {state: AnimationController}
 	timeline_play: any
 	timeline_pause: any
 	unselect_interface: any
 	reset_layout: any
-	update_pressed_modifier_keys: any
-	open_bar_menu: any
+	update_pressed_modifier_keys: {
+		before: {shift: boolean, alt: boolean, ctrl: boolean}
+		now: {shift: boolean, alt: boolean, ctrl: boolean}
+		event: KeyboardEvent
+	}
+	open_bar_menu: {menu: BarMenu}
 	unselect_all: any
 	quick_save_model: any
 	save_editor_state: any
@@ -127,9 +136,9 @@ interface BlockbenchEventMap {
 	select_no_project: any
 	flip_node_name: any
 	update_scene_shading: any
-	edit_layer_properties: any
-	select_texture: any
-	compile_texture_mcmeta: any
+	edit_layer_properties: {layer: TextureLayer}
+	select_texture: {texture: Texture, event: Event}
+	compile_texture_mcmeta: {mcmeta: any}
 	register_element_type: any
 	edit_collection_properties: any
 }

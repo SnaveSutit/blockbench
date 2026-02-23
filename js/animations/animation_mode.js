@@ -448,7 +448,7 @@ export const Animator = {
 		if (Group.first_selected || (Outliner.selected[0] && Outliner.selected[0].constructor.animator)) {
 			Transformer.updateSelection()
 		}
-		Blockbench.dispatchEvent('display_animation_frame');
+		Blockbench.dispatchEvent('display_animation_frame', {in_loop});
 	},
 	particle_effects: {},
 	loadParticleEmitter(path, content) {
