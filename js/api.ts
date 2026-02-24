@@ -349,13 +349,13 @@ export const Blockbench = {
 		}
 		return results;
 	},
-	on<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
+	on<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
 		return EventSystem.prototype.on.call(this, event_name, cb);
 	},
-	once<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
+	once<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
 		return EventSystem.prototype.once.call(this, event_name, cb);
 	},
-	addListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
+	addListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
 		return EventSystem.prototype.addListener.call(this, event_name, cb);
 	},
 	removeListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
