@@ -21,6 +21,7 @@ import { Filesystem } from "../file_system";
 import { loadModelFile } from "../io/io";
 import { OutlinerElement } from "./abstract/outliner_element";
 import { OutlinerNode } from "./abstract/outliner_node";
+import { ScopeColors } from "../multi_file_editing";
 
 export interface CollectionOptions {
 	children?: string[]
@@ -795,7 +796,11 @@ Interface.definePanels(function() {
 						})
 					}
 					return list;
-				}
+				},
+				getScopeColor(collection: Collection) {
+					if (!collection.scope) return '';
+					return ScopeColors[(collection.scope-1) % ScopeColors.length];
+				},
 			},
 			template: `
 				<ul
@@ -812,6 +817,7 @@ Interface.definePanels(function() {
 						:key="collection.uuid"
 						:uuid="collection.uuid"
 						class="collection"
+						:style="{'--color-scope': getScopeColor(collection)}"
 						@click.stop="collection.clickSelect($event)"
 						@dblclick.stop="collection.propertiesDialog()"
 						@contextmenu.prevent.stop="collection.showContextMenu($event)"

@@ -3,6 +3,7 @@ import { Filesystem } from "../file_system";
 import { openMolangEditor } from "./molang_editor";
 import { clipboard, currentwindow, dialog, fs, ipcRenderer } from "../native_apis";
 import { invertMolang } from "../util/molang";
+import { ScopeColors } from "../multi_file_editing";
 
 export class AnimationItem {
 	constructor() {}
@@ -932,7 +933,8 @@ BARS.defineActions(function() {
 		click: function () {
 			new Animation({
 				name: Format.id.includes('bedrock') ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
-				saved: false
+				saved: false,
+				scope: (Group.first_selected)?.scope ?? 0
 			}).add(true).propertiesDialog()
 
 		}
@@ -1718,6 +1720,7 @@ Interface.definePanels(function() {
 							name: other_animation && other_animation.name.replace(/\w+$/, 'new'),
 							path: this.group_animations_by_file ? group_name : undefined,
 							group_name: group_name,
+							scope: (other_animation.scope || Group.first_selected?.scope) ?? 0,
 							saved: false
 						}).add(true).propertiesDialog()
 					} else {
@@ -1727,6 +1730,10 @@ Interface.definePanels(function() {
 							saved: false
 						}).add(true);
 					}
+				},
+				getScopeColor(animation) {
+					if (!animation.scope) return '';
+					return ScopeColors[(animation.scope-1) % ScopeColors.length];
 				},
 				showFileContextMenu(event, id) {
 					if (this.group_animations_by_file) {
@@ -2004,9 +2011,10 @@ Interface.definePanels(function() {
 								v-bind:class="{ selected: animation.selected }"
 								v-bind:anim_id="animation.uuid"
 								class="animation"
+								:key="animation.uuid"
+								:style="{'--color-scope': getScopeColor(animation)}"
 								@click.stop="animation.clickSelect()"
 								@dblclick.stop="animation.propertiesDialog()"
-								:key="animation.uuid"
 								@contextmenu.prevent.stop="animation.showContextMenu($event)"
 							>
 								<i class="material-icons" v-if="animation.type == 'animation'">movie</i>

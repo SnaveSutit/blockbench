@@ -5,16 +5,7 @@ import { OutlinerElement } from "./abstract/outliner_element"
 import { radToDeg } from "three/src/math/MathUtils"
 import { PointerTarget } from "../interface/pointer_target"
 import { markerColors } from "../marker_colors"
-
-const SCOPE_COLOR = [
-	'#4642bb',
-	'#237028',
-	'#924919',
-	'#077678',
-	'#770c0c',
-	'#7a7000',
-	'#60179a',
-];
+import { ScopeColors } from "../multi_file_editing"
 
 export const Outliner = {
 	ROOT: 'root',
@@ -1284,7 +1275,7 @@ Interface.definePanels(function() {
 			},
 			getScopeColor(node) {
 				if (!node.scope) return '';
-				return SCOPE_COLOR[(node.scope-1) % SCOPE_COLOR.length];
+				return ScopeColors[(node.scope-1) % ScopeColors.length];
 			},
 			doubleClickIcon(node) {
 				if (node.children && node.children.length) {

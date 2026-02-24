@@ -1,3 +1,14 @@
+
+export const ScopeColors = [
+	'#4642bb',
+	'#924919',
+	'#237028',
+	'#077678',
+	'#770c0c',
+	'#7a7000',
+	'#60179a',
+];
+
 interface MultiFileRules {
 	scope_limited_animations: boolean
 	collections_as_files: boolean

@@ -8,6 +8,7 @@ import { isImageEditorValid } from '../desktop';
 import { editUVSizeDialog } from '../uv/uv_size';
 import { decodeTga, encodeTga } from '@lunapaint/tga-codec';
 import { pathToExtension } from '../util/util';
+import { ScopeColors } from '../multi_file_editing';
 
 let tex_version = 1;
 
@@ -2550,6 +2551,10 @@ Interface.definePanels(function() {
 				let val = texture.currentFrame * -48 * (texture.display_height / texture.width);
 				return `${val}px`;
 			},
+			getScopeColor(texture) {
+				if (!texture.scope) return '';
+				return ScopeColors[(texture.scope-1) % ScopeColors.length];
+			},
 			highlightTexture(event) {
 				if (!Format.single_texture && this.texture.error) {
 					let material = this.texture.getMaterial();
@@ -2808,6 +2813,7 @@ Interface.definePanels(function() {
 				v-bind:class="{ selected: texture.selected, multi_selected: texture.multi_selected, particle: texture.particle, use_as_default: texture.use_as_default}"
 				v-bind:texid="texture.uuid"
 				class="texture"
+				:style="{'--color-scope': getScopeColor(texture)}"
 				@click.stop="closeContextMenu();texture.select($event)"
 				@mousedown="highlightTexture($event)"
 				@mouseup="unhighlightTexture($event)"
