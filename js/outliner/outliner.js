@@ -4,6 +4,7 @@ import { OutlinerNode } from "./abstract/outliner_node"
 import { OutlinerElement } from "./abstract/outliner_element"
 import { radToDeg } from "three/src/math/MathUtils"
 import { PointerTarget } from "../interface/pointer_target"
+import { markerColors } from "../marker_colors"
 
 const SCOPE_COLOR = [
 	'#4642bb',
@@ -123,7 +124,9 @@ export const Outliner = {
 			}
 		},
 	],
-
+	updateNodeDisplayRules() {
+		Outliner.vue.options.update_conditions++;
+	},
 
 	toJSON() {
 		let result = [];
@@ -226,19 +229,6 @@ Object.defineProperty(window, 'selected', {
 		console.warn('You cannot modify this')
 	}
 });
-//Colors
-export const markerColors = [
-	{pastel: "#A2EBFF", standard: "#58C0FF", id: 'light_blue'},
-	{pastel: "#FFF899", standard: "#F4D714", id: 'yellow'},
-	{pastel: "#F1BB75", standard: "#EC9218", id: 'orange'},
-	{pastel: "#FF9B97", standard: "#FA565D", id: 'red'},
-	{pastel: "#C5A6E8", standard: "#B55AF8", id: 'purple'},
-	{pastel: "#A6C8FF", standard: "#4D89FF", id: 'blue'},
-	{pastel: "#7BFFA3", standard: "#00CE71", id: 'green'},
-	{pastel: "#BDFFA6", standard: "#AFFF62", id: 'lime'},
-	{pastel: "#FFA5D5", standard: "#F96BC5", id: 'pink'},
-	{pastel: "#E0E9FB", standard: "#C7D5F6", id: 'silver'}
-]
 
 
 export class NodePreviewController extends EventSystem {
@@ -1243,7 +1233,7 @@ Interface.definePanels(function() {
 				return limitNumber(this.depth, 0, (this.width-100) / 16);
 			},
 			visible_children() {
-				return this.node.children.filter(Outliner.isNodeDisplayed);
+				return this.options.update_conditions && this.node.children.filter(Outliner.isNodeDisplayed);
 			}
 		},
 		methods: {
@@ -1372,6 +1362,7 @@ Interface.definePanels(function() {
 				options: {
 					width: 300,
 					show_advanced_toggles: StateMemory.advanced_outliner_toggles,
+					update_conditions: 1,
 					search_term: '',
 				}
 			}},
@@ -1699,7 +1690,6 @@ Interface.definePanels(function() {
 
 Object.assign(window, {
 	Outliner,
-	markerColors,
 	OutlinerNode,
 	OutlinerElement,
 	NodePreviewController,

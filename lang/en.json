@@ -185,6 +185,7 @@
 	"keys.ctrl": "Ctrl",
 	"keys.shift": "Shift",
 	"keys.alt": "Alt",
+	"keys.option": "Option",
 	"keys.meta": "Cmd",
 	"keys.delete": "Delete",
 	"keys.space": "Space",
@@ -661,6 +662,14 @@
 	"dialog.set_vertex_weights.overwrite": "Overwrite other bones",
 
 	"dialog.material_instances.title": "Material Instances",
+
+	"dialog.bedrock_bounding_box.type": "Type",
+	"dialog.bedrock_bounding_box.type.collision_box": "Collision",
+	"dialog.bedrock_bounding_box.type.selection_box": "Selection Box",
+	"dialog.bedrock_bounding_box.type.hitbox": "Hitbox",
+	"dialog.bedrock_bounding_box.hitbox_note": "Please note that entity hitboxes only work up to a certain size and may not adapt to the rotation of the entity in-game.",
+	"dialog.bedrock_bounding_box.collision_note": "Please note that entity collision boxes only support one centered shape with a square top profile.",
+	"dialog.bedrock_bounding_box.no_bounding_boxes": "No bounding boxes exist in this project",
 
 	"dialog.plugins.title": "Plugins",
 	"dialog.plugins.installed": "Installed",
@@ -1919,8 +1928,10 @@
 	"action.shelf_alignment.bottom": "Bottom Alignment",
 	"action.predicate_overrides": "Edit Predicate Overrides...",
 	"action.predicate_overrides.desc": "Select models to override this model based on selected conditions",
-	"action.generate_bedrock_collision_box": "Copy Collision/Selection Component",
-	"action.generate_bedrock_collision_box.desc": "Generate a collision or selection box component for Minecraft Bedrock Edition blocks",
+	"action.generate_bedrock_block_box": "Copy Collision/Selection Component",
+	"action.generate_bedrock_block_box.desc": "Generate a collision or selection box component for Minecraft Bedrock Edition blocks",
+	"action.generate_bedrock_entity_box": "Copy Collision/Hitbox Component",
+	"action.generate_bedrock_entity_box.desc": "Generate a collision or custom hit test component for Minecraft Bedrock Edition entities",
 
 	"action.move_up": "Move Up",
 	"action.move_up.desc": "Move the selected elements up relative to the current camera angle",
@@ -2152,6 +2163,8 @@
 	"action.reverse_keyframes.desc": "Reverse the order of the selected keyframes",
 	"action.keyframe_column_create": "Create Keyframe Column",
 	"action.keyframe_column_create.desc": "Key all channels in the timeline at the current timecode, if they already have keyframes",
+	"action.keyframe_column_create.all_channels": "All Channels",
+	"action.keyframe_column_create.all_channels.desc": "Initialize all channels with keyframes even if they had no keyframes previously",
 	"action.keyframe_column_select": "Select Keyframe Column",
 	"action.keyframe_column_select.desc": "Select all keyframes in the timeline along a column below the playhead",
 	"action.flip_animation": "Flip Animation",
@@ -2753,6 +2766,7 @@
 	"display.slot": "Slot",
 	"display.reference": "Reference Model",
 	"display.pose_angle": "Pose Angle (For Preview Only)",
+	"display.animate_preview": "Preview Animation",
 
 	"display.reference.player": "Player",
 	"display.reference.zombie": "Zombie",

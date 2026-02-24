@@ -3,6 +3,7 @@ import { openMolangEditor } from './molang_editor';
 import { clipboard, currentwindow, dialog, fs, ipcRenderer } from '../native_apis';
 import { Filesystem } from '../file_system';
 import { Easings } from '../lib/easing';
+import { markerColors } from '../marker_colors';
 
 export class AnimationControllerState {
 	constructor(controller, data = 0) {

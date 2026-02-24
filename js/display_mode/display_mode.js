@@ -12,7 +12,8 @@ var display_presets;
 var display_preview;
 
 export const DisplayMode = {
-	display_slot: 'thirdperson_righthand'
+	display_slot: 'thirdperson_righthand',
+	animate_preview: true,
 };
 
 

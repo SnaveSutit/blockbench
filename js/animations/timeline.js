@@ -1,3 +1,4 @@
+import { markerColors } from "../marker_colors";
 import { dragHelper } from "../util/drag_helper";
 
 export class TimelineMarker {
@@ -403,6 +404,14 @@ export const Timeline = {
 				}
 			}
 		})
+		function displayTimeOnCursor(time) {
+			if (settings.timecode_frame_number.value) {
+				time = Math.round(time / Timeline.getStep());
+			} else {
+				time = Math.roundTo(time, 2);
+			}
+			Blockbench.setCursorTooltip(time);
+		}
 		addEventListeners(document, 'mousemove touchmove', e => {
 			if (Timeline.dragging_playhead) {
 
@@ -420,7 +429,7 @@ export const Timeline = {
 					if (rounded) {
 						Timeline.playAudioStutter();
 					}
-					Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+					displayTimeOnCursor(time);
 				}
 			} else if (Timeline.dragging_endbracket) {
 
@@ -430,7 +439,7 @@ export const Timeline = {
 				
 				Animation.selected.setLength(time)
 				Timeline.revealTime(time)
-				Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+				displayTimeOnCursor(time);
 
 			} else if (Timeline.dragging_onion_skin_point) {
 
@@ -442,7 +451,7 @@ export const Timeline = {
 					Timeline.vue.onion_skin_time = time;
 					Timeline.revealTime(time);
 					Animator.updateOnionSkin();
-					Blockbench.setCursorTooltip(Math.roundTo(time, 2));
+					displayTimeOnCursor(time);
 				}
 			}
 		});
@@ -1063,8 +1072,7 @@ Interface.definePanels(() => {
 				},
 				updateGraph() {
 					if (this.graph_editor_open) {
-						this.graph_size++;
-						this.graph_size--;
+						this.graph_size += 1e-7;
 					}
 				},
 				toggleAnimator(animator) {
@@ -1769,7 +1777,7 @@ Interface.definePanels(() => {
 								<div class="animator_channel_bar"
 									v-bind:style="{width: (size*length + head_width)+'px'}"
 									v-for="(channel_options, channel) in animator.channels"
-									v-if="animator.expanded && channels[channel] != false && Condition(channel_options.condition) && (!channels.hide_empty || animator[channel].length)"
+									v-if="animator.expanded && channels[channel] != false && Condition(channel_options.condition, animator) && (!channels.hide_empty || animator[channel].length)"
 								>
 									<div class="channel_head"
 										:class="{selected: graph_editor_open && animator.selected && graph_editor_channel == channel}"

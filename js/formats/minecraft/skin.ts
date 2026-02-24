@@ -54,13 +54,13 @@ const DefaultPoses: Record<string, SkinPoseData> = {
 		LeftLeg: [-42, 0, -2]
 	},
 	crouching: {
-		Waist: [0, 0, 0],
-		Head: {rotation: [-5, 0, 0], offset: [0, -1, 0]},
-		Body: {rotation: [-28, 0, 0], offset: [0, 0, -1]},
-		RightArm: [-15, 0, 0],
-		LeftArm: [-40, 0, 0],
-		RightLeg: {rotation: [-14, 0, 0], offset: [0, 3, 3.75]},
-		LeftLeg: {rotation: [14, 0, 0], offset: [0, 3, 4]}
+		Waist: {rotation: [-28, 0, 0], offset: [0, -1, 1]},
+		Head: {rotation: [23, 0, 0], offset: [0, -3, 1]},
+		Body: {rotation: [0, 0, 0], offset: [0, -1, 1]},
+		RightArm: {rotation: [12, 0, 0], offset: [0, -1, 1]},
+		LeftArm: {rotation: [-20, 0, 0], offset: [0, -1, 1]},
+		RightLeg: [-14, 0, 0],
+		LeftLeg: [14, 0, 0],
 	},
 	sitting: {
 		Waist: [0, 0, 0],
@@ -321,23 +321,32 @@ function loadPose(pose_data: SkinPoseData) {
 	Panels.skin_pose.inside_vue.pose = '';
 	Group.all.forEach(group => {
 		if (!group.skin_original_origin) return;
-		let offset = group.origin.slice().V3_subtract(group.skin_original_origin);
-		group.origin.V3_set(group.skin_original_origin);
-	})
-	for (let name in pose_data) {
-		let group = Group.all.find(g => g.name == name || g.name.replace(/\s/g, '') == name);
-		if (group) {
-			if (pose_data[name] instanceof Array) {
-				group.extend({rotation: pose_data[name]});
-			} else {
-				group.extend({rotation: pose_data[name].rotation});
-				group.origin.V3_add(pose_data[name].offset);
-			}
+
+		type BoneData = {rotation: ArrayVector3, offset: ArrayVector3};
+		let bone_data: BoneData | ArrayVector3 = pose_data[group.name]
+			|| pose_data[group.name.replace(/\s/g, '')]
+			|| {rotation: [0, 0, 0], offset: [0, 0, 0]};
+		if (bone_data instanceof Array) {
+			bone_data = {rotation: bone_data as ArrayVector3, offset: [0, 0, 0]};
 		}
-	}
+		let offset: ArrayVector3 = group.skin_original_origin.slice().V3_subtract(group.origin);
+		offset.V3_add(bone_data.offset);
+		
+		group.extend({rotation: bone_data.rotation});
+		group.origin.V3_add(offset);
+		let child_cubes = group.children.filter(c => c instanceof Cube);
+		for (let cube of child_cubes) {
+			cube.origin.V3_add(offset);
+			cube.from.V3_add(offset);
+			cube.to.V3_add(offset);
+		}
+	});
 	Canvas.updateView({
 		groups: Group.all,
-		group_aspects: {transform: true}
+		group_aspects: {transform: true},
+		elements: Outliner.elements,
+		element_aspects: {transform: true},
+		selection: true
 	})
 }
 function getPoseData(): SkinPoseData {

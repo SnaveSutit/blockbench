@@ -8,18 +8,21 @@ import { symmetrizeArmature } from './mirror_modeling';
 type CanvasClickData = RaycastResult
 
 let brush_outline: HTMLElement;
-function updateBrushOutline(event: PointerEvent) {
+function updateBrushOutline(event: PointerEvent | KeyboardEvent) {
 	if (!brush_outline || Toolbox.selected.id != 'weight_brush') return;
 	let preview = Preview.selected as Preview;
-	let preview_offset = $(preview.canvas).offset();
-	let click_pos = [
-		event.clientX - preview_offset.left,
-		event.clientY - preview_offset.top,
-	]
 	preview.node.append(brush_outline);
-	brush_outline.style.left = click_pos[0] + 'px';
-	brush_outline.style.top = click_pos[1] + 'px';
 	brush_outline.style.display = (event.altKey || Pressing.overrides.alt) ? 'none' : 'block'
+
+	if ('clientX' in event) {
+		let preview_offset = $(preview.canvas).offset();
+		let click_pos = [
+			event.clientX - preview_offset.left,
+			event.clientY - preview_offset.top,
+		]
+		brush_outline.style.left = click_pos[0] + 'px';
+		brush_outline.style.top = click_pos[1] + 'px';
+	}
 }
 Blockbench.on('update_pressed_modifier_keys', (arg) => {
 	updateBrushOutline(arg.event);

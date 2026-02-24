@@ -365,7 +365,7 @@ export class FormElement extends EventSystem {
 		}
 	}
 	addShareButtons(bar: HTMLElement) {
-		let text = this.options.value.toString();
+		let text = this.options.value?.toString() ?? '';
 		let is_url = text.startsWith('https://');
 		// @ts-ignore
 		let input: HTMLElement = this.input ?? this.textarea;

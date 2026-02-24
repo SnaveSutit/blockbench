@@ -175,7 +175,7 @@ interface AddChannelOptions {
 	transform?: boolean
 	mutable?: boolean
 	max_data_points?: number
-	condition?: ConditionResolvable
+	condition?: ConditionResolvable<GeneralAnimator>
 	displayFrame?: (animator: GeneralAnimator, multiplier: number) => void
 }
 interface Channel {
@@ -183,6 +183,7 @@ interface Channel {
 	transform: boolean
 	mutable: boolean
 	max_data_points: number
+	condition?: ConditionResolvable<GeneralAnimator>
 }
 declare class GeneralAnimator {
 	constructor(uuid: string | null, animation: _Animation, name: string)

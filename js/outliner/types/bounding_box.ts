@@ -1,4 +1,5 @@
 import { settings, Settings } from "../../interface/settings";
+import { markerColors } from "../../marker_colors";
 import { flipNameOnAxis } from "../../modeling/transform";
 import { fastWorldPosition } from "../../util/three_custom";
 import { lineIntersectsReactangle } from "../../util/util";
@@ -23,16 +24,19 @@ export class BoundingBox extends OutlinerElement {
 	public icon = 'activity_zone';
 	public menu = new Menu([
 		...Outliner.control_menu_group,
+		new MenuSeparator('export'),
+		'generate_bedrock_block_box',
+		'generate_bedrock_entity_box',
 		new MenuSeparator('settings'),
 		{name: 'menu.cube.color', icon: 'color_lens', children() {
 			return markerColors.map((color, i) => {return {
 				icon: 'bubble_chart',
 				color: color.standard,
 				name: color.name || 'cube.color.'+color.id,
-				click(element) {
-					element.forSelected(function(obj){
-						obj.setColor(i)
-					}, 'change color')
+				click(element: BoundingBox) {
+					element.forSelected((obj: BoundingBox) => {
+						obj.setColor(i);
+					}, 'Change color');
 				}
 			}});
 		}},
@@ -387,10 +391,14 @@ new NodePreviewController(BoundingBox, {
 	},
 	updateTransform(element: BoundingBox) {
 		let mesh = element.mesh;
-		NodePreviewController.prototype.updateTransform.call(this, element);
+
+		if (element.getTypeBehavior('movable')) {
+			mesh.position.set(element.origin[0], element.origin[1], element.origin[2])
+		}
 		if (mesh.parent !== Project.model_3d) {
 			Project.model_3d.add(mesh)
 		}
+		mesh.updateMatrixWorld();
 
 		this.dispatchEvent('update_transform', {element});
 	},

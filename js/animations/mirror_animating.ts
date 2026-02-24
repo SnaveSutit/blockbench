@@ -5,7 +5,7 @@ import { Animation } from "./animation";
 import { Keyframe } from "./keyframe";
 import { BoneAnimator } from "./timeline_animators";
 
-type TKeyframe = Keyframe | _Keyframe;
+type TKeyframe = _Keyframe;
 interface FlipCopyKeyframesOptions {
 	keyframes: TKeyframe[]
 	animators?: BoneAnimator[]
@@ -60,7 +60,7 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 			if (opposite_animator == animator) return;
 
 			if (options.clear_opposite) {
-				for (let kf of opposite_animator[channel].slice() as Keyframe[]) {
+				for (let kf of opposite_animator[channel].slice() as TKeyframe[]) {
 					removed_keyframes.push(kf);
 					kf.remove();
 				}
@@ -69,7 +69,7 @@ function flipCopyKeyframes(options: FlipCopyKeyframesOptions):
 			let offset_factor = (4 + (options.offset/360) * (order ? 1 : -1)) % 1;
 			let offset_time = offset_factor * animation.length;
 
-			let temp_wrap_keyframe: Keyframe | undefined;
+			let temp_wrap_keyframe: TKeyframe | undefined;
 			if (offset_time && !kfs.find(kf => Math.epsilon(kf.time, offset_time, 0.005)) && !Format.animation_loop_wrapping) {
 				temp_wrap_keyframe = animator.createKeyframe(null, animation.length-offset_time, channel, false, false);
 				kfs.push(temp_wrap_keyframe);
