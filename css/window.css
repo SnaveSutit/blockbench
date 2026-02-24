@@ -1172,10 +1172,13 @@
 		margin: auto;
 		left: 0;
 		right: 0;
-		top: 35px;
+		top: 45px;
 		background-color: var(--color-ui);
 		border: 2px solid var(--color-accent);
 		z-index: 4;
+		padding: 4px;
+		border-radius: 7px;
+		overflow: visible;
 	}
 
 
