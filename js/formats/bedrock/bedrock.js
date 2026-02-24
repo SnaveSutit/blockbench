@@ -2,11 +2,9 @@ import { findExistingFile } from "../../desktop";
 import { CanvasFrame } from "../../lib/CanvasFrame";
 import { currentwindow, dialog, fs } from "../../native_apis";
 import VersionUtil from '../../util/version_util'
-import { ModelLoader } from "./../../io/model_loader";
 import {animation_codec} from "./bedrock_animation"
 import "./animation_controller_codec"
 import { loadBedrockCollisionFromJSON } from "./bedrock_voxel_shape";
-import PlayerTexture from './../../../assets/player_skin.png'
 
 if (isApp) {
 window.BedrockEntityManager = class BedrockEntityManager {
@@ -806,7 +804,7 @@ window.calculateVisibleBox = calculateVisibleBox;
 		}
 		group.addTo(parent_group)
 	}
-	function parseGeometry(data, args) {
+	export function parseGeometry(data, args) {
 
 		let {description} = data.object;
 		let geometry_name = (description.identifier && description.identifier.replace(/^geometry\./, '')) || '';
@@ -1513,6 +1511,10 @@ var entity_format = new ModelFormat({
 		}
 	}
 })
+Object.defineProperty(entity_format, 'per_texture_uv_size', {
+	get: _ => Project.multi_file_ruleset ? true : false
+});
+
 var block_format = new ModelFormat({
 	id: 'bedrock_block',
 	category: 'minecraft',
@@ -1691,153 +1693,8 @@ BARS.defineActions(function() {
 			codec.export()
 		}
 	})
-
-	const player_geo = {
-		"description": {
-			"identifier": "geometry.default_player",
-			"texture_width": 64,
-			"texture_height": 64,
-			"visible_bounds_width": 5,
-			"visible_bounds_height": 4.5,
-			"visible_bounds_offset": [0, 1.75, 0]
-		},
-		"bones": [
-			{
-				"name": "root",
-				"pivot": [0, 0, 0]
-			},
-			{
-				"name": "waist",
-				"parent": "root",
-				"pivot": [0, 12, 0]
-			},
-			{
-				"name": "body",
-				"parent": "waist",
-				"pivot": [0, 24, 0],
-				"cubes": [
-					{"origin": [-4, 12, -2], "size": [8, 12, 4], "uv": [16, 16]}
-				]
-			},
-			{
-				"name": "cape",
-				"parent": "body",
-				"pivot": [0, 24, 2],
-				"cubes": [
-					{"origin": [-4, 10, 2], "size": [8, 14, 1], "uv": [-5, 1]}
-				]
-			},
-			{
-				"name": "head",
-				"parent": "body",
-				"pivot": [0, 24, 0],
-				"cubes": [
-					{"origin": [-4, 24, -4], "size": [8, 8, 8], "uv": [0, 0]}
-				]
-			},
-			{
-				"name": "helmet",
-				"parent": "head",
-				"pivot": [0, 0, 0]
-			},
-			{
-				"name": "rightArm",
-				"parent": "body",
-				"pivot": [-5, 22, 0],
-				"cubes": [
-					{"origin": [-8, 12, -2], "size": [4, 12, 4], "uv": [40, 16]}
-				]
-			},
-			{
-				"name": "rightItem",
-				"parent": "rightArm",
-				"pivot": [-6, 14, 0],
-				"rotation": [-35, 0, 0],
-			},
-			{
-				"name": "leftArm",
-				"parent": "body",
-				"pivot": [5, 22, 0],
-				"cubes": [
-					{"origin": [4, 12, -2], "size": [4, 12, 4], "uv": [32, 48]}
-				]
-			},
-			{
-				"name": "leftItem",
-				"parent": "leftArm",
-				"pivot": [6, 14, 0],
-				"cubes": [
-				]
-			},
-			{
-				"name": "rightLeg",
-				"parent": "root",
-				"pivot": [-1.9, 12, 0],
-				"cubes": [
-					{"origin": [-3.9, 0, -2], "size": [4, 12, 4], "uv": [0, 16]}
-				]
-			},
-			{
-				"name": "leftLeg",
-				"parent": "root",
-				"pivot": [1.9, 12, 0],
-				"cubes": [
-					{"origin": [-0.1, 0, -2], "size": [4, 12, 4], "uv": [16, 48]}
-				]
-			}
-		]
-	}
-	new ModelLoader('bedrock_player_model', {
-		name: 'Bedrock Player Model',
-		description: 'Default bedrock player model for making attachables and player animations',
-		show_on_start_screen: false,
-		icon: 'icon-player',
-		target: 'Minecraft: Bedrock Edition',
-		onStart: async function() {
-			
-			let form_config = await new Promise((resolve, reject) => {
-				new Dialog({
-					title: 'Bedrock Player Model',
-					form: {
-						import_as_attachable: {label: 'Import current model as attachable', value: true, type: 'checkbox'},
-					},
-					onConfirm(result) {
-						resolve(result)
-					},
-					onCancel() {
-						reject();
-					}
-				}).show();
-			});
-
-			let import_bbmodel = form_config.import_as_attachable ? Codecs.project.compile() : null;
-
-			setupProject(entity_format);
-			parseGeometry({object: player_geo}, {});
-
-
-
-			new Texture({name: 'player.png'}).fromDataURL(PlayerTexture).add(true, true);
-
-			let elements_before = Outliner.elements.slice();
-			let groups_before = Group.all.slice();
-			let textures_before = Texture.all.slice();
-			let animations_before = Animation.all.slice();
-			Outliner.nodes.forEach(node => {
-				node.scope = 1;
-			})
-
-			if (form_config.import_as_attachable) {
-				Codecs.project.merge(JSON.parse(import_bbmodel));
-				Outliner.nodes.forEach(node => {
-					if (!elements_before.includes(node) && !groups_before.includes(node)) {
-						node.scope = 2;
-					}
-				});
-			}
-		}
-	})
 })
+
 
 new ValidatorCheck('bedrock_binding', {
 	condition: isApp && {formats: ['bedrock']},

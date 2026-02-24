@@ -125,7 +125,7 @@ export class Group extends OutlinerNode {
 			if (ba) {
 				ba.select(true);
 			} else {
-				Blockbench.showQuickMessage('Wrong scope')
+				Blockbench.showQuickMessage('The current animation does not target this node');
 			}
 		}
 		updateSelection()
@@ -574,6 +574,7 @@ new Property(Group, 'vector', 'origin', {default() {
 	return Format.centered_grid ? [0, 0, 0] : [8, 8, 8]
 }});
 new Property(Group, 'vector', 'rotation');
+new Property(Group, 'number', 'scope');
 new Property(Group, 'string', 'bedrock_binding', {
 	condition: {formats: ['bedrock']},
 	inputs: {

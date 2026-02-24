@@ -7,6 +7,7 @@ export class CubeFace extends Face {
 		this.texture = false;
 		this.direction = direction || 'north';
 		this.cube = cube;
+		this.element = cube;
 		this.uv = [0, 0, canvasGridSize(), canvasGridSize()]
 		this.rotation = 0;
 
@@ -1240,7 +1241,7 @@ new NodePreviewController(Cube, {
 		} else if (Format.single_texture && Texture.all.length >= 2 && Texture.all.find(t => t.render_mode == 'layered')) {
 			mesh.material = Canvas.getLayeredMaterial();
 
-		} else if (Format.single_texture) {
+		} else if (Format.single_texture && !Project.getMultiFileRuleset()) {
 			let tex = Texture.getDefault();
 			mesh.material = tex ? tex.getMaterial() : Canvas.getEmptyMaterial(element.color);
 

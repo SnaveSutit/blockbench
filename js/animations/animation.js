@@ -39,6 +39,9 @@ export class Animation extends AnimationItem {
 				this.saved_name = data.saved_name;
 			}
 		}
+		if (Project.getMultiFileRuleset() && Group.all.length) {
+			this.setScopeFromAnimators();
+		}
 	}
 	extend(data) {
 		for (var key in Animation.properties) {
@@ -335,6 +338,16 @@ export class Animation extends AnimationItem {
 		this.menu.open(event, this);
 		return this;
 	}
+	setScopeFromAnimators() {
+		for (let uuid in this.animators) {
+			if (!this.animators[uuid].keyframes.length) continue;
+			let group = Group.all.find(g => g.uuid == uuid);
+			if (group?.scope) {
+				this.scope = group.scope;
+				return this.scope;
+			}
+		}
+	}
 	getBoneAnimator(group) {
 		if (!group && Group.first_selected) {
 			group = Group.first_selected;
@@ -610,6 +623,7 @@ export class Animation extends AnimationItem {
 					Blockbench.dispatchEvent('edit_animation_properties', {animation: this})
 
 					Undo.finishEdit('Edit animation properties');
+					Animator.preview();
 				}
 			},
 			onCancel() {

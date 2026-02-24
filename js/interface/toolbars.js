@@ -781,6 +781,7 @@ export const BARS = {
 				'animation_controller_preview_mode',
 				'slider_animation_controller_speed',
 				'bedrock_animation_mode',
+				'load_on_bedrock_player',
 				'lock_motion_trail',
 				'extrude_mesh_selection',
 				'inset_mesh_selection',

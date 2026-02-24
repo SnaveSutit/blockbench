@@ -4,7 +4,10 @@ interface MultiFileRules {
 }
 export interface MultiFileRuleset extends MultiFileRules {}
 export class MultiFileRuleset {
+	id: string
+
 	constructor(id: string, rules: MultiFileRules) {
+		this.id = id;
 		Object.assign(this, rules);
 		MultiFileRuleset.rulesets[id] = this;
 	}
@@ -13,7 +16,11 @@ export class MultiFileRuleset {
 }
 
 
-new MultiFileRuleset('bedrock_attachable', {
-	scope_limited_animations: true,
-	collections_as_files: true,
-})
+const global = {
+	MultiFileRuleset,
+}
+declare global {
+	const MultiFileRuleset: typeof global.MultiFileRuleset
+	type MultiFileRuleset = import('./multi_file_editing').MultiFileRuleset
+}
+Object.assign(window, global);
