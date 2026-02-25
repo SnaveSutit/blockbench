@@ -366,6 +366,20 @@ export class Preview {
 		if (this.canvas.isConnected && this !== MediaPreview) {
 			this.height = this.node.parentElement.clientHeight;
 			this.width  = this.node.parentElement.clientWidth;
+			if (this.aspect_ratio) {
+				let natural_ratio = this.width/this.height;
+				if (Math.abs(natural_ratio-this.aspect_ratio) > 0.02) {
+					if (natural_ratio < this.aspect_ratio) {
+						this.height = this.width / this.aspect_ratio;
+					} else {
+						this.width = this.height * this.aspect_ratio;
+					}
+				}
+				this.node.classList.add('fixed_ratio');
+			} else {
+				this.node.classList.remove('fixed_ratio');
+			}
+
 		} else if (height && width) {
 			this.height = height;
 			this.width = width;
@@ -714,6 +728,9 @@ export class Preview {
 			));
 			this.controls.target.add(this.camera.position);
 		}
+		if (this.aspect_ratio != preset.aspect_ratio) {
+			this.aspect_ratio = preset.aspect_ratio;
+		}
 		if (preset.projection !== 'unset') {
 			this.setProjectionMode(preset.projection == 'orthographic')
 		}
@@ -726,7 +743,7 @@ export class Preview {
 				// Only used for display mode and similar presets
 				this.camera.setFocalLength(preset.focal_length);
 			} else {
-				this.setFOV(Settings.get('fov'));
+				this.setFOV(preset.fov ?? Settings.get('fov'));
 			}
 		}
 		this.setLockedAngle(preset.locked_angle)

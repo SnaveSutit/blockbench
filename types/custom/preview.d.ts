@@ -6,6 +6,8 @@ interface AnglePreset {
 	projection: 'unset' | 'orthographic' | 'perspective'
 	zoom?: number
 	focal_length?: number
+	fov?: number
+	aspect_ratio?: number
 	lockedAngle?: number
 }
 
@@ -37,6 +39,7 @@ declare class Preview extends Deletable {
 	canvas: HTMLCanvasElement
 	height: number
 	width: number
+	aspect_ratio?: number
 	node: HTMLElement
 	/**
 	 * True if the preview is in orthographic camera mode
