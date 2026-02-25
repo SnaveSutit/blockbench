@@ -65,6 +65,7 @@ declare class _Animation extends AnimationItem {
 	select(): this | undefined
 	setLength(length?: number): void
 	createUniqueName(references: _Animation[]): any
+	setScopeFromAnimators(): number | undefined
 	rename(): this
 	togglePlayingState(state: any): any
 	showContextMenu(event: any): this

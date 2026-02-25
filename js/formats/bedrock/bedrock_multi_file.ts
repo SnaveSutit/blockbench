@@ -1,8 +1,12 @@
 import { MultiFileRuleset } from "../../multi_file_editing"
 import { parseGeometry } from "./bedrock"
 import { ModelLoader } from "./../../io/model_loader";
-import PlayerTexture from './../../../assets/player_skin.png'
 import { skin_presets } from "../minecraft/skin";
+import { Filesystem } from "../../file_system";
+import { Animation } from "../../animations/animation";
+import { InputFormConfig } from "../../interface/form";
+// @ts-ignore
+import PlayerTexture from './../../../assets/player_skin.png'
 
 const PLAYER_GEO = {
 	"description": {
@@ -117,6 +121,45 @@ let attachable_ruleset = new MultiFileRuleset('bedrock_attachable', {
 	collections_as_files: true,
 })
 
+type AddedContent = {
+	elements: OutlinerElement[]
+	groups: Group[]
+	nodes: OutlinerNode[]
+	animations: _Animation[]
+	textures: Texture[]
+	collections: Collection[]
+}
+class AddedContentFinder {
+	before: AddedContent
+	constructor() {
+		this.before = this.getCurrent();
+	}
+	getCurrent() {
+		return {
+			elements: Outliner.elements.slice(),
+			groups: Group.all.slice(),
+			nodes: (Group.all as OutlinerNode[]).concat(Outliner.elements),
+			animations: Animation.all.slice(),
+			textures: Texture.all.slice(),
+			collections: Collection.all.slice(),
+		}
+	}
+	find() {
+		let data = this.getCurrent();
+		for (let key in data) {
+			data[key] = data[key].filter(a => this.before[key].indexOf(a) == -1);
+		}
+		return data;
+	}
+	findEmptyScope(): number {
+		let scope = 1;
+		for (let node of this.before.nodes) {
+			if (scope == node.scope) scope++;
+		}
+		return scope;
+	}
+}
+
 BARS.defineActions(function() {
 	
 	const player_loader = new ModelLoader('bedrock_player_model', {
@@ -128,7 +171,7 @@ BARS.defineActions(function() {
 		onStart: async function() {
 			
 			const can_import = Project && Format.id.includes('bedrock');
-			const form = {
+			const form: InputFormConfig = {
 				model: {
 					label: 'dialog.skin.model',
 					type: 'select',
@@ -142,7 +185,11 @@ BARS.defineActions(function() {
 			if (can_import) {
 				form.import_as_attachable = {label: 'Import current model as attachable', value: true, type: 'checkbox'};
 			}
-			let form_config = await new Promise((resolve, reject) => {
+			interface Result {
+				import_as_attachable?: boolean
+				model: 'steve' | 'alex'
+			}
+			let form_config = await new Promise<Result>((resolve, reject) => {
 				new Dialog({
 					title: 'Bedrock Player Model',
 					form,
@@ -173,21 +220,23 @@ BARS.defineActions(function() {
 
 			Project.multi_file_ruleset = attachable_ruleset.id;
 
+
 			let player_texture = new Texture({name: 'player.png', scope: 1}).fromDataURL(PlayerTexture).add(true, true);
 			player_texture.saved = true;
-			let elements_before = Outliner.elements.slice();
-			let groups_before = Group.all.slice();
-			let animations_before = Animation.all.slice();
 			Outliner.nodes.forEach(node => {
 				node.scope = 1;
 			})
+			
 
 			if (form_config.import_as_attachable) {
+				let finder = new AddedContentFinder();
+				
 				Codecs.project.merge(JSON.parse(import_bbmodel));
-				Outliner.nodes.forEach(node => {
-					if (!elements_before.includes(node) && !groups_before.includes(node)) {
-						node.scope = 2;
-					}
+
+				let added = finder.find();
+
+				[...added.elements, ...added.groups].forEach(node => {
+					node.scope = 2;
 				});
 				for (let texture of Texture.all) {
 					if (texture != player_texture) texture.scope = 2;
@@ -205,8 +254,39 @@ BARS.defineActions(function() {
 		condition: () => Format.id == 'bedrock' && !Project.multi_file_ruleset,
 		icon: 'icon-player',
 		click() {
-			player_loader.onStart(Project);
+			player_loader.onStart();
 			return;
+		}
+	})
+	new Action('import_bedrock_attachable', {
+		name: 'Import Bedrock Attachable',
+		condition: () => Format.id == 'bedrock',
+		icon: 'swords',
+		click() {
+			Filesystem.importFile({
+				extensions: ['json'],
+				type: Codecs.bedrock.name,
+				readtype: 'text',
+				multiple: true,
+				resource_id: 'model',
+			}, files => {
+				for (let file of files) {
+					let json = autoParseJSON(file.content as string);
+					let finder = new AddedContentFinder();
+
+					let collection = new Collection({name: file.name}).add();
+					Codecs.bedrock.load(json, file, {import_to_current_project: true});
+					let content = finder.find();
+					let scope = finder.findEmptyScope();
+					content.nodes.forEach(node => node.scope = scope);
+					content.textures.forEach(t => t.scope = scope);
+					collection.scope = scope;
+				}
+				for (let anim of Animation.all) {
+					anim.setScopeFromAnimators();
+				}
+				Canvas.updateAllBones();
+			})
 		}
 	})
 })

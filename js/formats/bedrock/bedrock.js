@@ -284,7 +284,7 @@ window.BedrockEntityManager = class BedrockEntityManager {
 		} else {
 			this.findEntityTexture(this.project.geometry_name, null, args?.externalDataLoader);
 		}
-		if (this.client_entity && this.client_entity.type == 'attachable' && Format.id == 'bedrock') {
+		if (this.client_entity && this.client_entity.type == 'attachable' && Format.id == 'bedrock' && !args.import_to_current_project) {
 			Project.bedrock_animation_mode = 'attachable_first';
 			BarItems.bedrock_animation_mode.set(Project.bedrock_animation_mode);
 		}
