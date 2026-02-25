@@ -1044,7 +1044,7 @@ export function loadDisp(key) {	//Loads The Menu and slider values, common for a
 	}
 	display_preview.controls.enabled = true;
 	Canvas.ground_animation = false;
-	$('#display_crosshair').detach()
+	$('.display_crosshair').detach()
 	if (display_preview.orbit_gizmo) display_preview.orbit_gizmo.unhide();
 	display_preview.camPers.setFocalLength(45)
 
@@ -1097,7 +1097,7 @@ DisplayMode.loadFirstRight = function() {	//Loader
 	display_preview.controls.enabled = false
 	if (display_preview.orbit_gizmo) display_preview.orbit_gizmo.hide();
 	displayReferenceObjects.bar(['monitor', 'bow', 'crossbow', 'tooting', 'eating']);
-	$('.single_canvas_wrapper').append('<div id="display_crosshair"></div>')
+	$('.single_canvas_wrapper').append('<div class="display_crosshair"></div>')
 }
 DisplayMode.loadFirstLeft = function() {	//Loader
 	loadDisp('firstperson_lefthand')
@@ -1109,7 +1109,7 @@ DisplayMode.loadFirstLeft = function() {	//Loader
 	display_preview.controls.enabled = false
 	if (display_preview.orbit_gizmo) display_preview.orbit_gizmo.hide();
 	displayReferenceObjects.bar(['monitor', 'bow', 'crossbow', 'tooting', 'eating']);
-	$('.single_canvas_wrapper').append('<div id="display_crosshair"></div>')
+	$('.single_canvas_wrapper').append('<div class="display_crosshair"></div>')
 }
 DisplayMode.loadHead = function() {		//Loader
 	loadDisp('head')

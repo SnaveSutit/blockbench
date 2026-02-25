@@ -516,7 +516,7 @@
 	#display_settings p {
 		padding-left: 6px;
 	}
-	div#display_crosshair:after {
+	div.display_crosshair:after {
 		content: "";
 		width: 20px;
 		height: 2px;
@@ -525,7 +525,7 @@
 		margin-left: -9px;
 		margin-top: 9px;
 	}
-	div#display_crosshair {
+	div.display_crosshair {
 		width: 2px;
 		height: 20px;
 		background-color: var(--color-grid);

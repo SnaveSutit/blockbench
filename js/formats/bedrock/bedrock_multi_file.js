@@ -2,6 +2,7 @@ import { MultiFileRuleset } from "../../multi_file_editing"
 import { parseGeometry } from "./bedrock"
 import { ModelLoader } from "./../../io/model_loader";
 import PlayerTexture from './../../../assets/player_skin.png'
+import { skin_presets } from "../minecraft/skin";
 
 const PLAYER_GEO = {
 	"description": {
@@ -35,7 +36,19 @@ const PLAYER_GEO = {
 			"parent": "body",
 			"pivot": [0, 24, 2],
 			"cubes": [
-				{"origin": [-4, 10, 2], "size": [8, 14, 1], "uv": [-5, 1]}
+				//{"origin": [-4, 10, 2], "size": [8, 14, 1], "uv": [-5, 1]}
+				{
+					"origin": [-4, 10, 2],
+					"size": [8, 14, 1],
+					"uv": {
+						"north": {"uv": [36, 28], "uv_size": [1, 1]},
+						"east": {"uv": [36, 28], "uv_size": [1, 1]},
+						"south": {"uv": [36, 28], "uv_size": [1, 1]},
+						"west": {"uv": [36, 28], "uv_size": [1, 1]},
+						"up": {"uv": [37, 29], "uv_size": [-1, -1]},
+						"down": {"uv": [37, 29], "uv_size": [-1, -1]}
+					}
+				}
 			]
 		},
 		{
@@ -114,12 +127,25 @@ BARS.defineActions(function() {
 		target: 'Minecraft: Bedrock Edition',
 		onStart: async function() {
 			
+			const can_import = Project && Format.id.includes('bedrock');
+			const form = {
+				model: {
+					label: 'dialog.skin.model',
+					type: 'select',
+					value: 'steve',
+					options: {
+						steve: skin_presets.steve.display_name,
+						alex: skin_presets.alex.display_name,
+					}
+				},
+			};
+			if (can_import) {
+				form.import_as_attachable = {label: 'Import current model as attachable', value: true, type: 'checkbox'};
+			}
 			let form_config = await new Promise((resolve, reject) => {
 				new Dialog({
 					title: 'Bedrock Player Model',
-					form: {
-						import_as_attachable: {label: 'Import current model as attachable', value: true, type: 'checkbox'},
-					},
+					form,
 					onConfirm(result) {
 						resolve(result)
 					},
@@ -132,11 +158,23 @@ BARS.defineActions(function() {
 			let import_bbmodel = form_config.import_as_attachable ? Codecs.project.compile() : null;
 
 			setupProject(Formats.bedrock);
-			parseGeometry({object: PLAYER_GEO}, {});
+
+			let geo_copy = structuredClone(PLAYER_GEO);
+			if (form_config.model == 'alex') {
+				let right_arm = geo_copy.bones.find(b => b.name == 'rightArm');
+				let left_arm = geo_copy.bones.find(b => b.name == 'leftArm');
+				right_arm.cubes[0].size[0] = 3;
+				right_arm.cubes[0].origin[0]++;
+				right_arm.cubes[0].uv[0]++;
+				left_arm.cubes[0].size[0] = 3;
+				left_arm.cubes[0].uv[0]++;
+			}
+			parseGeometry({object: geo_copy}, {});
 
 			Project.multi_file_ruleset = attachable_ruleset.id;
 
 			let player_texture = new Texture({name: 'player.png', scope: 1}).fromDataURL(PlayerTexture).add(true, true);
+			player_texture.saved = true;
 			let elements_before = Outliner.elements.slice();
 			let groups_before = Group.all.slice();
 			let animations_before = Animation.all.slice();

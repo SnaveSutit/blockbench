@@ -1,5 +1,4 @@
-import { ModelLoader } from "../io/model_loader";
-import { player_preview_model } from "../preview/preview_scenes";
+import { player_preview_model } from "../../preview/preview_scenes";
 
 
 BARS.defineActions(function() {
@@ -255,6 +254,7 @@ BARS.defineActions(function() {
 		projection: "perspective",
 		target: [0, 16, 0],
 		focal_length: 18,
+		aspect_ratio: 16/9,
 	};
 	let camera_preset_1st_mf = {
 		name: tl('action.bedrock_animation_mode.attachable_first'),
@@ -263,7 +263,8 @@ BARS.defineActions(function() {
 		position: [0, 27.41, 0],
 		projection: "perspective",
 		target: [0, 27.41, 10],
-		focal_length: 14,
+		fov: 70.25,
+		aspect_ratio: 16/9,
 	};
 	DefaultCameraPresets.push(camera_preset_1st);
 
@@ -271,6 +272,7 @@ BARS.defineActions(function() {
 	center_first_person_button.addEventListener('click', event => {
 		Preview.selected.loadAnglePreset(Project.multi_file_ruleset ? camera_preset_1st_mf : camera_preset_1st);
 	});
+	let crosshair = Interface.createElement('div', {class: 'display_crosshair'});
 
 	let player_skin_setup = false;
 	function updateBase(mode) {
@@ -290,8 +292,10 @@ BARS.defineActions(function() {
 				);
 			}
 			Interface.preview.append(center_first_person_button);
+			Preview.selected.node.append(crosshair);
 		} else {
 			center_first_person_button.remove();
+			crosshair.remove();
 		}
 
 		if (mode == 'attachable_third' && !Project.multi_file_ruleset) {
