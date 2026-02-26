@@ -442,6 +442,10 @@ export class Cube extends OutlinerElement {
 			if (origin != this.origin) {
 				this.origin.V3_set(rotateCoord(this.origin))
 			}
+			if (Format.stretch_cubes) {
+				let off_axes = [0,1,2].filter(i => i != axis);
+				[this.stretch[off_axes[0]], this.stretch[off_axes[1]]] = [this.stretch[off_axes[1]], this.stretch[off_axes[0]]];
+			}
 			if (!this.box_uv) {
 				if (axis === 0) {
 					this.faces.west.rotation = rotateUVFace(this.faces.west.rotation, 1)
