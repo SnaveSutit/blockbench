@@ -632,27 +632,37 @@ new NodePreviewController(Group, {
 		NodePreviewController.prototype.updateTransform.call(this, group);
 		let bone = group.scene_object;
 
-		if (group.bedrock_binding && group.scope) {
-			let base = 85000;
-			let bone_names = [];
-			let mapped_binding = group.bedrock_binding.replace(/'(\w+)'/g, (match, name) => {
-				bone_names.push(name.toLowerCase());
-				return base + bone_names.length-1;
-			})
-			let result = Animator.MolangParser.parse(mapped_binding, {
-				"query.item_slot_to_bone_name"(input) {
-					return 85070;
-				}
-			});
-			let bone_name = bone_names[result - base];
-			if (result == 85070) bone_name = 'rightitem';
-			let target_group = bone_name && Group.all.find(g => g.name.length == bone_name.length && g.name.toLowerCase() == bone_name);
+		if (group.scope >= 2 && Project.getMultiFileRuleset()) {
+			if (group.bedrock_binding) {
+				let base = 85000;
+				let bone_names = [];
+				let mapped_binding = group.bedrock_binding.replace(/'(\w+)'/g, (match, name) => {
+					bone_names.push(name.toLowerCase());
+					return base + bone_names.length-1;
+				})
+				let result = Animator.MolangParser.parse(mapped_binding, {
+					"query.item_slot_to_bone_name"(input) {
+						return 85070;
+					}
+				});
+				let bone_name = bone_names[result - base];
+				if (result == 85070) bone_name = 'rightitem';
+				let target_group = bone_name && Group.all.find(g => g.name.length == bone_name.length && g.name.toLowerCase() == bone_name);
 
-			if (target_group) {
-				bone.position.set(group.origin[0], group.origin[1], group.origin[2])
-				if (group.parent == Outliner.ROOT) bone.position.y -= 24;
-				target_group.mesh.add(bone);
-				bone.updateMatrixWorld();
+				if (target_group) {
+					bone.position.set(group.origin[0], group.origin[1], group.origin[2])
+					if (group.parent == Outliner.ROOT) bone.position.y -= 24;
+					target_group.mesh.add(bone);
+					bone.updateMatrixWorld();
+				}
+			} else {
+				let name = group.name.toLowerCase();
+				let target_group = Group.all.find(g => g.scope == 1 && g.name.toLowerCase() == name);
+				if (target_group) {
+					target_group.mesh.add(bone);
+					bone.position.set(0, 0, 0);
+					bone.updateMatrixWorld();
+				}
 			}
 		}
 
