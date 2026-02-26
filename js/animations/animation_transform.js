@@ -21,6 +21,9 @@ new TransformerModule('animation', {
 		} else {
 			target_node.scene_object.getWorldPosition(Transformer.position);
 		}
+		if (Project.bedrock_animation_mode == 'attachable_first') {
+			Transformer.position.set(0, 20, 24)
+		}
 
 		if (Toolbox.selected.id === 'rotate_tool' && BarItems.rotation_space.value === 'global') {
 			delete Transformer.rotation_ref;
