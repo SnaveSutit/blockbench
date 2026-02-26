@@ -834,12 +834,24 @@ BARS.defineActions(function() {
 	})
 
 	function moveOnAxis(modify, axis) {
-		selected.forEach(function(obj, i) {
+		Outliner.selected.forEach(function(obj, i) {
+			let space_offset = 0;
+			if (settings.local_position_values.value &&
+				obj.parent instanceof OutlinerNode &&
+				obj.parent.getTypeBehavior('use_absolute_position')
+			) {
+				space_offset = -obj.parent.origin[axis];
+			}
+			let modifyInSpace = (real_value) => {
+				return modify(real_value + space_offset) - space_offset;
+			}
+
 			if ((obj instanceof Mesh || obj instanceof SplineMesh) && obj.getSelectedVertices().length) {
 
 				let vertices = obj.getSelectedVertices();
 				vertices.forEach(vkey => {
-					obj.vertices[vkey][axis] = modify(obj.vertices[vkey][axis]);
+					let before = main_pos[axis];
+					obj.vertices[vkey][axis] = modifyInSpace(before);
 				
 					if (obj instanceof SplineMesh) {
 						obj.applyHandleModeOnVertex(vkey);
@@ -850,13 +862,13 @@ BARS.defineActions(function() {
 			} else if (obj.getTypeBehavior('movable')) {
 				if (settings.transform_cube_from_center.value && obj.from && obj.to) {
 					let before = Math.lerp(obj.from[axis], obj.to[axis], 0.5);
-					var val = modify(before);
+					var val = modifyInSpace(before);
 					obj.from[axis] += val - before;
 					obj.to[axis] += val - before;
 				} else {
 					let main_pos = obj.from || obj.position;
-					var val = modify(main_pos[axis]);
-					var before = main_pos[axis];
+					let before = main_pos[axis];
+					var val = modifyInSpace(before);
 					main_pos[axis] = val;
 					if (obj.to) {
 						obj.to[axis] += (val - before);
@@ -876,19 +888,27 @@ BARS.defineActions(function() {
 	}
 	function getPos(axis) {
 		let element = Outliner.selected[0];
+		let value = 0;
 		if ((element instanceof Mesh || element instanceof SplineMesh) && element.getSelectedVertices().length) {
 			let vertices = element.getSelectedVertices();
 			let sum = 0;
 			vertices.forEach(vkey => sum += element.vertices[vkey][axis]);
-			return sum / vertices.length;
+			value = sum / vertices.length;
 
 		} else if (element.from && settings.transform_cube_from_center.value) {
-			return Math.lerp(element.from[axis], element.to[axis], 0.5);
+			value = Math.lerp(element.from[axis], element.to[axis], 0.5);
 		} else if (element.from) {
-			return element.from[axis];
+			value = element.from[axis];
 		} else {
-			return element.origin[axis]
+			value = element.origin[axis]
 		}
+		if (settings.local_position_values.value &&
+			element.parent instanceof OutlinerNode &&
+			element.parent.getTypeBehavior('use_absolute_position')
+		) {
+			value -= element.parent.origin[axis];
+		}
+		return value;
 	}
 	new NumSlider('slider_pos_x', {
 		name: tl('action.slider_pos', ['X']),
@@ -1309,10 +1329,21 @@ BARS.defineActions(function() {
 	function moveOriginOnAxis(modify, axis) {
 		var rotation_objects = getPivotObjects()
 
+		let modifyInSpace = (real_value, obj) => {
+			let space_offset = 0;
+			if (settings.local_position_values.value &&
+				obj.parent instanceof OutlinerNode &&
+				obj.parent.getTypeBehavior('use_absolute_position')
+			) {
+				space_offset = -obj.parent.origin[axis];
+			}
+			return modify(real_value + space_offset) - space_offset;
+		}
+
 		if (rotation_objects && rotation_objects[0] instanceof Group) {
 			let elements_to_update = [];
 			for (let group of rotation_objects) {
-				let val = modify(group.origin[axis]);
+				let val = modifyInSpace(group.origin[axis], group);
 				group.origin[axis] = val;
 				group.forEachChild(element => elements_to_update.safePush(element), OutlinerElement);
 			}
@@ -1328,7 +1359,7 @@ BARS.defineActions(function() {
 			}
 		} else {
 			rotation_objects.forEach(function(obj, i) {
-				let val = modify(obj.origin[axis]);
+				let val = modifyInSpace(obj.origin[axis], obj);
 				if (obj.transferOrigin && !obj.getTypeBehavior('use_absolute_position')) {
 					let origin_copy = obj.origin.slice();
 					origin_copy[axis] = val;
@@ -1343,6 +1374,26 @@ BARS.defineActions(function() {
 			Animator.preview();
 		}
 	}
+	function getOrigin(axis) {
+		let node;
+		if (Format.bone_rig && Group.first_selected) {
+			node = Group.first_selected;
+		}
+		if (!node) {
+			node = Outliner.selected.find(el => {
+				return el.getTypeBehavior('rotatable') && el.origin && (Format.rotate_cubes || el instanceof Cube == false)
+			})
+		}
+		let value = node ? node.origin[axis] : 0;
+
+		if (settings.local_position_values.value &&
+			node?.parent instanceof OutlinerNode &&
+			node.parent.getTypeBehavior('use_absolute_position')
+		) {
+			value -= node.parent.origin[axis];
+		}
+		return value;
+	}
 	new NumSlider('slider_origin_x', {
 		name: tl('action.slider_origin', ['X']),
 		description: tl('action.slider_origin.desc', ['X']),
@@ -1350,14 +1401,8 @@ BARS.defineActions(function() {
 		category: 'transform',
 		condition: () => (Modes.edit || Modes.animate || Modes.pose) && getPivotObjects() && (Group.first_selected || Outliner.selected.length > Locator.selected.length),
 		getInterval: getSpatialInterval,
-		get: function() {
-			if (Format.bone_rig && Group.first_selected) {
-				return Group.first_selected.origin[0];
-			}
-			let ref = Outliner.selected.find(el => {
-				return el.getTypeBehavior('rotatable') && el.origin && (Format.rotate_cubes || el instanceof Cube == false)
-			})
-			if (ref) return ref.origin[0];
+		get() {
+			return getOrigin(0);
 		},
 		change: function(modify) {
 			if (Modes.pose) return;
@@ -1377,14 +1422,8 @@ BARS.defineActions(function() {
 		category: 'transform',
 		condition: () => (Modes.edit || Modes.animate || Modes.pose) && getPivotObjects() && (Group.first_selected || Outliner.selected.length > Locator.selected.length),
 		getInterval: getSpatialInterval,
-		get: function() {
-			if (Format.bone_rig && Group.first_selected) {
-				return Group.first_selected.origin[1];
-			}
-			let ref = Outliner.selected.find(el => {
-				return el.getTypeBehavior('rotatable') && el.origin && (Format.rotate_cubes || el instanceof Cube == false)
-			})
-			if (ref) return ref.origin[1];
+		get() {
+			return getOrigin(1);
 		},
 		change: function(modify) {
 			if (Modes.pose) return;
@@ -1404,14 +1443,8 @@ BARS.defineActions(function() {
 		category: 'transform',
 		condition: () => (Modes.edit || Modes.animate || Modes.pose) && getPivotObjects() && (Group.first_selected || Outliner.selected.length > Locator.selected.length),
 		getInterval: getSpatialInterval,
-		get: function() {
-			if (Format.bone_rig && Group.first_selected) {
-				return Group.first_selected.origin[2];
-			}
-			let ref = Outliner.selected.find(el => {
-				return el.getTypeBehavior('rotatable') && el.origin && (Format.rotate_cubes || el instanceof Cube == false)
-			})
-			if (ref) return ref.origin[2];
+		get() {
+			return getOrigin(2);
 		},
 		change: function(modify) {
 			if (Modes.pose) return;

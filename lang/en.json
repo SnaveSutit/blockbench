@@ -1139,6 +1139,8 @@
 	"settings.highlight_cubes.desc": "Highlight elements when you hover over them or select them",
 	"settings.outliner_reveal_on_select": "Reveal Elements on Select",
 	"settings.outliner_reveal_on_select.desc": "Reveal elements in the ouliner when selected",
+	"settings.local_position_values": "Local Position Values",
+	"settings.local_position_values.desc": "Display all position values in the Transform panel in local space",
 	"settings.transform_cube_from_center": "Transform Cubes from Center",
 	"settings.transform_cube_from_center.desc": "Edit the cube position values from the center instead of the corner",
 	"settings.deactivate_size_limit": "Deactivate Size Limit",
