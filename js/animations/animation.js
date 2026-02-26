@@ -503,6 +503,25 @@ export class Animation extends AnimationItem {
 					filetype: 'JSON Animation',
 					condition: Animation.properties.path.condition
 				},
+				scope: {
+					label: 'Scope',
+					type: 'select',
+					value: this.scope,
+					get options() {
+						let opts = {
+							0: {name: 'None'},
+						};
+						for (let collection of Collection.all) {
+							if (!collection.scope) continue;
+							opts[collection.scope] = {
+								name: collection.name,
+								color: ScopeColors[collection.scope-1 % ScopeColors.length]
+							}
+						}
+						return opts;
+					},
+					condition: !!Project.getMultiFileRuleset()
+				},
 				loop: {
 					label: 'menu.animation.loop',
 					type: 'inline_select',
@@ -599,6 +618,7 @@ export class Animation extends AnimationItem {
 					|| form_data.name != this.name
 					|| (isApp && form_data.path != this.path)
 					|| form_data.loop != this.loop
+					|| parseInt(form_data.scope) != this.scope
 					|| form_data.override != this.override
 					|| form_data.snapping != this.snapping
 					|| dialog.component.data.anim_time_update != this.anim_time_update
@@ -613,6 +633,7 @@ export class Animation extends AnimationItem {
 						name: form_data.name,
 						override: form_data.override,
 						snapping: form_data.snapping,
+						scope: parseInt(form_data.scope) ?? 0,
 						anim_time_update: dialog.component.data.anim_time_update.trim().replace(/\n/g, ''),
 						blend_weight: dialog.component.data.blend_weight.trim().replace(/\n/g, ''),
 						start_delay: dialog.component.data.start_delay.trim().replace(/\n/g, ''),

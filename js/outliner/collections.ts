@@ -29,6 +29,7 @@ export interface CollectionOptions {
 	export_codec?: string
 	export_path?: string
 	visibility?: boolean
+	scope?: number
 }
 
 /**
@@ -161,6 +162,11 @@ export class Collection {
 				child.forEachChild(subchild => nodes.safePush(subchild));
 			}
 		}
+		if (this.scope) {
+			for (let node of Outliner.nodes) {
+				if (node.scope == this.scope) nodes.safePush(node);
+			}
+		}
 		return nodes;
 	}
 	/**
@@ -168,6 +174,8 @@ export class Collection {
 	 * @returns {true} if the collection contains the node
 	 */
 	contains(node: OutlinerNode): boolean {
+		if (this.scope && this.scope == node.scope) return true;
+		if (this.children.length == 0) return false;
 		let node_match: OutlinerNode | typeof Outliner.ROOT = node;
 		while (node_match instanceof OutlinerNode) {
 			if (this.children.includes(node_match.uuid)) {
@@ -182,7 +190,7 @@ export class Collection {
 	 * @param event If the alt key is pressed, the result is inverted and the visibility of everything but the collection will be toggled
 	 */
 	toggleVisibility(event: KeyboardEvent | MouseEvent): void {
-		let children = this.getChildren();
+		let children = this.getAllChildren();
 		if (!children.length) return;
 		let groups = [];
 		let elements = [];
@@ -196,9 +204,6 @@ export class Collection {
 		}
 		for (let child of children) {
 			update(child);
-			if ('forEachChild' in child && typeof child.forEachChild == 'function') {
-				child.forEachChild(update);
-			}
 		}
 		if (event.altKey) {
 			// invert selection

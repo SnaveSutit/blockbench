@@ -226,12 +226,14 @@ BARS.defineActions(function() {
 			Outliner.nodes.forEach(node => {
 				node.scope = 1;
 			})
+			new Collection({name: 'Player', scope: 1}).add();
 			
 
 			if (form_config.import_as_attachable) {
 				let finder = new AddedContentFinder();
 				
-				Codecs.project.merge(JSON.parse(import_bbmodel));
+				let project_parsed = JSON.parse(import_bbmodel);
+				Codecs.project.merge(project_parsed);
 
 				let added = finder.find();
 
@@ -241,6 +243,8 @@ BARS.defineActions(function() {
 				for (let texture of Texture.all) {
 					if (texture != player_texture) texture.scope = 2;
 				}
+				console.log(project_parsed)
+				new Collection({name: project_parsed.name || 'Attachable', scope: 2}).add();
 				for (let animation of Animation.all) {
 					animation.setScopeFromAnimators();
 				}
