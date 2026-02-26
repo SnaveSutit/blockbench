@@ -203,6 +203,7 @@ BARS.defineActions(function() {
 			});
 
 			let import_bbmodel = form_config.import_as_attachable ? Codecs.project.compile() : null;
+			let attachable_path = Project.export_path;
 
 			setupProject(Formats.bedrock);
 
@@ -243,8 +244,12 @@ BARS.defineActions(function() {
 				for (let texture of Texture.all) {
 					if (texture != player_texture) texture.scope = 2;
 				}
-				console.log(project_parsed)
-				new Collection({name: project_parsed.name || 'Attachable', scope: 2}).add();
+				new Collection({
+					name: project_parsed.name || 'Attachable',
+					scope: 2,
+					export_codec: 'bedrock',
+					export_path: attachable_path
+				}).add();
 				for (let animation of Animation.all) {
 					animation.setScopeFromAnimators();
 				}
@@ -278,7 +283,11 @@ BARS.defineActions(function() {
 					let json = autoParseJSON(file.content as string);
 					let finder = new AddedContentFinder();
 
-					let collection = new Collection({name: file.name}).add();
+					let collection = new Collection({
+						name: file.name,
+						export_codec: 'bedrock',
+						export_path: file.path,
+					}).add();
 					Codecs.bedrock.load(json, file, {import_to_current_project: true});
 					let content = finder.find();
 					let scope = finder.findEmptyScope();

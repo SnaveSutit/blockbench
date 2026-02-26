@@ -14,7 +14,6 @@ import { Clipbench } from "../copy_paste";
 import { getFocusedTextInput } from "../interface/keyboard";
 import { tl } from "../languages";
 import { Panel } from "../interface/panels";
-import { Codecs } from "../io/codec";
 import { FormElementOptions } from "../interface/form";
 import { fs } from "../native_apis";
 import { Filesystem } from "../file_system";
@@ -118,6 +117,11 @@ export class Collection {
 	 * Get all direct children
 	 */
 	getChildren(): OutlinerNode[] {
+		if (this.scope) {
+			return Outliner.nodes.filter(node => {
+				return node.scope == this.scope && !(node.parent instanceof OutlinerNode && node.parent.scope == this.scope);
+		});
+		}
 		return this.children.map(uuid => OutlinerNode.uuids[uuid]).filter(node => node != undefined);
 	}
 	add(): this {
@@ -781,6 +785,12 @@ Interface.definePanels(function() {
 					})
 					updateSelection();
 				},
+				save(collection: Collection) {
+					let codec = Codecs[collection.export_codec];
+					if (codec && collection.export_path) {
+						codec.writeCollection(collection);
+					}
+				},
 				getContentList(collection: Collection) {
 					let types = {
 						group: []
@@ -842,6 +852,15 @@ Interface.definePanels(function() {
 							</ul>
 						</div>
 
+						<div class="in_list_button"
+							v-if="collection.export_codec && collection.export_path"
+							:class="{unclickable: collection.saved}"
+							@click.stop="save(collection)"
+							title="${tl('menu.animation.save')}"
+						>
+							<i v-if="collection.saved" class="material-icons">check_circle</i>
+							<i v-else class="material-icons">save</i>
+						</div>
 						<div class="in_list_button" @click.stop="collection.toggleVisibility($event)" @dblclick.stop>
 							<i v-if="collection.getVisibility()" class="material-icons icon">visibility</i>
 							<i v-else class="material-icons icon toggle_disabled">visibility_off</i>

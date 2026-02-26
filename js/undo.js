@@ -76,8 +76,13 @@ export class UndoSystem {
 
 		if (Collection.all.length) {
 			let nodes = [];
-			if (aspects.elements) nodes.push(aspects.elements);
-			if (aspects.groups) nodes.push(aspects.groups);
+			if (aspects.elements) nodes.push(...aspects.elements);
+			if (aspects.groups) nodes.push(...aspects.groups);
+			let a2 = entry.before.aspects;
+			if (a2 && a2 != aspects) {
+				if (a2.elements) nodes.push(...a2.elements);
+				if (a2.groups) nodes.push(...a2.groups);
+			}
 			for (let collection of Collection.all) {
 				if (nodes.some(node => node.scope == collection.scope)) {
 					collection.saved = false;

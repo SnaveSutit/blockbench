@@ -179,6 +179,7 @@ var codec = new Codec('project', {
 		let content = this.compile({collection_only: collection});
 		this.write(content, collection.export_path);
 		this.context = null;
+		collection.saved = true;
 		Project.save_path = old_save_path;
 	},
 	compile(options) {
