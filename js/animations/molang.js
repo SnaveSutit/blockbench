@@ -87,6 +87,14 @@ Animator.MolangParser.global_variables = {
 	get 'context.is_first_person'() {
 		return Project.bedrock_animation_mode == 'attachable_first' ? 1 : 0
 	},
+	'query.get_default_bone_pivot'(bone_name, axis) {
+		let group = Group.all.find(g => g.name.toLowerCase() == bone_name);
+		if (group && axis >= 0 && axis < 3) {
+			let value = group.origin[axis] ?? 0;
+			if (axis == 0) value *= -1;
+			return value;
+		}
+	},
 	get time() {
 		return Timeline.time
 	},
