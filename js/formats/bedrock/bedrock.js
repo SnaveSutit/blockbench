@@ -938,6 +938,7 @@ window.calculateVisibleBox = calculateVisibleBox;
 	function compileGroup(g) {
 		if (g.type !== 'group' || g.export == false) return;
 		if (!settings.export_empty_groups.value && !g.children.find(child => child.export)) return;
+		if (g.children.length && g.children.allAre(c => c instanceof BoundingBox)) return;
 		//Bone
 		var bone = {}
 		bone.name = g.name

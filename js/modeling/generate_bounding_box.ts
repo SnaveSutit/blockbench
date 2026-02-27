@@ -107,13 +107,19 @@ BARS.defineActions(() => {
 				for (let x = start[0]; x < end[0]; x++) {
 					for (let z = start[2]; z < end[2]; z++) {
 						for (let y = start[1]; y < end[1]; y++) {
-							point.set(x+0.5, y+0.5, z+0.5);
-							let in_shape = aabbs.some(box => box.containsPoint(point));
+							point.set(x+0.46, y+0.46, z+0.46);
+							let in_shape: any = aabbs.find(box => box.containsPoint(point));
 							if (!in_shape && rotated_cubes.length) {
 								raycaster.ray.origin.copy(point);
-								in_shape = rotated_cubes.some(cube => {
+								in_shape = rotated_cubes.find(cube => {
 									let intersects = raycaster.intersectObject(cube.mesh);
-									return intersects.length % 2 == 1;
+									let intersection_points = [];
+									for (let intersect of intersects) {
+										if (!intersection_points.some(p => p.equals(intersect.point))) {
+											intersection_points.push(intersect.point);
+										}
+									}
+									return intersection_points.length % 2 == 1;
 								})
 							}
 							matrix.set(x, y, z, !!in_shape);
@@ -246,6 +252,8 @@ BARS.defineActions(() => {
 						}
 					}
 				}
+
+				// Grow
 				for (let _i = 0; _i < grow_iterations; _i++) {
 					let keys = Object.keys(matrix.values);
 					let key = keys.findLast(key => matrix.values[key] == true);
@@ -280,7 +288,7 @@ BARS.defineActions(() => {
 					let bb = new BoundingBox({
 						from: [box[0], box[1], box[2]],
 						to: [box[3]+1, box[4]+1, box[5]+1],
-						color: i,
+						color: 1,
 						name: 'bounding_box'
 					}).addTo().init();
 					bounding_boxes.push(bb);
