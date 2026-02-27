@@ -3,6 +3,7 @@ import { Filesystem } from "../file_system";
 import { openMolangEditor } from "./molang_editor";
 import { clipboard, currentwindow, dialog, fs, ipcRenderer } from "../native_apis";
 import { invertMolang } from "../util/molang";
+import { ScopeColors } from "../multi_file_editing";
 
 export class AnimationItem {
 	constructor() {}
@@ -38,6 +39,9 @@ export class Animation extends AnimationItem {
 			if (isApp && Format.animation_files && data.saved_name) {
 				this.saved_name = data.saved_name;
 			}
+		}
+		if (Project.getMultiFileRuleset() && Group.all.length) {
+			this.setScopeFromAnimators();
 		}
 	}
 	extend(data) {
@@ -157,7 +161,7 @@ export class Animation extends AnimationItem {
 		let last_time = Timeline.time;
 		let samples = {};
 
-		if (!NullObject.all.find(null_object => null_object.ik_target && this.getBoneAnimator(null_object).position.length)) return samples;
+		if (!NullObject.all.find(null_object => null_object.ik_target && this.getBoneAnimator(null_object)?.position.length)) return samples;
 
 		Timeline.time = 0;
 		while (Timeline.time <= this.length && Timeline.time <= 200) {
@@ -169,15 +173,16 @@ export class Animation extends AnimationItem {
 				Animator.animations.forEach(animation => {
 					let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
 					if (animation.playing) {
-						animation.getBoneAnimator(node).displayFrame(multiplier);
+						animation.getBoneAnimator(node)?.displayFrame(multiplier);
 					}
 				})
 			})
 			Outliner.elements.forEach(node => {
 				if (!node.constructor.animator) return;
 				Animator.resetLastValues();
-				let multiplier = this.blend_weight ? Math.clamp(Animator.MolangParser.parse(this.blend_weight), 0, Infinity) : 1;
 				let animator = this.getBoneAnimator(node);
+				if (!animator) return;
+				let multiplier = this.blend_weight ? Math.clamp(Animator.MolangParser.parse(this.blend_weight), 0, Infinity) : 1;
 				animator.displayPosition(animator.interpolate('position'), multiplier);
 				let bone_frame_rotation = animator.displayIK(true);
 				for (let uuid in bone_frame_rotation) {
@@ -274,7 +279,6 @@ export class Animation extends AnimationItem {
 		}
 	}
 	createUniqueName(arr) {
-		var scope = this;
 		var others = Animator.animations.slice();
 		if (arr && arr.length) {
 			arr.forEach(g => {
@@ -283,9 +287,9 @@ export class Animation extends AnimationItem {
 		}
 		others = others.filter(a => a.path == this.path);
 		var name = this.name.replace(/\d+$/, '');
-		function check(n) {
+		const check = (n) => {
 			for (var i = 0; i < others.length; i++) {
-				if (others[i] !== scope && others[i].name == n) return false;
+				if (others[i] !== this && others[i].name == n) return false;
 			}
 			return true;
 		}
@@ -294,19 +298,18 @@ export class Animation extends AnimationItem {
 		}
 		for (var num = 2; num < 8e2; num++) {
 			if (check(name+num)) {
-				scope.name = name+num;
-				return scope.name;
+				this.name = name+num;
+				return this.name;
 			}
 		}
 		return false;
 	}
 	rename() {
-		var scope = this;
-		Blockbench.textPrompt('generic.rename', this.name, function(name) {
-			if (name && name !== scope.name) {
-				Undo.initEdit({animations: [scope]});
-				scope.name = name;
-				scope.createUniqueName();
+		Blockbench.textPrompt('generic.rename', this.name, (name) => {
+			if (name && name !== this.name) {
+				Undo.initEdit({animations: [this]});
+				this.name = name;
+				this.createUniqueName();
 				Undo.finishEdit('Rename animation');
 			}
 		})
@@ -336,6 +339,16 @@ export class Animation extends AnimationItem {
 		this.menu.open(event, this);
 		return this;
 	}
+	setScopeFromAnimators() {
+		for (let uuid in this.animators) {
+			if (!this.animators[uuid].keyframes.length) continue;
+			let group = Group.all.find(g => g.uuid == uuid);
+			if (group?.scope) {
+				this.scope = group.scope;
+				return this.scope;
+			}
+		}
+	}
 	getBoneAnimator(group) {
 		if (!group && Group.first_selected) {
 			group = Group.first_selected;
@@ -345,7 +358,9 @@ export class Animation extends AnimationItem {
 			return;
 		}
 		if (!group.constructor.animator) return;
-		var uuid = group.uuid;
+		if (group.scope && group.scope != this.scope) return;
+
+		let uuid = group.uuid;
 		if (!this.animators[uuid]) {
 			let match;
 			for (let uuid2 in this.animators) {
@@ -488,6 +503,25 @@ export class Animation extends AnimationItem {
 					filetype: 'JSON Animation',
 					condition: Animation.properties.path.condition
 				},
+				scope: {
+					label: 'Scope',
+					type: 'select',
+					value: this.scope,
+					get options() {
+						let opts = {
+							0: {name: 'None'},
+						};
+						for (let collection of Collection.all) {
+							if (!collection.scope) continue;
+							opts[collection.scope] = {
+								name: collection.name,
+								color: ScopeColors[collection.scope-1 % ScopeColors.length]
+							}
+						}
+						return opts;
+					},
+					condition: !!Project.getMultiFileRuleset()
+				},
 				loop: {
 					label: 'menu.animation.loop',
 					type: 'inline_select',
@@ -584,6 +618,7 @@ export class Animation extends AnimationItem {
 					|| form_data.name != this.name
 					|| (isApp && form_data.path != this.path)
 					|| form_data.loop != this.loop
+					|| parseInt(form_data.scope) != this.scope
 					|| form_data.override != this.override
 					|| form_data.snapping != this.snapping
 					|| dialog.component.data.anim_time_update != this.anim_time_update
@@ -598,6 +633,7 @@ export class Animation extends AnimationItem {
 						name: form_data.name,
 						override: form_data.override,
 						snapping: form_data.snapping,
+						scope: parseInt(form_data.scope) ?? 0,
 						anim_time_update: dialog.component.data.anim_time_update.trim().replace(/\n/g, ''),
 						blend_weight: dialog.component.data.blend_weight.trim().replace(/\n/g, ''),
 						start_delay: dialog.component.data.start_delay.trim().replace(/\n/g, ''),
@@ -609,6 +645,7 @@ export class Animation extends AnimationItem {
 					Blockbench.dispatchEvent('edit_animation_properties', {animation: this})
 
 					Undo.finishEdit('Edit animation properties');
+					Animator.preview();
 				}
 			},
 			onCancel() {
@@ -738,6 +775,7 @@ export class Animation extends AnimationItem {
 	new Property(Animation, 'boolean', 'saved', {default: true, condition: () => Format.animation_files})
 	new Property(Animation, 'string', 'path', {condition: () => isApp && Format.animation_files})
 	new Property(Animation, 'string', 'group_name', {condition: () => Format.animation_grouping == 'custom'})
+	new Property(Animation, 'number', 'scope');
 	new Property(Animation, 'molang', 'anim_time_update', {default: ''});
 	new Property(Animation, 'molang', 'blend_weight', {default: ''});
 	new Property(Animation, 'molang', 'start_delay', {default: ''});
@@ -916,7 +954,8 @@ BARS.defineActions(function() {
 		click: function () {
 			new Animation({
 				name: Format.id.includes('bedrock') ? 'animation.' + (Project.geometry_name||'model') + '.new' : 'animation',
-				saved: false
+				saved: false,
+				scope: (Group.first_selected)?.scope ?? 0
 			}).add(true).propertiesDialog()
 
 		}
@@ -1067,18 +1106,18 @@ BARS.defineActions(function() {
 				let offset_rotation = [0, 0, 0];
 				let offset_position = [0, 0, 0];
 				Animator.animations.forEach(animation => {
-					if (animation.playing) {
-						let animator = animation.getBoneAnimator(node);
-						let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
-						
-						if (animator.channels.rotation) {
-							let rotation = animator.interpolate('rotation');
-							if (rotation instanceof Array) offset_rotation.V3_add(rotation.map(v => v * multiplier));
-						}
-						if (animator.channels.position) {
-							let position = animator.interpolate('position');
-							if (position instanceof Array) offset_position.V3_add(position.map(v => v * multiplier));
-						}
+					if (!animation.playing) return;
+					let animator = animation.getBoneAnimator(node);
+					if (!animator) return;
+					let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
+					
+					if (animator.channels.rotation) {
+						let rotation = animator.interpolate('rotation');
+						if (rotation instanceof Array) offset_rotation.V3_add(rotation.map(v => v * multiplier));
+					}
+					if (animator.channels.position) {
+						let position = animator.interpolate('position');
+						if (position instanceof Array) offset_position.V3_add(position.map(v => v * multiplier));
 					}
 				})
 				// Rotation
@@ -1229,6 +1268,7 @@ BARS.defineActions(function() {
 					}
 					target_animator = target_animation.animators.effects;
 				}
+				if (!target_animator) continue;
 				for (let channel in source_animator.channels) {
 					let channel_config = source_animator.channels[channel];
 					let source_kfs = source_animator[channel];
@@ -1701,6 +1741,7 @@ Interface.definePanels(function() {
 							name: other_animation && other_animation.name.replace(/\w+$/, 'new'),
 							path: this.group_animations_by_file ? group_name : undefined,
 							group_name: group_name,
+							scope: (other_animation.scope || Group.first_selected?.scope) ?? 0,
 							saved: false
 						}).add(true).propertiesDialog()
 					} else {
@@ -1710,6 +1751,10 @@ Interface.definePanels(function() {
 							saved: false
 						}).add(true);
 					}
+				},
+				getScopeColor(animation) {
+					if (!animation.scope) return '';
+					return ScopeColors[(animation.scope-1) % ScopeColors.length];
 				},
 				showFileContextMenu(event, id) {
 					if (this.group_animations_by_file) {
@@ -1987,9 +2032,10 @@ Interface.definePanels(function() {
 								v-bind:class="{ selected: animation.selected }"
 								v-bind:anim_id="animation.uuid"
 								class="animation"
+								:key="animation.uuid"
+								:style="{'--color-scope': getScopeColor(animation)}"
 								@click.stop="animation.clickSelect()"
 								@dblclick.stop="animation.propertiesDialog()"
-								:key="animation.uuid"
 								@contextmenu.prevent.stop="animation.showContextMenu($event)"
 							>
 								<i class="material-icons" v-if="animation.type == 'animation'">movie</i>

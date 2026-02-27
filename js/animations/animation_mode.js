@@ -157,6 +157,7 @@ export const Animator = {
 		let keyframe_source = Group.first_selected || ((Outliner.selected[0] && Outliner.selected[0].constructor.animator) ? Outliner.selected[0] : null);
 		if (keyframe_source) {
 			let ba = Animation.selected.getBoneAnimator(keyframe_source);
+			if (!ba) return;
 			let channel = target == Group.first_selected ? ba.position : (ba[Toolbox.selected.animation_channel] || ba.position)
 			channel.forEach(kf => {
 				keyframes[Math.round(kf.time / step)] = kf;
@@ -316,13 +317,14 @@ export const Animator = {
 			animations.remove(Animation.selected);
 			animations.push(Animation.selected);
 		}
-		[...Group.all, ...Outliner.elements].forEach(node => {
+		Group.all.concat(Outliner.elements).forEach(node => {
 			if (!node.constructor.animator) return;
 			Animator.resetLastValues();
 			animations.forEach((animation, anim_i) => {
 				if (animation.loop == 'once' && Timeline.time > animation.length && animation.length) {
 					return;
 				}
+				let ba = animation.getBoneAnimator(node);
 				let multiplier = animation.blend_weight ? Math.clamp(Animator.MolangParser.parse(animation.blend_weight), 0, Infinity) : 1;
 				if (typeof controller_blend_values[animation.uuid] == 'number') multiplier *= controller_blend_values[animation.uuid];
 				if (anim_i == animations.length - 1) {
@@ -330,7 +332,7 @@ export const Animator = {
 					if (!mesh.pre_rotation) mesh.pre_rotation = new THREE.Euler();
 					mesh.pre_rotation.copy(mesh.rotation);
 				}
-				animation.getBoneAnimator(node).displayFrame(multiplier);
+				ba?.displayFrame(multiplier);
 			})
 		})
 

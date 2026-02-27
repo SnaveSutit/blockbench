@@ -5,6 +5,7 @@ import { OutlinerElement } from "./abstract/outliner_element"
 import { radToDeg } from "three/src/math/MathUtils"
 import { PointerTarget } from "../interface/pointer_target"
 import { markerColors } from "../marker_colors"
+import { ScopeColors } from "../multi_file_editing"
 
 export const Outliner = {
 	ROOT: 'root',
@@ -20,6 +21,9 @@ export const Outliner = {
 	},
 	set selected(val) {
 		console.warn('You cannot modify this')
+	},
+	get nodes() {
+		return Project.groups.concat(Project.elements);
 	},
 	buttons: {
 		visibility: {
@@ -770,6 +774,7 @@ SharedActions.add('duplicate', {
 							let orig_animator = animation.animators[all_original[i].uuid];
 							if (!orig_animator) continue;
 							let new_animator = animation.getBoneAnimator(all_new[i]);
+							if (!new_animator) continue;
 		
 							new_animator.extend(orig_animator);
 							for (let kf of orig_animator.keyframes) {
@@ -1170,6 +1175,7 @@ Interface.definePanels(function() {
 				:element_type="node.type"
 				@contextmenu.prevent.stop="node.showContextMenu($event)"
 				@click="node.clickSelect($event, true)"
+				:style="{'--color-scope': getScopeColor(node)}"
 				:title="node.title"
 				@dblclick.stop.self="!node.locked && renameOutliner(node)"
 			>` +
@@ -1266,6 +1272,10 @@ Interface.definePanels(function() {
 				} else {
 					return text + value;
 				}
+			},
+			getScopeColor(node) {
+				if (!node.scope) return '';
+				return ScopeColors[(node.scope-1) % ScopeColors.length];
 			},
 			doubleClickIcon(node) {
 				if (node.children && node.children.length) {

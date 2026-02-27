@@ -14,13 +14,13 @@ import { Clipbench } from "../copy_paste";
 import { getFocusedTextInput } from "../interface/keyboard";
 import { tl } from "../languages";
 import { Panel } from "../interface/panels";
-import { Codecs } from "../io/codec";
 import { FormElementOptions } from "../interface/form";
 import { fs } from "../native_apis";
 import { Filesystem } from "../file_system";
 import { loadModelFile } from "../io/io";
 import { OutlinerElement } from "./abstract/outliner_element";
 import { OutlinerNode } from "./abstract/outliner_node";
+import { ScopeColors } from "../multi_file_editing";
 
 export interface CollectionOptions {
 	children?: string[]
@@ -28,6 +28,7 @@ export interface CollectionOptions {
 	export_codec?: string
 	export_path?: string
 	visibility?: boolean
+	scope?: number
 }
 
 /**
@@ -44,6 +45,8 @@ export class Collection {
 	export_path: string
 	export_codec: string
 	visibility: boolean
+	scope: number
+	saved: boolean
 
 	static properties: Record<string, Property<any>>
 	/**
@@ -114,6 +117,11 @@ export class Collection {
 	 * Get all direct children
 	 */
 	getChildren(): OutlinerNode[] {
+		if (this.scope) {
+			return Outliner.nodes.filter(node => {
+				return node.scope == this.scope && !(node.parent instanceof OutlinerNode && node.parent.scope == this.scope);
+		});
+		}
 		return this.children.map(uuid => OutlinerNode.uuids[uuid]).filter(node => node != undefined);
 	}
 	add(): this {
@@ -158,6 +166,11 @@ export class Collection {
 				child.forEachChild(subchild => nodes.safePush(subchild));
 			}
 		}
+		if (this.scope) {
+			for (let node of Outliner.nodes) {
+				if (node.scope == this.scope) nodes.safePush(node);
+			}
+		}
 		return nodes;
 	}
 	/**
@@ -165,6 +178,8 @@ export class Collection {
 	 * @returns {true} if the collection contains the node
 	 */
 	contains(node: OutlinerNode): boolean {
+		if (this.scope && this.scope == node.scope) return true;
+		if (this.children.length == 0) return false;
 		let node_match: OutlinerNode | typeof Outliner.ROOT = node;
 		while (node_match instanceof OutlinerNode) {
 			if (this.children.includes(node_match.uuid)) {
@@ -179,7 +194,7 @@ export class Collection {
 	 * @param event If the alt key is pressed, the result is inverted and the visibility of everything but the collection will be toggled
 	 */
 	toggleVisibility(event: KeyboardEvent | MouseEvent): void {
-		let children = this.getChildren();
+		let children = this.getAllChildren();
 		if (!children.length) return;
 		let groups = [];
 		let elements = [];
@@ -193,9 +208,6 @@ export class Collection {
 		}
 		for (let child of children) {
 			update(child);
-			if ('forEachChild' in child && typeof child.forEachChild == 'function') {
-				child.forEachChild(update);
-			}
 		}
 		if (event.altKey) {
 			// invert selection
@@ -481,6 +493,8 @@ new Property(Collection, 'string', 'model_identifier', {
 		}
 	}
 });
+new Property(Collection, 'number', 'scope');
+new Property(Collection, 'boolean', 'saved', {default: true});
 new Property(Collection, 'string', 'export_codec');
 new Property(Collection, 'string', 'export_path', {
 	condition: (collection: Collection) => (isApp && !!collection.export_codec),
@@ -771,6 +785,12 @@ Interface.definePanels(function() {
 					})
 					updateSelection();
 				},
+				save(collection: Collection) {
+					let codec = Codecs[collection.export_codec];
+					if (codec && collection.export_path) {
+						codec.writeCollection(collection);
+					}
+				},
 				getContentList(collection: Collection) {
 					let types = {
 						group: []
@@ -791,7 +811,11 @@ Interface.definePanels(function() {
 						})
 					}
 					return list;
-				}
+				},
+				getScopeColor(collection: Collection) {
+					if (!collection.scope) return '';
+					return ScopeColors[(collection.scope-1) % ScopeColors.length];
+				},
 			},
 			template: `
 				<ul
@@ -808,6 +832,7 @@ Interface.definePanels(function() {
 						:key="collection.uuid"
 						:uuid="collection.uuid"
 						class="collection"
+						:style="{'--color-scope': getScopeColor(collection)}"
 						@click.stop="collection.clickSelect($event)"
 						@dblclick.stop="collection.propertiesDialog()"
 						@contextmenu.prevent.stop="collection.showContextMenu($event)"
@@ -827,6 +852,15 @@ Interface.definePanels(function() {
 							</ul>
 						</div>
 
+						<div class="in_list_button"
+							v-if="collection.export_codec && collection.export_path"
+							:class="{unclickable: collection.saved}"
+							@click.stop="save(collection)"
+							title="${tl('menu.animation.save')}"
+						>
+							<i v-if="collection.saved" class="material-icons">check_circle</i>
+							<i v-else class="material-icons">save</i>
+						</div>
 						<div class="in_list_button" @click.stop="collection.toggleVisibility($event)" @dblclick.stop>
 							<i v-if="collection.getVisibility()" class="material-icons icon">visibility</i>
 							<i v-else class="material-icons icon toggle_disabled">visibility_off</i>

@@ -108,7 +108,7 @@ export class ArmatureBone extends OutlinerElement {
 		let result = super.select(event, isOutlinerClick);
 		if (result == false) return false;
 		if (Animator.open && Animation.selected) {
-			Animation.selected.getBoneAnimator(this).select(true);
+			Animation.selected.getBoneAnimator(this)?.select(true);
 		}
 		return this;
 	}

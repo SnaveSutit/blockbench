@@ -1317,7 +1317,7 @@ Interface.definePanels(function() {
 							let val = Math.round((clientX - e1.clientX) / 40);
 							let difference = (val - last_val);
 							if (difference) {
-								if (Toolbox.selected.id === 'rotate_tool') {
+								if (Keyframe.selected[0]?.channel == 'rotation') {
 									difference *= getRotationInterval(e2);
 								} else {
 									difference *= canvasGridSize(e2.shiftKey || Pressing.overrides.shift, e2.ctrlOrCmd || Pressing.overrides.ctrl);

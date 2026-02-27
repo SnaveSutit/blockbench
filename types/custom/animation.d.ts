@@ -65,13 +65,15 @@ declare class _Animation extends AnimationItem {
 	select(): this | undefined
 	setLength(length?: number): void
 	createUniqueName(references: _Animation[]): any
+	setScopeFromAnimators(): number | undefined
 	rename(): this
 	togglePlayingState(state: any): any
 	showContextMenu(event: any): this
 	/**
 	 * Returns (if necessary creates) the animator of a specific outliner node of this animation
+	 * May returns null if the node may not be animated due to being in a different scope
 	 */
-	getBoneAnimator(node?: OutlinerNode): BoneAnimator
+	getBoneAnimator(node?: OutlinerNode): BoneAnimator | null
 	removeAnimator(id: string): void
 	/**
 	 * Adds the animation to the current project and to the interface

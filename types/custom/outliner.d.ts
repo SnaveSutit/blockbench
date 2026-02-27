@@ -114,6 +114,7 @@ declare namespace Outliner {
 	const ROOT: 'root'
 	const elements: OutlinerElement[]
 	const selected: OutlinerElement[]
+	const nodes: OutlinerNode[]
 	let control_menu_group: MenuItem[]
 	const buttons: {
 		autouv: OutlinerToggle

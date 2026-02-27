@@ -2,7 +2,7 @@ import { Blockbench } from "./api";
 import StateMemory from "./util/state_memory";
 import { Dialog } from "./interface/dialog";
 import { settings, Settings, SettingsProfile } from "./interface/settings";
-import { ModelLoader, StartScreen } from "./interface/start_screen";
+import { StartScreen } from "./interface/start_screen";
 import { sort_collator } from "./misc";
 import { separateThousands } from "./util/math_util";
 import { getDateDisplay } from "./util/util";
@@ -10,6 +10,7 @@ import { Filesystem } from "./file_system";
 import { app, fs, getPluginPermissions, getPluginScopedRequire, https, revokePluginPermissions } from "./native_apis";
 import { Panels } from "./interface/panels";
 import VersionUtil from './util/version_util'
+import { ModelLoader } from "./io/model_loader";
 import { markerColors } from "./marker_colors";
 
 

@@ -81,6 +81,7 @@ const config = {
     minify,
     outfile: './dist/bundle.js',
     mainFields: ['module', 'main'],
+    logLevel: 'info',
     logOverride: {
         'commonjs-variable-in-esm': 'silent'
     },
@@ -88,7 +89,8 @@ const config = {
         'electron',
     ],
     loader: {
-        '.bbtheme': 'text'
+        '.bbtheme': 'text',
+        '.png': 'dataurl'
     },
     plugins: [
         conditionalImportPlugin(2, {

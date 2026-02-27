@@ -130,6 +130,7 @@ interface BlockbenchEventMap {
 	}
 	open_bar_menu: {menu: BarMenu}
 	unselect_all: any
+	get_face_texture: {face: Face, element: OutlinerElement}
 	quick_save_model: any
 	save_editor_state: any
 	load_editor_state: any

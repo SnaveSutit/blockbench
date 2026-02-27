@@ -1,4 +1,4 @@
-import { player_preview_model } from "../preview/preview_scenes";
+import { player_preview_model } from "../../preview/preview_scenes";
 
 
 BARS.defineActions(function() {
@@ -254,35 +254,51 @@ BARS.defineActions(function() {
 		projection: "perspective",
 		target: [0, 16, 0],
 		focal_length: 18,
+		aspect_ratio: 16/9,
+	};
+	let camera_preset_1st_mf = {
+		name: tl('action.bedrock_animation_mode.attachable_first'),
+		id: 'attachable_first',
+		condition: () => Format.id == 'bedrock' && Project.bedrock_animation_mode == 'attachable_first',
+		position: [0, 27.41, 0],
+		projection: "perspective",
+		target: [0, 27.41, 10],
+		fov: 70.25,
+		aspect_ratio: 16/9,
 	};
 	DefaultCameraPresets.push(camera_preset_1st);
 
 	let center_first_person_button = Interface.createElement('button', {id: 'center_first_person_button'}, tl('preview.center_camera'));
 	center_first_person_button.addEventListener('click', event => {
-		Preview.selected.loadAnglePreset(camera_preset_1st);
+		Preview.selected.loadAnglePreset(Project.multi_file_ruleset ? camera_preset_1st_mf : camera_preset_1st);
 	});
+	let crosshair = Interface.createElement('div', {class: 'display_crosshair'});
 
 	let player_skin_setup = false;
 	function updateBase(mode) {
 		let root_has_binding = Outliner.root.find(g => g instanceof Group && g.bedrock_binding)
 		if (mode == 'attachable_first') {
-			if (root_has_binding) {
-				Project.model_3d.position.set(-20, 21, 0);
-			} else {
-				Project.model_3d.position.set(-8, 6, -18);
+			if (!Project.multi_file_ruleset) {
+				if (root_has_binding) {
+					Project.model_3d.position.set(-20, 21, 0);
+				} else {
+					Project.model_3d.position.set(-8, 6, -18);
+				}
+				Project.model_3d.rotation.set(
+					Math.degToRad(-95),
+					Math.degToRad(45),
+					Math.degToRad(115),
+					'ZYX'
+				);
 			}
-			Project.model_3d.rotation.set(
-				Math.degToRad(-95),
-				Math.degToRad(45),
-				Math.degToRad(115),
-				'ZYX'
-			);
 			Interface.preview.append(center_first_person_button);
+			Preview.selected.node.append(crosshair);
 		} else {
 			center_first_person_button.remove();
+			crosshair.remove();
 		}
 
-		if (mode == 'attachable_third') {
+		if (mode == 'attachable_third' && !Project.multi_file_ruleset) {
 			let angle = Math.degToRad(15);
 			if (root_has_binding) {
 				let arm_offset = Reusable.vec1.set(1, -31, 1).applyAxisAngle(Reusable.vec2.set(1, 0, 0), angle);
@@ -306,6 +322,8 @@ BARS.defineActions(function() {
 			Project.model_3d.position.set(0, 0, 0);
 			Project.model_3d.rotation.set(0, 0, 0);
 		}
+		Canvas.updateVisibility();
+		Animator.preview();
 	}
 	let bedrock_animation_mode_select = new BarSelect('bedrock_animation_mode', {
 		condition: {
@@ -317,7 +335,7 @@ BARS.defineActions(function() {
 		options: {
 			entity: true,
 			attachable_first: true,
-			attachable_third: true
+			attachable_third: true,
 		},
 		onChange() {
 			if (Project.bedrock_animation_mode == this.value) return;
@@ -326,7 +344,7 @@ BARS.defineActions(function() {
 			updateBase(this.value);
 
 			if (this.value == 'attachable_first') {
-				Preview.selected.loadAnglePreset(camera_preset_1st);
+				Preview.selected.loadAnglePreset(Project.multi_file_ruleset ? camera_preset_1st_mf : camera_preset_1st);
 			} else {
 				Preview.selected.loadAnglePreset(DefaultCameraPresets[0]);
 			}

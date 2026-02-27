@@ -149,6 +149,14 @@
 	.preview > canvas {
 		background-repeat: no-repeat;
 	}
+	div.preview.fixed_ratio {
+		display: flex;
+	}
+	.preview.fixed_ratio > canvas {
+		margin: auto;
+		border-radius: 7px;
+		border: 2px solid var(--color-grid);
+	}
 	.preview .preview_menu {
 		position: absolute;
 		right: 3px;

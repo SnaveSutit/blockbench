@@ -313,6 +313,7 @@ export const animation_codec = new AnimationCodec('bedrock', {
 					}
 				}
 				animation.calculateSnappingFromKeyframes();
+				animation.setScopeFromAnimators();
 				if (!Animation.selected && Animator.open) {
 					animation.select()
 				}

@@ -160,6 +160,7 @@ export class Codec extends EventSystem {
 	async writeCollection(collection) {
 		this.patchCollectionExport(collection, async () => {
 			this.write(this.compile(), collection.export_path);
+			collection.saved = true;
 		})
 	}
 	fileName() {

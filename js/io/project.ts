@@ -2,6 +2,7 @@ import { AutoBackup } from "../auto_backup";
 import { FormElementOptions } from "../interface/form";
 import { setProjectTitle } from "../interface/interface";
 import { Vue } from "../lib/libs";
+import { MultiFileRuleset } from "../multi_file_editing";
 import { currentwindow, ipcRenderer, shell } from "../native_apis";
 import { ReferenceImage, ReferenceImageMode } from "../preview/reference_images";
 import { Property } from "../util/property";
@@ -45,6 +46,7 @@ export class ModelProject {
 	mode: string
 	view_mode: string
 	display_uv: string
+	multi_file_ruleset: string
 	previews: {
 		[key: string]: any
 	}
@@ -142,6 +144,7 @@ export class ModelProject {
 		this.tool = '';
 		this.view_mode = 'textured';
 		this.display_uv = settings.show_only_selected_uv.value ? 'selected_faces' :'selected_elements';
+		this.multi_file_ruleset = '';
 		this.exploded_view = false;
 		this.mirror_modeling_enabled = false;
 		this.mirror_animating_enabled = false;
@@ -265,6 +268,9 @@ export class ModelProject {
 		let path = this.export_path || this.save_path;
 		let data = recent_projects.find(p => p.path == path);
 		return data;
+	}
+	getMultiFileRuleset(): MultiFileRuleset | undefined {
+		return MultiFileRuleset.rulesets[this.multi_file_ruleset];
 	}
 	getUVWidth(texture?: Texture) {
 		return (texture && Format.per_texture_uv_size) ? texture.uv_width : this.texture_width;
@@ -642,6 +648,9 @@ new Property(ModelProject, 'vector', 'visible_box', {
 	default: [1, 1, 0]
 });
 new Property(ModelProject, 'string', 'variable_placeholders', {
+	exposed: false,
+});
+new Property(ModelProject, 'string', 'multi_file_ruleset', {
 	exposed: false,
 });
 new Property(ModelProject, 'array', 'variable_placeholder_buttons', {

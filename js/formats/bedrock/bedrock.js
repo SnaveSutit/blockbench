@@ -284,7 +284,7 @@ window.BedrockEntityManager = class BedrockEntityManager {
 		} else {
 			this.findEntityTexture(this.project.geometry_name, null, args?.externalDataLoader);
 		}
-		if (this.client_entity && this.client_entity.type == 'attachable' && Format.id == 'bedrock') {
+		if (this.client_entity && this.client_entity.type == 'attachable' && Format.id == 'bedrock' && !args.import_to_current_project) {
 			Project.bedrock_animation_mode = 'attachable_first';
 			BarItems.bedrock_animation_mode.set(Project.bedrock_animation_mode);
 		}
@@ -804,7 +804,7 @@ window.calculateVisibleBox = calculateVisibleBox;
 		}
 		group.addTo(parent_group)
 	}
-	function parseGeometry(data, args) {
+	export function parseGeometry(data, args) {
 
 		let {description} = data.object;
 		let geometry_name = (description.identifier && description.identifier.replace(/^geometry\./, '')) || '';
@@ -1511,6 +1511,10 @@ var entity_format = new ModelFormat({
 		}
 	}
 })
+Object.defineProperty(entity_format, 'per_texture_uv_size', {
+	get: _ => Project.multi_file_ruleset ? true : false
+});
+
 var block_format = new ModelFormat({
 	id: 'bedrock_block',
 	category: 'minecraft',
@@ -1690,6 +1694,7 @@ BARS.defineActions(function() {
 		}
 	})
 })
+
 
 new ValidatorCheck('bedrock_binding', {
 	condition: isApp && {formats: ['bedrock']},

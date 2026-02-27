@@ -26,7 +26,7 @@ export class NullObject extends OutlinerElement {
 	select(event, isOutlinerClick) {
 		super.select(event, isOutlinerClick);
 		if (Animator.open && Animation.selected) {
-			Animation.selected.getBoneAnimator(this).select(true);
+			Animation.selected.getBoneAnimator(this)?.select(true);
 		}
 		return this;
 	}

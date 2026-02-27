@@ -1,3 +1,4 @@
+import { ModelLoader } from "../io/model_loader";
 import { currentwindow, exposeNativeApisInDevTools } from "../native_apis";
 
 export class BarMenu extends Menu {
@@ -82,7 +83,7 @@ export const MenuBar = {
 							}
 						})
 					}
-					arr.push(new MenuSeparator('loaders'));
+					arr.push(new MenuSeparator('loaders', 'format_category.loaders'));
 					for (let key in ModelLoader.loaders) {
 						let loader = ModelLoader.loaders[key];
 						arr.push({
@@ -181,6 +182,7 @@ export const MenuBar = {
 				'import_project',
 				'import_java_block_model',
 				'import_optifine_part',
+				'import_bedrock_attachable',
 				'import_bedrock_voxel_shape',
 				'import_obj',
 				'extrude_texture'
