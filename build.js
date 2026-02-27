@@ -13,6 +13,8 @@ const options = commandLineArgs([
     {name: 'target', type: String},
     {name: 'watch', type: Boolean},
     {name: 'serve', type: Boolean},
+    {name: 'host', type: String},
+    {name: 'port', type: Number},
     {name: 'analyze', type: Boolean},
 ])
 
@@ -120,10 +122,11 @@ if (options.watch || options.serve) {
     if (isApp) {
         await ctx.watch({});
     } else {
-        let server = await ctx.serve({
+        await ctx.serve({
             servedir: import.meta.dirname,
+            host: options.host,
+            port: options.port
         });
-        console.log(`Hosting app at http://${server.hosts[0]}:${server.port}`);
     }
 } else {
     if (options.analyze) config.metafile = true;
