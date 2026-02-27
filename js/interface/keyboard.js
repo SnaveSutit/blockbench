@@ -2,6 +2,7 @@ import blender from '../../keymaps/blender.bbkeymap';
 import cinema4d from '../../keymaps/cinema4d.bbkeymap';
 import maya from '../../keymaps/maya.bbkeymap';
 import { dragHelper } from '../util/drag_helper';
+import { preventContextMenu } from './menu';
 import { PointerTarget } from './pointer_target';
 import { BARS } from './toolbars';
 
@@ -956,6 +957,7 @@ document.addEventListener('pointerdown', (e1) => {
 			},
 			onEnd(context) {
 				Blockbench.setStatusBarText();
+				if (context.distance > 1) preventContextMenu();
 				for (let slider of sliders) {
 					delete slider.sliding;
 					if (typeof slider.onAfter === 'function') {
