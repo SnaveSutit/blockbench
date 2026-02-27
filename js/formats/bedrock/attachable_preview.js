@@ -323,7 +323,7 @@ BARS.defineActions(function() {
 			Project.model_3d.rotation.set(0, 0, 0);
 		}
 		Canvas.updateVisibility();
-		Animator.preview();
+		if (Modes.animate) Animator.preview();
 	}
 	let bedrock_animation_mode_select = new BarSelect('bedrock_animation_mode', {
 		condition: {
