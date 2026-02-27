@@ -13,22 +13,16 @@ function getAllParents(element: OutlinerElement): OutlinerNode[] {
 
 class VoxelMatrix<Type> {
 	values: Record<number, Type>
-	private size: number
 	private fallback: Type
-	constructor(size: number, fallback: Type) {
+	constructor(fallback: Type) {
 		this.values = {};
-		this.size = size;
 		this.fallback = fallback;
 	}
-	getKey(x: number, y: number, z: number): number {
-		return x * this.size*this.size + y * this.size + z;
+	getKey(x: number, y: number, z: number): string {
+		return [x, y, z].join('_');
 	}
-	getVectorFromKey(key: number): ArrayVector3 {
-		return [
-			Math.floor(key / this.size**2),
-			Math.floor((key % this.size**2) / this.size),
-			key % this.size,
-		]
+	getVectorFromKey(key: string): ArrayVector3 {
+		return key.split('_').map(v => parseInt(v)) as ArrayVector3;
 	}
 	set(x: number, y: number, z: number, value: Type): void {
 		let key = this.getKey(x, y, z);
@@ -62,6 +56,16 @@ BARS.defineActions(() => {
 				approach: 'grow',
 				complexity: 40
 			}
+
+			const visible_box = new THREE.Box3()
+			Canvas.withoutGizmos(() => {
+				Cube.all.forEach(cube => {
+					if (cube.export && cube.mesh) {
+						visible_box.expandByObject(cube.mesh);
+					}
+				})
+			})
+
 			function generate(amended: boolean, options: GenerateOptions) {
 				let bounding_boxes: BoundingBox[] = [];
 				Undo.initEdit({elements: bounding_boxes}, amended);
@@ -86,14 +90,24 @@ BARS.defineActions(() => {
 					}
 				}
 
-				let matrix = new VoxelMatrix<boolean|null>(32, null);
+				let matrix = new VoxelMatrix<boolean|null>(null);
 
 				// Voxelize model
 				let point = new THREE.Vector3();
-				for (let x = 0; x < 16; x++) {
-					for (let z = 0; z < 16; z++) {
-						for (let y = 0; y < 24; y++) {
-							point.set(x-7.5, y+0.5, z-7.5);
+				let start = [
+					Math.round(visible_box.min.x),
+					Math.round(visible_box.min.y),
+					Math.round(visible_box.min.z),
+				];
+				let end = [
+					Math.round(visible_box.max.x),
+					Math.round(visible_box.max.y),
+					Math.round(visible_box.max.z),
+				];
+				for (let x = start[0]; x < end[0]; x++) {
+					for (let z = start[2]; z < end[2]; z++) {
+						for (let y = start[1]; y < end[1]; y++) {
+							point.set(x+0.5, y+0.5, z+0.5);
 							let in_shape = aabbs.some(box => box.containsPoint(point));
 							if (!in_shape && rotated_cubes.length) {
 								raycaster.ray.origin.copy(point);
@@ -113,6 +127,8 @@ BARS.defineActions(() => {
 				let boxes: MBox[] = [];
 				let miss_factor = (options.complexity/100)**2; // Square curve to distribute along slider more nicely
 				let match_factor = (options.complexity/100); // Square curve to distribute along slider more nicely
+				let lateral_size = Math.max(end[0]-start[0], end[2]-start[2]);
+				let vertical_size = end[1]-start[1];
 				
 				
 				function expand(box: MBox, axis: 0|1|2, direction: 1 | -1, max_misses?: number): boolean {
@@ -124,7 +140,7 @@ BARS.defineActions(() => {
 					} else {
 						cursor[axis] -= 1;
 					}
-					if (cursor[axis] >= (axis == 1 ? 24 : 16) || cursor[axis] < 0) return false;
+					if (cursor[axis] >= end[axis] || cursor[axis] < start[axis]) return false;
 					let surface_size = (box[axisa+3]-box[axisa]+1) * (box[axisb+3]-box[axisb]+1);
 					max_misses = max_misses ?? (surface_size * (1-miss_factor));
 					let misses = 0;
@@ -199,7 +215,7 @@ BARS.defineActions(() => {
 							}
 						}
 						directions = [true, true, true, true, true, true];
-						for (let i = 0; i < 16; i++) {
+						for (let i = 0; i < lateral_size; i++) {
 							if (directions[0]) directions[0] = expand(box, 0, 1, 0);
 							if (directions[1]) directions[1] = expand(box, 0, -1, 0);
 							if (directions[2]) directions[2] = expand(box, 2, 1, 0);
@@ -234,17 +250,17 @@ BARS.defineActions(() => {
 					let keys = Object.keys(matrix.values);
 					let key = keys.findLast(key => matrix.values[key] == true);
 					if (!key) break;
-					let start_coords = matrix.getVectorFromKey(parseInt(key));
+					let start_coords = matrix.getVectorFromKey(key);
 					let box: MBox = [...start_coords, ...start_coords];
 					let directions = [true, true, true, true, true, true];
 
-					for (let i = 0; i < 16; i++) {
+					for (let i = 0; i < lateral_size; i++) {
 						if (directions[0]) directions[0] = expand(box, 0, 1);
 						if (directions[1]) directions[1] = expand(box, 0, -1);
 						if (directions[2]) directions[2] = expand(box, 2, 1);
 						if (directions[3]) directions[3] = expand(box, 2, -1);
 					}
-					for (let i = 0; i < 24; i++) {
+					for (let i = 0; i < vertical_size; i++) {
 						if (directions[4]) directions[4] = expand(box, 1, 1);
 						if (directions[5]) directions[5] = expand(box, 1, -1);
 					}
@@ -262,9 +278,10 @@ BARS.defineActions(() => {
 				for (let box of boxes) {
 					i++
 					let bb = new BoundingBox({
-						from: [box[0]-8, box[1], box[2]-8],
-						to: [box[3]-7, box[4]+1, box[5]-7],
-						color: i
+						from: [box[0], box[1], box[2]],
+						to: [box[3]+1, box[4]+1, box[5]+1],
+						color: i,
+						name: 'bounding_box'
 					}).addTo().init();
 					bounding_boxes.push(bb);
 				}

@@ -363,14 +363,24 @@ new Property(BoundingBox, 'array', 'function', {
 
 OutlinerElement.registerType(BoundingBox, 'bounding_box');
 
-const line_material = new THREE.LineBasicMaterial({color: 0xdd9b1d});
-const line_selected_material = new THREE.LineBasicMaterial({color: 0xfff270});
+type MaterialSet = {default: THREE.LineBasicMaterial, selected: THREE.LineBasicMaterial};
+const materials: Record<number, MaterialSet> = {};
+function getBoundingBoxMaterial(bounding_box: BoundingBox): MaterialSet {
+	if (!materials[bounding_box.color]) {
+		let marker_color = markerColors[bounding_box.color % markerColors.length];
+		materials[bounding_box.color] = {
+			default: new THREE.LineBasicMaterial({color: new THREE.Color().set(marker_color.standard)}),
+			selected: new THREE.LineBasicMaterial({color: new THREE.Color().set(marker_color.pastel)}),
+		};
+	}
+	return materials[bounding_box.color];
+}
 
 new NodePreviewController(BoundingBox, {
 	setup(element: BoundingBox) {
 		let mesh = new THREE.LineSegments(
 			new THREE.BufferGeometry(),
-			line_material
+			getBoundingBoxMaterial(element).default
 		)
 		Project.nodes_3d[element.uuid] = mesh;
 		mesh.name = element.uuid;
@@ -447,7 +457,8 @@ new NodePreviewController(BoundingBox, {
 				mesh.visible = false;
 			} else {
 				mesh.visible = element.visibility;
-				mesh.material = element.selected ? line_selected_material : line_material;
+				let materials = getBoundingBoxMaterial(element);
+				mesh.material = element.selected ? materials.selected : materials.default;
 			}
 		}
 

@@ -50,7 +50,7 @@ var codec = new Codec('bedrock_voxel_shape', {
 			let bounding_box = new BoundingBox({
 				from: box_template.min.slice().V3_add(offset),
 				to: box_template.max.slice().V3_add(offset),
-				color: i
+				color: 6
 			});
 			bounding_box.init().addTo(group);
 			bounding_boxes.push(bounding_box);
@@ -120,7 +120,8 @@ export function loadBedrockCollisionFromJSON(json: any, name: string, undo: bool
 			name,
 			from: [-(box.origin[0]+box.size[0]), box.origin[1], box.origin[2]],
 			to: [-box.origin[0], box.origin[1] + box.size[1], box.origin[2] + box.size[2]],
-			function: [name == 'selection' ? 'hitbox' : 'collision']
+			function: [name == 'selection' ? 'hitbox' : 'collision'],
+			color: name == 'selection' ? 0 : 2
 		});
 		bb.addTo().init();
 		bounding_boxes.push(bb);
