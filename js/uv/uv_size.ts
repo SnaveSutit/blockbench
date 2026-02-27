@@ -98,6 +98,7 @@ export function editUVSizeDialog(options: {texture?: Texture, project?: boolean}
 	function isElementAffected(element: OutlinerElement): boolean {
 		if ('faces' in element == false) return false;
 		if (Format.per_texture_uv_size == false) return true;
+		if (!textures || !textures.length) return true;
 		for (let fkey in (element.faces as Record<string, Face>)) {
 			let face = element.faces[fkey] as Face;
 			if (textures.includes(face.getTexture() as Texture)) return true;
