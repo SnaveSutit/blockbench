@@ -332,7 +332,7 @@ export const Blockbench = {
 		return this.flags[flag];
 	},
 	//Events
-	dispatchEvent<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, data: D): any[] {
+	dispatchEvent<T extends BlockbenchEventName>(event_name: T, ...[data]: BlockbenchEventMap[T] extends never ? [] : [data: BlockbenchEventMap[T]]): any[] {
 		let list = this.events[event_name];
 		let results: any[];
 		if (list) {
@@ -349,16 +349,16 @@ export const Blockbench = {
 		}
 		return results;
 	},
-	on<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
+	on<T extends BlockbenchEventName>(event_name: T, cb: (data: BlockbenchEventMap[T]) => any): Deletable {
 		return EventSystem.prototype.on.call(this, event_name, cb);
 	},
-	once<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
+	once<T extends BlockbenchEventName>(event_name: T, cb: (data: BlockbenchEventMap[T]) => any): Deletable {
 		return EventSystem.prototype.once.call(this, event_name, cb);
 	},
-	addListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): Deletable {
+	addListener<T extends BlockbenchEventName>(event_name: T, cb: (data: BlockbenchEventMap[T]) => any): Deletable {
 		return EventSystem.prototype.addListener.call(this, event_name, cb);
 	},
-	removeListener<T extends BlockbenchEventName, D extends BlockbenchEventMap[T]>(event_name: T, cb: (data: D) => any): void {
+	removeListener<T extends BlockbenchEventName>(event_name: T, cb: (data: BlockbenchEventMap[T]) => any): void {
 		return EventSystem.prototype.removeListener.call(this, event_name, cb);
 	},
 	// Update
