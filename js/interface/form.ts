@@ -138,9 +138,9 @@ export interface FormElementOptions {
 	/**
 	 * Extra actions that display as icon buttons next to the input
 	 */
-	extra_actions?: {
+	extra_actions?: Array<Action | {
 		icon: string, name: string, click: (event: Event) => void
-	}[]
+	}>
 	/**
 	 * Set the return type of files on file inputs
 	 */
@@ -319,6 +319,25 @@ export class FormElement extends EventSystem {
 		bar.setAttribute('form_type', this.options.type);
 		if (this.options.description) {
 			bar.setAttribute('title', tl(this.options.description));
+		}
+	}
+	buildExtraActions(group: HTMLElement = this.bar) {
+		for (let action of this.options.extra_actions ?? []) {
+			if (action instanceof Action) {
+				group.append(action.node)
+				action.node.addEventListener('click', event => {
+					this.change()
+				})
+			} else {
+				let icon = Blockbench.getIconNode(action.icon);
+				let extra_action = Interface.createElement('div', {class: 'tool form_extra_action', title: action.name}, icon);
+				extra_action.addEventListener('click', event => {
+					if (action.click) {
+						action.click(event);
+					}
+				})
+				group.append(extra_action);
+			}
 		}
 	}
 	get uses_wide_inputs() {
@@ -607,6 +626,7 @@ FormElement.types.number = class FormElementNumber extends FormElement {
 			}
 		});
 		bar.append(this.numeric_input.node)
+		this.buildExtraActions()
 	}
 	getValue() {
 		let result = Math.clamp(this.numeric_input.value, this.options.min, this.options.max);
@@ -938,16 +958,7 @@ FormElement.types.vector = class FormElementVector extends FormElement {
 			updateState();
 			group.append(linked_ratio_toggle)
 		}
-		for (let action of this.options.extra_actions ?? []) {
-			let icon = Blockbench.getIconNode(action.icon);
-			let extra_action = Interface.createElement('div', {class: 'tool form_extra_action', title: action.name}, icon);
-			extra_action.addEventListener('click', event => {
-				if (action.click) {
-					action.click(event);
-				}
-			})
-			group.append(extra_action);
-		}
+		this.buildExtraActions(group)
 	}
 	getValue(): number[] {
 		let result: number[] = [];

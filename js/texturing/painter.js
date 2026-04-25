@@ -1689,8 +1689,11 @@ export const Painter = {
 						let new_preset = {
 							name: 'Preset',
 							size: 1,
+							use_pen_pressure_for_brush_size: null,
 							softness: 0,
+							use_pen_pressure_for_brush_softness: null,
 							opacity: null,
+							use_pen_pressure_for_brush_opacity: null,
 							color: null,
 							shape: 'square',
 							blend_mode: 'default'
@@ -1715,6 +1718,17 @@ export const Painter = {
 						this.selected_preset = preset;
 						current_preset = preset;
 						dialog.object.classList.add('preset_selected');
+
+						if (preset.size !== null) {
+							BarItems.use_pen_pressure_for_brush_size.set(preset.use_pen_pressure_for_brush_size == null ? false : preset.use_pen_pressure_for_brush_size);
+						}
+						if (preset.softness !== null) {
+							BarItems.use_pen_pressure_for_brush_softness.set(preset.use_pen_pressure_for_brush_softness == null ? false : preset.use_pen_pressure_for_brush_softness);
+						}
+						if (preset.opacity !== null) {
+							BarItems.use_pen_pressure_for_brush_opacity.set(preset.use_pen_pressure_for_brush_opacity == null ? false : preset.use_pen_pressure_for_brush_opacity);
+						}
+
 						dialog.setFormToggles({
 							size: preset.size !== null,
 							softness: preset.softness !== null,
@@ -1795,21 +1809,24 @@ export const Painter = {
 					type: 'number',
 					value: 1, min: 1, max: 100,
 					toggle_enabled: true,
-					toggle_default: true
+					toggle_default: true,
+					extra_actions: [BarItems.use_pen_pressure_for_brush_size]
 				},
 				opacity: {
 					label: 'action.slider_brush_opacity',
 					description: 'action.slider_brush_opacity.desc', type: 'number',
 					value: 255, min: 0, max: 255,
 					toggle_enabled: true,
-					toggle_default: true
+					toggle_default: true,
+					extra_actions: [BarItems.use_pen_pressure_for_brush_opacity]
 				},
 				softness: {
 					label: 'action.slider_brush_softness',
 					description: 'action.slider_brush_softness.desc', type: 'number',
 					value: 0, min: 0, max: 100,
 					toggle_enabled: true,
-					toggle_default: true
+					toggle_default: true,
+					extra_actions: [BarItems.use_pen_pressure_for_brush_softness]
 				},
 				pixel_perfect: {
 					label: 'action.pixel_perfect_drawing',
@@ -1837,18 +1854,24 @@ export const Painter = {
 
 				if (form.size != undefined) {
 					preset.size = form.size;
+					preset.use_pen_pressure_for_brush_size = BarItems.use_pen_pressure_for_brush_size.value;
 				} else {
 					preset.size = null;
+					preset.use_pen_pressure_for_brush_size = null;
 				}
 				if (form.softness != undefined) {
 					preset.softness = form.softness;
+					preset.use_pen_pressure_for_brush_softness = BarItems.use_pen_pressure_for_brush_softness.value;
 				} else {
 					preset.softness = null;
+					preset.use_pen_pressure_for_brush_softness = null;
 				}
 				if (form.opacity != undefined) {
 					preset.opacity = form.opacity;
+					preset.use_pen_pressure_for_brush_opacity = BarItems.use_pen_pressure_for_brush_opacity.value;
 				} else {
 					preset.opacity = null;
+					preset.use_pen_pressure_for_brush_opacity = null;
 				}
 				if (form.color != undefined) {
 					preset.color = form.color.toHexString();
@@ -1886,8 +1909,11 @@ export const Painter = {
 	},
 	loadBrushPreset(preset) {
 		if (typeof preset.size == 'number') 	BarItems.slider_brush_size.setValue(preset.size);
+		if (typeof preset.use_pen_pressure_for_brush_size == 'boolean') BarItems.use_pen_pressure_for_brush_size.set(preset.use_pen_pressure_for_brush_size);
 		if (typeof preset.softness == 'number') BarItems.slider_brush_softness.setValue(preset.softness);
+		if (typeof preset.use_pen_pressure_for_brush_softness == 'boolean') BarItems.use_pen_pressure_for_brush_softness.set(preset.use_pen_pressure_for_brush_softness);
 		if (typeof preset.opacity == 'number') 	BarItems.slider_brush_opacity.setValue(preset.opacity);
+		if (typeof preset.use_pen_pressure_for_brush_opacity == 'boolean') BarItems.use_pen_pressure_for_brush_opacity.set(preset.use_pen_pressure_for_brush_opacity);
 		if (preset.pixel_perfect != undefined) 	BarItems.pixel_perfect_drawing.set(preset.pixel_perfect);
 		if (preset.color) 		ColorPanel.set(preset.color);
 		if (preset.shape) {
@@ -3289,6 +3315,16 @@ BARS.defineActions(function() {
 			}
 		}
 	})
+
+	new Toggle('use_pen_pressure_for_brush_size',{
+		icon: 'fa-weight-hanging',
+		name: 'action.use_pen_pressure_for_brush_size',
+		description: 'action.use_pen_pressure_for_brush_size.desc',
+		onChange(value) {
+			console.log('use_pen_pressure_for_brush_size', value);
+		}
+	})
+
 	new NumSlider('slider_brush_softness', {
 		category: 'paint',
 		condition: () => (Toolbox && (Toolbox.selected.brush?.softness == true)),
@@ -3310,6 +3346,16 @@ BARS.defineActions(function() {
 			}
 		}
 	})
+
+	new Toggle('use_pen_pressure_for_brush_softness',{
+		icon: 'fa-weight-hanging',
+		name: 'action.use_pen_pressure_for_brush_softness',
+		description: 'action.use_pen_pressure_for_brush_softness.desc',
+		onChange(value) {
+			console.log('use_pen_pressure_for_brush_softness', value);
+		}
+	})
+
 	new NumSlider('slider_brush_opacity', {
 		category: 'paint',
 		condition: () => (Toolbox && ((Toolbox.selected.brush?.opacity == true) || ['color_picker', 'fill_tool', 'draw_shape_tool', 'gradient_tool'].includes(Toolbox.selected.id))),
@@ -3331,6 +3377,17 @@ BARS.defineActions(function() {
 			}
 		}
 	})
+
+	new Toggle('use_pen_pressure_for_brush_opacity',{
+		icon: 'fa-weight-hanging',
+		name: 'action.use_pen_pressure_for_brush_opacity',
+		description: 'action.use_pen_pressure_for_brush_opacity.desc',
+		onChange(value) {
+			console.log('use_pen_pressure_for_brush_opacity', value);
+		}
+	})
+
+
 	new Toggle('pixel_perfect_drawing', {
 		icon: 'stylus_laser_pointer',
 		category: 'view',
